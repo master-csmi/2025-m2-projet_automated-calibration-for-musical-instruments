@@ -1,0 +1,15 @@
+# requirements.txt
+
+# NumPy pour le calcul scientifique
+numpy>=1.25.0
+
+# Matplotlib pour les graphiques
+matplotlib>=3.8.0
+
+# Machine Learning
+jax>=0.4.20
+jaxlib>=0.4.20
+equinox>=0.10.0
+
+# Jupyter pour les notebooks interactifs
+jupyter>=1.0.0

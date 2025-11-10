@@ -32,6 +32,15 @@ $$
 ## Définition du Flux
 
 $$
-u^{*} = u^n + \Delta t \partial _xF(u^n) \\
+\begin{aligned}
+u^{*} &= W(x) u^n(x) + \Delta t \partial _xF(u^n(x)) \\
+\int_{\Omega_k} u^* \phi _i(x) &= \int_{\Omega_k} W(x) u^n\phi _i(x) + \Delta t \int_{\Omega_k}\partial _xF(u^n(x))\phi _i(x) \\
+\sum_j \alpha_{k,j}\int_{\Omega_k} \phi _i \phi _j &= \int_{\Omega_k} W(x)u^n(x)\phi _i(x) + \Delta t \int_{\Omega_k}\partial _xF(u^n(x))\phi _i(x) //
+M\alpha_k
+
+\end{aligned}
+$$
+
+$$
 
 $$

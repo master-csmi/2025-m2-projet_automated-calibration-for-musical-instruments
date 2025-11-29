@@ -1,0 +1,221 @@
+% report.tex
+% Scientific article template in English
+% Recommended compilation: pdflatex report.tex -> biber report -> pdflatex report.tex (x2)
+
+\documentclass[11pt,a4paper]{article}
+
+% Encoding and language
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+% Page layout
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{microtype}
+
+% Graphics, tables, mathematics
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{empheq}
+\usepackage{siunitx}
+
+% Links, citations
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage{csquotes}
+% biblatex is loaded later with the desired options to avoid an "Option clash for package biblatex" error
+
+\usepackage[
+    backend=biber,
+    style=numeric,   % <-- citations sous forme d'entiers
+    sorting=none     % pour garder l'ordre d'apparition si tu veux
+]{biblatex}
+
+\addbibresource{biblio.bib}
+
+% Useful environments
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+
+% Handy commands
+\newcommand{\ie}{\textit{i.e.}}
+\newcommand{\eg}{\textit{e.g.}}
+
+% PDF metadata
+\hypersetup{
+    pdftitle={Automated Calibration of Physical Models for Musical Instruments},
+    pdfauthor={Rodolphe Milton VIVANT},
+    pdffitwindow=true
+}
+
+\title{Automated Calibration of Physical Models for Musical Instruments\\[0.5em]}
+
+\author{Rodolphe Milton VIVANT\thanks{UFR de Mathématique et Informatique de Strasbourg, rodolphe.vivant3@etu-unistra.fr}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Abstract (in English): present the objective, the main method and the key results in 3–6 lines.
+\end{abstract}
+
+\noindent \textbf{Keywords:} keyword1; keyword2; keyword3
+
+\newpage
+\section{Introduction}
+Present the context, a concise state of the art, the motivation and the main contributions of the paper.
+
+During my project of the thrid semester of the CSMI Master degree, I worked on the automated calibration 
+of physical models for musical instruments. 
+The goal of this project was to develop a method to automatically adjust the parameters of physical models 
+so that they accurately reproduce the sound characteristics of reed instruments. \newline
+I worked under the supervision of Dr Emmanuel Franck, Dr Laurent Navoret and Dr Victor Michel-Dansac from 
+the Institut de Recherche Mathématique Avancée (IRMA) in Strasbourg and Dr Juliette Chabassier for Modartt. \newline
+Modartt \cite{Modartt} is a french company specialized in the development of artistic and technological application softwares.
+
+\subsection{Reed Instruments}
+A reed acts \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
+(the player’s mouth) and the downstream region (the mouthpiece or mouthpiece tip of the instrument). \newline
+A reed may be modeled as a compliant structure, such as a beam, experiencing a pressure difference across its two sides.
+
+\subsection{State of the art}
+The equations governing the behavior of reed instruments are mathematically described \cite{MAMAMIA2024} by a set of coupled 
+differential equations (Partial Differential Equations - PDEs, Ordinary Differential Equations - ODEs, and 
+algebraic equations). These equations capture the complex interactions between the pressure ($p$), the acoustic
+volume velocity ($v$) \eqref{eq:1a} \eqref{eq:1b}, some radiative phenomenons ($\phi$) \eqref{eq:1c} \eqref{eq:1d}, 
+and the effects of the instrumental player \eqref{eq:1e} \eqref{eq:1f} :
+% Système d'équations décrivant un modèle réducteur pour un instrument à anche
+\begin{subequations}
+\begin{empheq}[left=\empheqlbrace]{align}
+  \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
+  \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
+  \frac{Z^\ast}{T}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+  -\frac{\beta}{Z^\ast T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+  -v(0,t) + \zeta_\ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
+  \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
+  &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
+\end{empheq}
+\end{subequations}
+
+where $S(x)$ is the cross-sectional area of the instrument at position $x$, $S^\ast$ is a reference area,
+$c$ is the speed of sound, $Z^\ast$ is a reference acoustic impedance, $T$ is a characteristic time, 
+$\alpha$ and $\beta$ are parameters related to the radiation effects, $L$ is the length of the instrument,
+$\zeta_\ell(y)$ is a function representing the lip-reed coupling, $F$ is a nonlinear function ($F(\Delta p)=\Delta p \, \text{sign} (\Delta p)$),
+$\gamma$ is the dimensionless blowing pressure, $\varepsilon$ =-1 for a reed instrument, 
+$\kappa$ is a parameter related to the lip dynamics, $\omega_r$ is the reed's (or lips') frequency ($=2\pi f_r$), 
+$Q_r$ is the quality factor of the reed, and $y$ is the dimensionless reed opening. \newline
+This kind of system of equation can already be solved numerically with Openwind \cite{OpenwindInria}.
+
+\subsection{Objectives}
+The main objectives of this project were:
+\begin{enumerate}
+    \item Implement a Discrete Galerkin method to numerically solve the mixt form of the wave equation.
+    \item Couple the solving with the ODE and the boundary conditions.
+    \item To be able to compute the gradient with respect to all the problem parameters.   
+\end{enumerate}
+
+\section{Methods}
+Describe the method, model or algorithm. Include the essential equations.
+\subsection{Discrete Galerkin Method \cite{HesthavenWarburton2008}}
+
+The Discrete Galerkin Method (DGM) is a numerical technique used to solve partial differential equations (PDEs). 
+Let's consider an equation of the form :
+\begin{equation}
+    \frac{\partial u}{\partial t} + \frac{\partial F(u)}{\partial x} = 0,
+\end{equation}
+where $u(x,t)$ is the unknown function and $F(u)$ is a flux function. \newline
+The DGM involves the following steps:
+\begin{enumerate}
+    \item \textbf{Domain Discretization:} Divide the spatial domain into a finite number of elements or cells.
+    \item \textbf{Basis Functions:} Choose a set of basis functions (often polynomials) to represent the solution within each element.
+    \item  \textbf{Weak Formulation:} Multiply the PDE by a test function (which can be one of the basis functions) and integrate over each element to obtain the weak form of the equation.
+    \item \textbf{Numerical Fluxes:} Define numerical fluxes at the interfaces between elements to ensure stability and consistency.
+    \item \textbf{Time Integration:} Use an appropriate time-stepping method (e.g., Runge-Kutta) to advance the solution in time.
+\end{enumerate} 
+
+Let's denote the approximate solution at the $n$-th time step as $u^n(x)$. The update from time step $n$ to $n+1$ can be expressed as:
+\begin{equation}
+    u^{n+1}(x) = u^n(x) - \Delta t \partial_x F(u^n)
+\end{equation}
+
+Let's consider test function $\phi_i(x)$, the weak form of the equation becomes in a one cell $\Omega_k$:
+\begin{equation}
+    \int_{\Omega_k} \phi_i(x)  u^{n+1} \, dx =  \int_{\Omega_k} \phi_i(x)  u^{n} \, dx - \Delta t \int_{\Omega_k} \phi_i(x) \partial _x F(u^n) \, dx
+\end{equation}
+Using integration by parts on the second term, we get:
+\begin{equation}
+    \int_{\Omega_k} \phi_i(x)  u^{n+1} \, dx =  \int_{\Omega_k} \phi_i(x)  u^{n} \, dx + \Delta t \int_{\Omega_k} \partial_x \phi_i(x) F(u^n) \, dx - \Delta t \left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}
+\end{equation}
+where $\left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}$ represents the numerical flux at the boundaries of the element $\Omega_k$.
+
+Finally, by expressing $u^{n+1} = \sum_j \alpha_{k,j} \phi_j(x)$ within each element, we can derive a system of equations for the coefficients $\alpha_{k,j}$ that can be solved at each time step :
+\begin{equation}
+    \sum_j \alpha_{k,j}^{n+1} \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx = \int_{\Omega_k} \phi_i(x)  u^{n} \, dx + \Delta t \int_{\Omega_k} \partial_x \phi_i(x) F(u^n) \, dx - \Delta t \left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}
+\end{equation}
+
+where $M_{ij} = \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx$ is a component of the mass matrix $M$.
+
+And so finally we can write the update rule for the coefficients $\alpha_{k,j}$ as:
+\begin{equation}
+    \alpha_{k}^{n+1} = M^{-1} \left( b \right)
+\end{equation}
+where $b$ is the right-hand side vector containing the integrals and numerical fluxes.
+
+\subsection{Analitical solving of a simplified model}
+Let's condsider the following equation system :
+\begin{equation}
+\partial_t u +cA\partial_x u = 0
+\end{equation}
+
+where $u = \begin{pmatrix} p \\ v \end{pmatrix}$ and $A = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$. \newline
+and the initial condition : $p(x,0) = p_0(x)$ and $v(x,0) = v_0(x)$ \newline
+We obtain the following system 1-D hperbolic system form of the wave equation :
+
+\begin{align}
+    \partial_t p + c\,\partial_x v &= 0, \\
+    \partial_t v + c\,\partial_x p &= 0.
+\end{align}
+Introduce the Riemann variables
+\begin{equation}
+    r := p+v,\qquad s := p-v.
+\end{equation}
+They satisfy decoupled transport equations
+\begin{align}
+    \partial_t r + c\,\partial_x r &= 0, \label{eq:transport_r}\\
+    \partial_t s - c\,\partial_x s &= 0. \label{eq:transport_s}
+\end{align}
+With initial data $p(x,0)=p_0(x)$, $v(x,0)=v_0(x)$ we have $r_0=p_0+v_0$ and $s_0=p_0-v_0$, hence from \eqref{eq:transport_r}--\eqref{eq:transport_s}
+\begin{equation}
+    r(x,t)=r_0(x-ct),\qquad s(x,t)=s_0(x+ct).
+\end{equation}
+Recovering $(p,v)$ gives the explicit d'Alembert-type solution
+\begin{align}
+    p(x,t) &= \tfrac12\bigl[r_0(x-ct)+s_0(x+ct)\bigr] \nonumber\\
+                 &= \tfrac12\bigl[p_0(x-ct)+p_0(x+ct)\bigr] 
+                        + \tfrac12\bigl[v_0(x-ct)-v_0(x+ct)\bigr], \\
+    v(x,t) &= \tfrac12\bigl[r_0(x-ct)-s_0(x+ct)\bigr] \nonumber\\
+                 &= \tfrac12\bigl[v_0(x-ct)+v_0(x+ct)\bigr] 
+                        + \tfrac12\bigl[p_0(x-ct)-p_0(x+ct)\bigr].
+\end{align}
+
+\newpage
+\printbibliography
+
+% Minimal example of an external bibliography (create refs.bib)
+% Example BibTeX entry:
+%
+% @article{doe2020,
+%   author = {Doe, John and Example, Anne},
+%   title = {Title of the cited article},
+%   journal = {Example Journal},
+%   year = {2020},
+%   volume = {12},
+%   pages = {34--56}
+% }
+
+\end{document}

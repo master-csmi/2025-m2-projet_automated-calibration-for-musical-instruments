@@ -1,5 +1,12 @@
 # Equation
 
+## Equation type
+
+$$
+W(x)\, \frac{\partial u}{\partial t} + \frac{\partial F(u)}{\partial x} = 0,
+\quad \text{avec } u = (p, v).
+$$
+
 ## Formulation semi-discrète de Galerkin en volumes finis
 
 Soit un maillage uniforme (ou non uniforme) de $\Omega$ avec cellules  
@@ -22,20 +29,17 @@ $$
 [F(u) \cdot \phi]_{x_{i-\frac{1}{2}}}^{x_{i+\frac{1}{2}}} = 0.
 $$
 
-Let's approximate $u_h(x,t)=\sum_{j=1}^N U_j(t)\phi_j(x)$ with $\phi$ being P1 functions
 
 Let's take the same base as test functions. 
 
 
 
 Ceci constitue la **formulation de Galerkin semi-discrète** (en espace) pour une loi de conservation scalaire (ou vectorielle) de type :
-$$
-W(x)\, \frac{\partial u}{\partial t} + \frac{\partial F(u)}{\partial x} = 0,
-\quad \text{avec } u = (p, v).
-$$
+
 
 ## Linear system expression
 
+Let's compute $u_h(x,t)=\sum_{j=1}^N U_j(t)\phi_j(x)$ with $\phi$ being P1 functions
 $$
 \begin{aligned}
  \int_{I_i}W(x)\sum_{j=1}^N \dot{U}_j(t)\phi_j(x)\phi_i(x)dx \ - &\int_{I_i} F(u_h).\partial_x\phi_i(x)dx + [F(u).\phi_i]_{x_{i-\frac{1}{2}}}^{x_{i+\frac{1}{2}}}=0 \\
@@ -126,10 +130,11 @@ Here the two analytical solution of our system that we will try to approach by s
 
 $$
 \begin{aligned}
-u^{*} &= W(x) u^n(x) + \Delta t \partial _xF(u^n(x)) \\
-\int_{\Omega_k} u^* \phi _i(x) &= \int_{\Omega_k} W(x) u^n\phi _i(x) + \Delta t \int_{\Omega_k}\partial _xF(u^n(x))\phi _i(x) \\
-\sum_j \alpha_{k,j}\int_{\Omega_k} \phi _i \phi _j &= \int_{\Omega_k} W(x)u^n(x)\phi _i(x) - \Delta t \int_{\Omega_k}\partial _xF(u^n(x))\phi _i(x) + [F(u^n)\phi_i]^{x_{j+1/2}}_{x_{j-1/2}} \\
-M\alpha_k &= \sum^{N_q}_{q=1} W(x_q)u_n(x_q)\phi(x_q) - \Delta T \sum^{N_q}_{q=1}F(u_n(x_q))\partial \phi(x_q)+ [F(u)\phi]^{x_{j+1/2}}_{x_{j-1/2}}
+u^{n+1} &=  u^n(x) + \Delta t \partial _xF(u^n(x)) \\
+\int_{\Omega_k} u^{n+1} \phi _i(x) &= \int_{\Omega_k} u^n\phi _i(x) + \Delta t \int_{\Omega_k}\partial _xF(u^n(x))\phi _i(x) \\
+\sum_j \alpha_{k,j}\int_{\Omega_k} \phi _i \phi _j &= \int_{\Omega_k} u^n(x)\phi _i(x) - \Delta t \int_{\Omega_k}\partial _xF(u^n(x))\phi _i(x) + [F(u^n)\phi_i]^{x_{j+1/2}}_{x_{j-1/2}} \\
+M\alpha_k &= \sum^{N_q}_{q=1} u_n(x_q)\phi(x_q) - \Delta T \sum^{N_q}_{q=1}F(u_n(x_q))\partial \phi(x_q)+ [F(u)\phi]^{x_{j+1/2}}_{x_{j-1/2}} \\
+\alpha_ k&= M^{-1} (\sum^{N_q}_{q=1} u_n(x_q)\phi(x_q) - \Delta T \sum^{N_q}_{q=1}F(u_n(x_q))\partial \phi(x_q)+ [F(u)\phi]^{x_{j+1/2}}_{x_{j-1/2}})
 \end{aligned}
 $$
 

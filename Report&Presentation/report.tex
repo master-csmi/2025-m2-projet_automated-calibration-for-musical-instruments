@@ -61,10 +61,10 @@
 \maketitle
 
 \begin{abstract}
-Abstract (in English): present the objective, the main method and the key results in 3–6 lines.
+Abstract (in English): 
 \end{abstract}
 
-\noindent \textbf{Keywords:} keyword1; keyword2; keyword3
+
 
 \newpage
 \section{Introduction}
@@ -79,10 +79,21 @@ the Institut de Recherche Mathématique Avancée (IRMA) in Strasbourg and Dr Jul
 Modartt \cite{Modartt} is a french company specialized in the development of artistic and technological application softwares.
 
 \subsection{Reed Instruments}
-A reed acts \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
+A reed is a thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator that acts \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
 (the player’s mouth) and the downstream region (the mouthpiece or mouthpiece tip of the instrument). \newline
-A reed may be modeled as a compliant structure, such as a beam, experiencing a pressure difference across its two sides.
-
+Two principal categories of reed instruments:
+\begin{itemize}
+    \item Free reeds (harmonicas, accordions, ...).
+    \item Beating reeds (clarinets, saxophones, ...).
+\end{itemize}
+% Figure : schéma de l'anche / embouchure
+\begin{figure}[htbp]
+    \centering
+    % Remplacez 'figs/reed.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
+    \includegraphics[width=0.9\textwidth]{Images/reed_column.png}
+    \caption{Reed and saxophone.}
+    \label{fig:reed_schematic}
+\end{figure}
 \subsection{State of the art}
 The equations governing the behavior of reed instruments are mathematically described \cite{MAMAMIA2024} by a set of coupled 
 differential equations (Partial Differential Equations - PDEs, Ordinary Differential Equations - ODEs, and 

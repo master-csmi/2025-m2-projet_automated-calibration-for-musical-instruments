@@ -124,17 +124,18 @@ This kind of system of equation can already be solved numerically with Openwind 
 
 \subsection{Objectives}
 The main objectives of this project were:
+In JAX framework:
 \begin{enumerate}
-    \item Implement a Discrete Galerkin method to numerically solve the mixt form of the wave equation.
-    \item Couple the solving with the ODE and the boundary conditions.
-    \item To be able to compute the gradient with respect to all the problem parameters.   
+    \item Implement a discontinous Galerkin discretization of the mixt form of the wave equation and numerically solve it.
+    \item Implement the coupling with an ODE and the boundary conditions.
+    \item Compute the gradient with respect to all the problem parameters.   
 \end{enumerate}
 
 \section{Methods}
 Describe the method, model or algorithm. Include the essential equations.
-\subsection{Discrete Galerkin Method \cite{HesthavenWarburton2008}}
+\subsection{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
 
-The Discrete Galerkin Method (DGM) is a numerical technique used to solve partial differential equations (PDEs). 
+The Discontinuous Galerkin Method (DGM) is a numerical technique used to solve partial differential equations (PDEs). 
 Let's consider an equation of the form :
 \begin{equation}
     \frac{\partial u}{\partial t} + \frac{\partial F(u)}{\partial x} = 0,
@@ -169,13 +170,13 @@ Finally, by expressing $u^{n+1} = \sum_j \alpha_{k,j} \phi_j(x)$ within each ele
     \sum_j \alpha_{k,j}^{n+1} \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx = \int_{\Omega_k} \phi_i(x)  u^{n} \, dx + \Delta t \int_{\Omega_k} \partial_x \phi_i(x) F(u^n) \, dx - \Delta t \left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}
 \end{equation}
 
-where $M_{ij} = \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx$ is a component of the mass matrix $M$.
+where $M_{ij} = \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx$ is a component of the local mass matrix $M$.
 
 And so finally we can write the update rule for the coefficients $\alpha_{k,j}$ as:
 \begin{equation}
-    \alpha_{k}^{n+1} = M^{-1} \left( b \right)
+    M\alpha_{k}^{n+1} = b_k
 \end{equation}
-where $b$ is the right-hand side vector containing the integrals and numerical fluxes.
+where $b_k$ is the right-hand side vector containing the integrals and numerical fluxes.
 
 \subsection{Analitical solving of a simplified model}
 Let's condsider the following equation system :

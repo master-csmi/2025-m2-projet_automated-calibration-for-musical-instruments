@@ -83,15 +83,15 @@
 \begin{itemize}
     \item Automatically adjust parameters of physical models to match target sounds of reed instruments.
     \item Joint collaboration between IRMA and Modartt.
-    \item Modartt \cite{Modartt} is a French company specialized in the development of artistic and technological application software.
+    \item Modartt \cite{Modartt} is a French company specialized in the development of artistic and technological application software (PIANOTEQ model).
 \end{itemize}
 \end{frame}
 
 \slideTitle{Objectives}
 In JAX framework:
 \begin{itemize}
-    \item Implement a Discrete Galerkin Method to numerically solve the mixt form of the wave.
-    \item Couple it with an ODE and the boundary conditions of a reed instrument.
+    \item Implement a discontinuous Galerkin discretisation of the mixt form of the wave and numerically solve it.
+    \item Implement the coupling with an ODE and the boundary conditions of a reed instrument.
     \item Compute the gradient with respect to all parameters.
 \end{itemize}
 \end{frame}
@@ -141,7 +141,7 @@ In JAX framework:
 \end{minipage}
 {\scriptsize
 \begin{itemize}
-    \item Equations \eqref{eq:1a} and \eqref{eq:1b}: wave propagation in a variable section tube.
+    \item Equations \eqref{eq:1a} and \eqref{eq:1b}: wave propagation (pressure and acoustic volume velocity)in a variable section tube.
     \item Equations \eqref{eq:1c} and \eqref{eq:1d}: Radiative phenomenons ($\phi$).
     \item Equations \eqref{eq:1e} and \eqref{eq:1f}: effects of the instrumental player at the input boundary.
 \end{itemize}
@@ -150,12 +150,12 @@ In JAX framework:
 
 % Section 2
 \section{Methods}
-\slideTitle{Discrete Galerkin Method \cite{HesthavenWarburton2008}}
+\slideTitle{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
 \begin{itemize}
     \item Numerical method to solve PDEs.
-    \item Consider a transport equation :
+    \item Consider a scalar conservation law :
 \begin{equation}\label{eq:transport}
-    \partial_t u(x,t) + \partial_x F(u(x,t)) = 0
+\partial_t u(x,t) + \partial_x F(u(x,t)) = 0,\qquad u:\Omega\times[0,T]\to\mathbb R.
 \end{equation}
     \begin{itemize}
         \item where $u \in \Omega \times [0,T] \rightarrow \mathbb{R}$,
@@ -170,26 +170,30 @@ In JAX framework:
 \end{itemize}
 \end{frame}
 
-\slideTitle{Discrete Galerkin Method (contd.)}
+\slideTitle{Discontinuous Galerkin Method (contd.)}
 Now we consider that the state $u^n$ is known: 
 \begin{itemize}
-    \item Domain $\Omega$ is discretized into $K$ non-overlapping elements $\Omega_k$.
-    \item Test function $\phi_i$ is defined on each element $\Omega_k$ $\rightarrow$ Weak formulation :
+    \item Partition $\Omega$ into $K$ non-overlapping elements $\{\Omega_k\}$.
+    \item On each element approximate $u^n(x)\approx u_h^n(x)=\sum_j \alpha_{k,j}^n \phi_j(x)$ with local basis $\{\phi_j\}$ and enforce the weak (Galerkin) form:
 \begin{equation}
     \int_{\Omega_k} u^{n+1}(x)\phi_i = \int_{\Omega_k} u^n(x) \phi_i - \Delta t \, \int_{\Omega_k}  \partial_x F(u^n(x)) \phi_i(x)\,dx
 \end{equation}
-    \item After Integration by parts, and expressing $u^{n+1}(x)=\sum_j \alpha_{k,j}\phi_j$ we get :
-    \scriptsize
-    \begin{equation}
-        \sum_j \alpha_{k,j} \int_{\Omega_k} \phi_j \phi_i = \int_{\Omega_k} u^n(x) \phi_i + \Delta t \, \int_{\Omega_k} F(u^n(x)) \partial_x \phi_i(x)\,dx - \Delta t \, \left[ F(u^n(x)) \phi_i(x) \right]_{\partial \Omega_k}
-    \end{equation}
+    \item Integrate by parts:
+  \scriptsize
+  \begin{equation}
+    \sum_j \alpha_{k,j}^{n+1}\!\int_{\Omega_k}\!\phi_j\phi_i
+    =
+    \int_{\Omega_k} u^n_h\phi_i
+    +\Delta t\int_{\Omega_k} F(u^n_h)\partial_x\phi_i\,dx
+    -\Delta t\;\left[ F(u^n(x)) \phi_i(x) \right]_{\partial \Omega_k},
+    \end{equation}  
     \normalsize
-    \item $M_{ij}$ = $\int_{\Omega_k} \phi_j \phi_i$ is a component of the mass matrix.
-    \item we finally obtain a linear system to solve for the coefficients $\alpha_{k,j}$.
-\begin{equation}
-    M \boldsymbol{\alpha_k} = \mathbf{b_k}
-\end{equation}
-    \item where $\mathbf{b_k}$ contains all known terms at time step $t^n$.
+    \item Denote $M_{ij}=\int_{\Omega_k}\phi_j\phi_i$. Then
+  \begin{equation}
+    M\boldsymbol{\alpha}_k^{\,n+1}=\mathbf b_k,
+  \end{equation}
+  where $\mathbf b_k$ is known from $u^n_h$. In practice $M$ is small and local.
+    \item Note: choose $\Delta t$ to satisfy a CFL condition; impose boundary conditions via the numerical flux.
 \end{itemize}
 \end{frame}
 
@@ -220,18 +224,18 @@ To validate the implementation of the DGM, we consider a simplified model :
     \item Exact solution :
     \begin{equation}
         \begin{cases}
-            r(x,t) = r_0(x-ct) = p_0(x-ct) + v_0(x-ct) \\
-            s(x,t) = s_0(x+ct) = p_0(x+ct) - v_0(x+ct)
+            r(x,t) = r_0(x-t) = p_0(x-t) + v_0(x-t) \\
+            s(x,t) = s_0(x+t) = p_0(x+t) - v_0(x+t)
         \end{cases}
     \end{equation}
     \item Therefore :
     \begin{equation}
         \begin{cases}
             \begin{aligned}
-            p(x,t) &= \tfrac12\bigl[r_0(x-ct) + s_0(x+ct)\bigr] \\
-            &= \tfrac12\bigl[p_0(x-ct) + v_0(x-ct) + p_0(x+ct) - v_0(x+ct)\bigr] \\
-            v(x,t) &= \tfrac12\bigl[r_0(x-ct) - s_0(x+ct)\bigr] \\
-            &= \tfrac12\bigl[p_0(x-ct) + v_0(x-ct) - p_0(x+ct) + v_0(x+ct)\bigr]
+            p(x,t) &= \tfrac12\bigl[r_0(x-t) + s_0(x+t)\bigr] \\
+            &= \tfrac12\bigl[p_0(x-t) + v_0(x-t) + p_0(x+t) - v_0(x+t)\bigr] \\
+            v(x,t) &= \tfrac12\bigl[r_0(x-t) - s_0(x+t)\bigr] \\
+            &= \tfrac12\bigl[p_0(x-t) + v_0(x-t) - p_0(x+t) + v_0(x+t)\bigr]
             \end{aligned}
         \end{cases}
     \end{equation}

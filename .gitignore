@@ -15,3 +15,4 @@ venv/
 *.toc
 *.synctex.gz
 presentation.bbl-SAVE-ERROR
+Results/

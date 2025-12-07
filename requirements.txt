@@ -13,3 +13,6 @@ equinox>=0.10.0
 
 # Jupyter pour les notebooks interactifs
 jupyter>=1.0.0
+
+# Pandas for data manipulation
+pandas>=2.0.0

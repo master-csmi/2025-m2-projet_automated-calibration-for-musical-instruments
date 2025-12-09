@@ -242,6 +242,43 @@ To validate the implementation of the DGM, we consider a simplified model :
 \end{itemize}
 \end{frame}
 
+\subsection{DG's results}
+
+\slideTitle{Result}
+\begin{columns}[T]
+    \begin{column}{0.58\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/dg_solution.png}
+        \scriptsize DG solution.
+        \label{fig:dg_result}
+    \end{column}
+    \begin{column}{0.42\textwidth}
+       \begin{itemize}
+        \item Numerical solution with DGM.
+        \item $p_0(x) = e^{-0.5((x-0.5)/\sigma)^2}$, $v_0(x) = 0$
+        \item For $N=800$ cells, $L_2$ error is $\approx 9.1 \times 10^{-5}$
+       \end{itemize} 
+    \end{column}
+\end{columns}
+\end{frame}
+
+\slideTitle{Convergence and Efficiency}
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/dg_convergence.png}
+        \scriptsize DG convergence.
+        \label{fig:dg_convergence}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/dg_duration.png}
+        \scriptsize DG solution.
+        \label{fig:dg_duration}
+    \end{column}
+\end{columns}
+\end{frame}
+
 
 \begin{frame}[allowframebreaks]{References}
 \printbibliography

@@ -19,8 +19,8 @@ jobs:
             - name: setup Python Venv and install dependencies
               run: |
                 python3 -m venv myenv
-                source myenv/bin/activate
                 pip install -r requirements.txt
+                source myenv/bin/activate
 
             - name: Discontinuous Galerkin tests
               run: |

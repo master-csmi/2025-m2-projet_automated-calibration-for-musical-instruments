@@ -7,6 +7,8 @@ import csv
 import os
 import pandas as pd
 import numpy as np
+import argparse
+from jax import lax
 
 # -------------------------
 # mesh / basis 
@@ -51,7 +53,6 @@ def rusanov_flux(U_L, U_R, A,smax):
 # -------------------------
 # local volume term for system
 # -------------------------
-@jax.jit(static_argnums=(4,))
 def local_volume_system(u_cell, xL, xR, A, nq=24):
     h = xR - xL
     xq = jnp.linspace(xL, xR, nq)
@@ -87,7 +88,6 @@ v_local_volume_system = jax.vmap(local_volume_system, in_axes=(0, 0, 0, None, No
 
 # implement surface term with that layout
 
-@jax.jit
 def surface_term_system(u_cells, j, A, smax):
     N = u_cells.shape[0]
     # left interface between j-1 and j
@@ -110,17 +110,14 @@ v_surface_term_system = jax.vmap(surface_term_system, in_axes=(None, 0, None, No
 # -------------------------
 # assembly RHS for all elements
 # -------------------------
-@jax.jit
-def dg_rhs_system(u_cells, x_nodes, A, smax):
+def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all):
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
   
     V_all = jax.vmap(lambda Ue, xL, xR: local_volume_system(Ue, xL, xR, A, 24))(u_cells, xLs, xRs)
 
     S_all = jax.vmap(lambda j: surface_term_system(u_cells, j, A, smax))(jnp.arange(N))
-    
-    hs = xRs - xLs
-    M_inv_all = jax.vmap(lambda h: local_mass_inv(h))(hs)  
+     
     
     def element_rhs(e):
         Vi = V_all[e]  
@@ -136,18 +133,18 @@ def dg_rhs_system(u_cells, x_nodes, A, smax):
 # RK2 step
 # -------------------------
 @jax.jit
-def rk2_step_system(u_cells, x_nodes, A, smax, dt):
-    k1 = dg_rhs_system(u_cells, x_nodes, A, smax)
+def rk2_step_system(u_cells, x_nodes, A, smax, dt, M_inv_all):
+    k1 = dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all)
     u_mid = u_cells + 0.5 * dt * k1
-    k2 = dg_rhs_system(u_mid, x_nodes, A, smax)
+    k2 = dg_rhs_system(u_mid, x_nodes, A, smax, M_inv_all)
     return u_cells + dt * k2
 
 # -------------------------
 # Euler step
 # -------------------------
 @jax.jit
-def euler_step_system(u_cells, x_nodes, A, smax, dt):
-    k1 = dg_rhs_system(u_cells, x_nodes, A, smax)  # (N,2,2)
+def euler_step_system(u_cells, x_nodes, A, smax, dt, M_inv_all):
+    k1 = dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all)  # (N,2,2)
     return u_cells + dt * k1
 
 # -------------------------
@@ -181,22 +178,56 @@ def analytic_solution_pv(x_plot, p0_fun, c, t):
     return p_exact, v_exact, w_plus, w_minus
 
 
+def time_integrate_euler(u0, x_nodes, A, smax, dt, nsteps, M_inv_all):
+
+    def step(u, _):
+        u_next = euler_step_system(u, x_nodes, A, smax, dt, M_inv_all)
+        return u_next, None
+
+    u_final, _ = lax.scan(step, u0, None, length=nsteps)
+    return u_final
+
+def time_integrate_rk2(u0, x_nodes, A, smax, dt, nsteps, M_inv_all):
+
+    def step(u, _):
+        u_next = rk2_step_system(u, x_nodes, A, smax, dt, M_inv_all)
+        return u_next, None
+
+    u_final, _ = lax.scan(step, u0, None, length=nsteps)
+    return u_final
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="DG P1 1D linear wave")
+    parser.add_argument("--method", type=str, default="rk2",
+                        choices=["euler", "rk2"],
+                        help="Time integration method")
+    parser.add_argument("--N", type=int, default=200,
+                        help="Number of cells")
+    parser.add_argument("--CFL", type=float, default=0.05,
+                        help="CFL number")
+    parser.add_argument("--tfinal", type=float, default=0.2,
+                        help="Final time")
+    return parser.parse_args()
 # -------------------------
 # test: p0 gaussian, v0=0
 # -------------------------
 def main():
 
 
-    
+    args = parse_args()
+
+    method = args.method
+    N = args.N
+    CFL = args.CFL
+    t_final = args.tfinal
 
     # physical params
     c = 1.0
     A = jnp.array([[0.0, c],[c, 0.0]])
     smax = jnp.max(jnp.abs(jnp.linalg.eigvals(A)))
     print('smax',smax)
-
+    CFL = 0.05
     # initial condition: p0 gaussian, v0 = 0
     def p0(x):
         x0 = 0.5
@@ -228,13 +259,14 @@ def main():
 
         x_nodes = create_uniform_nodes(N)
         xLs, xRs = cell_edges_from_nodes(x_nodes)
+        hs = xRs - xLs
+        M_inv_all = jax.vmap(local_mass_inv)(hs)
     
         # build u_cells array 
         u_cells = jnp.stack([jnp.stack([jnp.array([p0(xLs[i]), p0(xRs[i])]),
                                         jnp.array([v0(xLs[i]), v0(xRs[i])])]) for i in range(N)], axis=0)
 
         # time step (CFL)
-        CFL = 0.01
         h = xRs[0] - xLs[0]
         print('h',h)
         dt = CFL * h / smax
@@ -246,9 +278,11 @@ def main():
 
         u = u_cells.copy()
         stat_time = time.time()
-        for n in range(nsteps):
-            #u = rk2_step_system(u, x_nodes, Flux, A, smax, dt)
-            u = euler_step_system(u, x_nodes, A, smax, dt)
+    
+        if method == "euler":
+            u = time_integrate_euler(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+        else:
+            u = time_integrate_rk2(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
         end_time = time.time()
 
         duration = end_time - stat_time
@@ -266,9 +300,11 @@ def main():
         nsteps = int(jnp.ceil(t_final_2 / dt))
         print('nsteps',nsteps)
         
-        for n in range(nsteps):
-            #u = rk2_step_system(u, x_nodes, Flux, A, smax, dt)
-            u = euler_step_system(u, x_nodes, A, smax, dt)
+        if method == "euler":
+            u = time_integrate_euler(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+        elif method == "rk2":
+            u = time_integrate_rk2(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+        
         
        
         p_rec2, v_rec2 = reconstruct_system(u, x_nodes, x_plot)

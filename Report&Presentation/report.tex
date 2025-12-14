@@ -209,11 +209,28 @@ Recovering $(p,v)$ gives the explicit d'Alembert-type solution
 \begin{align}
     p(x,t) &= \tfrac12\bigl[r_0(x-ct)+s_0(x+ct)\bigr] \nonumber\\
                  &= \tfrac12\bigl[p_0(x-ct)+p_0(x+ct)\bigr] 
-                        + \tfrac12\bigl[v_0(x-ct)-v_0(x+ct)\bigr], \\
+                        + \tfrac12\bigl[v_0(x-ct)-v_0(x+ct)\bigr] \label{eq:solution_p}, \\
     v(x,t) &= \tfrac12\bigl[r_0(x-ct)-s_0(x+ct)\bigr] \nonumber\\
                  &= \tfrac12\bigl[v_0(x-ct)+v_0(x+ct)\bigr] 
-                        + \tfrac12\bigl[p_0(x-ct)-p_0(x+ct)\bigr].
+                        + \tfrac12\bigl[p_0(x-ct)-p_0(x+ct)\bigr] \label{eq:solution_v}.
 \end{align}
+
+\subsection{Numerical Results}
+
+Let's see the result of the Discontinuous Galerkin Method implementation : 
+
+\begin{figure}[htbp]
+    \centering
+    % Remplacez 'figs/dg_solution.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
+    \includegraphics[width=0.9\textwidth]{Images/dg_solution.png}
+    \caption{DG numerical solutions for pressure and acoustic volume velocity.}
+    \label{fig:dg_solution}
+\end{figure}
+
+As shown in Figure \ref{fig:dg_solution}, the numerical solution obtained using the Discontinuous Galerkin Method accurately captures 
+the wave propagation over time described in \ref{eq:solution_p} and \ref{eq:solution_v}. The method effectively resolves the wave fronts 
+and maintains stability throughout the simulation.
+
 
 \newpage
 \printbibliography

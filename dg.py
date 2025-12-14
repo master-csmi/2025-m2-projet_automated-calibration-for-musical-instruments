@@ -209,6 +209,21 @@ def parse_args():
     parser.add_argument("--tfinal", type=float, default=0.2,
                         help="Final time")
     return parser.parse_args()
+
+
+#-------------------------
+# Initial compactly supported bump function
+#-------------------------
+def intit_func(x, phi0=1.0):
+    """
+    Bump function:
+        φ(x) = φ0/4 * exp( 1 - 1/(1 - (4x-2)**2) )  if |x-1/2| < 1/4
+               0                                  otherwise
+    """
+    mask = jnp.abs(x - 0.5) < 0.25
+    val = (phi0 / 4.0) * jnp.exp(1.0 - 1.0 / (1.0 - (4.0*x - 2.0)**2))
+    return jnp.where(mask, val, 0.0)
+
 # -------------------------
 # test: p0 gaussian, v0=0
 # -------------------------
@@ -229,10 +244,14 @@ def main():
     print('smax',smax)
     CFL = 0.05
     # initial condition: p0 gaussian, v0 = 0
+
     def p0(x):
-        x0 = 0.5
-        sigma = 0.05
-        return jnp.exp(-0.5 * ((x - x0)/sigma)**2)
+        #x0 = 0.5
+        #sigma = 0.05
+        #return jnp.exp(-0.5 * ((x - x0)/sigma)**2)
+        return intit_func(x, phi0=1.0)
+
+    
     def v0(x):
         return 0.0
 

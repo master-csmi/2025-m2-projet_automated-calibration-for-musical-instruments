@@ -231,7 +231,29 @@ As shown in Figure \ref{fig:dg_solution}, the numerical solution obtained using 
 the wave propagation over time described in \ref{eq:solution_p} and \ref{eq:solution_v}. The method effectively resolves the wave fronts 
 and maintains stability throughout the simulation.
 
+The convergence of the DG method was verified by comparing the numerical solution to the analytical solution at various time steps with an Explicit Euler
+time integration scheme and a Runge-Kutta 2nd order scheme. 
+\newpage
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/dg_convergence_euler.png}
+        \caption{Convergence of the DG method with Explicit Euler scheme.}
+        \label{fig:convergence_plot_euler}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/dg_convergence_rk2.png}
+        \caption{Convergence of the DG method with Rk2 scheme.}
+        \label{fig:convergence_plot_rk2}
+    \end{minipage}
+\end{figure}
 
+The convergences verify the theoritical rates of convergence for the DG method with polynomial degree $d$ : order $d$ for the Explicit Euler scheme and order $2d$ for the Runge-Kutta 2nd order scheme.
+
+\section{Conclusion}
 \newpage
 \printbibliography
 

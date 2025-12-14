@@ -19,6 +19,9 @@ def create_uniform_nodes(N_intervals):
 def cell_edges_from_nodes(x_nodes):
     return x_nodes[:-1], x_nodes[1:]
 
+#-------------------------
+# basis functions P1
+#-------------------------
 def phi_at(x, xL, xR):
     h = xR - xL
     xi = 2.0 * (x - xL) / h - 1.0
@@ -28,7 +31,17 @@ def phi_at(x, xL, xR):
 
 vphi_at = jax.vmap(phi_at, in_axes=(0, None, None))
 
+#-------------------------
+# Fucntion of the instrument section S(x)
+#-------------------------
+def S_of_x(x):
+    # Example: constant cross-section
+    return 1.0 
+
+
+# -------------------------
 # analytic local mass matrix for P1
+# -------------------------
 def local_mass_inv(h):
     M = (h / 6.0) * jnp.array([[2.0, 1.0], [1.0, 2.0]])
     return jnp.linalg.inv(M)

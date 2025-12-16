@@ -9,12 +9,27 @@ import pandas as pd
 import numpy as np
 import argparse
 from jax import lax
+from dataclasses import dataclass
 
 # -------------------------
-# mesh / basis 
+# mesh / basis with ghost cells
 # -------------------------
 def create_uniform_nodes(N_intervals):
-    return jnp.linspace(0.0, 1.0, N_intervals + 1)
+    return jnp.linspace(0.0, 1.0, N_intervals + 3)  # N_intervals + 1 nodes + 2 ghost
+
+def create_uniform_nodes_with_ghosts(N_intervals, x_min=0.0, x_max=1.0):
+    dx = (x_max - x_min) / N_intervals
+    
+    # nœuds physiques
+    x_nodes = jnp.linspace(x_min, x_max, N_intervals + 1)
+    
+    # nœuds fantômes en tant que jnp.array
+    left_ghost  = jnp.array([x_nodes[0] - dx])
+    right_ghost = jnp.array([x_nodes[-1] + dx])
+    ghost_cells = jnp.concatenate([left_ghost, right_ghost])
+    
+    
+    return x_nodes, ghost_cells
 
 def cell_edges_from_nodes(x_nodes):
     return x_nodes[:-1], x_nodes[1:]
@@ -95,42 +110,130 @@ def local_volume_system(u_cell, xL, xR, A, nq=24):
 v_local_volume_system = jax.vmap(local_volume_system, in_axes=(0, 0, 0, None, None))
 
 # -------------------------
+# Boundary conditions 
+# -------------------------
+
+# Define BC dataclass for Jax compatibility
+@dataclass(frozen=True)
+class BC:
+    type: str
+    left: tuple
+    right: tuple
+
+# Dirichlet BCs: u = [p_bc, v_bc]
+
+def apply_bc_dirichlet(u_cells, bc_left, bc_right):
+    # u_cells: (N, 2, 2)
+    ghost_L = jnp.stack([
+        jnp.array([bc_left[0], bc_left[0]]),
+        jnp.array([bc_left[1], bc_left[1]])
+    ])
+
+    ghost_R = jnp.stack([
+        jnp.array([bc_right[0], bc_right[0]]),
+        jnp.array([bc_right[1], bc_right[1]])
+    ])
+
+    return jnp.concatenate(
+        [ghost_L[None, ...], u_cells, ghost_R[None, ...]],
+        axis=0
+    )
+
+# Neumann BCs: du/dx = 0  => ghost cell = adjacent cell
+def apply_bc_neumann(u_cells):
+    ghost_L = u_cells[0]
+    ghost_R = u_cells[-1]
+    return jnp.concatenate(
+        [ghost_L[None, ...], u_cells, ghost_R[None, ...]],
+        axis=0
+    )
+
+
+# -------------------------
 # surface term for system
 # S = f_right * phiR - f_left * phiL  where phiR=[0,1], phiL=[1,0]
 # -------------------------
 
-# implement surface term with that layout
+# implement surface term with that layout of u_ext with ghost cells
 
-def surface_term_system(u_cells, j, A, smax):
-    N = u_cells.shape[0]
-    # left interface between j-1 and j
-    UL_left = u_cells[(j-1) % N, :, 1]  
-    UR_left = u_cells[j, :, 0]          
-    f_left = rusanov_flux(UL_left, UR_left, A, smax)
+#def surface_term_system(u_cells, j, A, smax):
+#    N = u_cells.shape[0]
+#    # left interface between j-1 and j
+#    UL_left = u_cells[(j-1) % N, :, 1]  
+#    UR_left = u_cells[j, :, 0]          
+#    f_left = rusanov_flux(UL_left, UR_left, A, smax)
+#
+#    # right interface between j and j+1
+#    UL_right = u_cells[j, :, 1]
+#    UR_right = u_cells[(j+1) % N, :, 0]
+#    f_right = rusanov_flux(UL_right, UR_right, A, smax)
+#
+#    S = jnp.zeros((2,2))
+#    S = S.at[:,1].set(f_right)
+#    S = S.at[:,0].set(-f_left)
+#    return S
 
-    # right interface between j and j+1
-    UL_right = u_cells[j, :, 1]
-    UR_right = u_cells[(j+1) % N, :, 0]
+def surface_term_system(u_ext, j, A, smax):
+    # j = element index in original u_cells
+    jp = j + 1  # step to account for ghost cell at start
+
+    UL_left  = u_ext[jp-1, :, 1]   # ghost or cell j-1
+    UR_left  = u_ext[jp,   :, 0]   # cell j
+
+    UL_right = u_ext[jp,   :, 1]   # cell j
+    UR_right = u_ext[jp+1, :, 0]   # cell j+1 or ghost
+    f_left  = rusanov_flux(UL_left,  UR_left,  A, smax)
     f_right = rusanov_flux(UL_right, UR_right, A, smax)
 
     S = jnp.zeros((2,2))
-    S = S.at[:,1].set(f_right)
     S = S.at[:,0].set(-f_left)
+    S = S.at[:,1].set( f_right)
     return S
+
 
 v_surface_term_system = jax.vmap(surface_term_system, in_axes=(None, 0, None, None))
 
 # -------------------------
 # assembly RHS for all elements
 # -------------------------
-def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all):
+#def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all):
+#    xLs, xRs = cell_edges_from_nodes(x_nodes)
+#    N = u_cells.shape[0]
+#  
+#    V_all = jax.vmap(lambda Ue, xL, xR: local_volume_system(Ue, xL, xR, A, 24))(u_cells, xLs, xRs)
+#
+#    S_all = jax.vmap(lambda j: surface_term_system(u_cells, j, A, smax))(jnp.arange(N))
+#     
+#    
+#    def element_rhs(e):
+#        Vi = V_all[e]  
+#        Si = S_all[e]
+#        
+#        rhs_comp0 = M_inv_all[e] @ (Vi[0] - Si[0])
+#        rhs_comp1 = M_inv_all[e] @ (Vi[1] - Si[1])
+#        return jnp.stack([rhs_comp0, rhs_comp1], axis=0)  
+#    RHS = jax.vmap(element_rhs)(jnp.arange(N))
+#    return RHS
+
+def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all, bc):
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
-  
-    V_all = jax.vmap(lambda Ue, xL, xR: local_volume_system(Ue, xL, xR, A, 24))(u_cells, xLs, xRs)
 
-    S_all = jax.vmap(lambda j: surface_term_system(u_cells, j, A, smax))(jnp.arange(N))
-     
+    # add ghost cells according to BC
+    if bc.type == "dirichlet":
+        u_ext = apply_bc_dirichlet(u_cells, bc.left, bc.right)
+    elif bc.type == "neumann":
+        u_ext = apply_bc_neumann(u_cells)
+
+    N = u_cells.shape[0]
+
+    S_all = jax.vmap(
+        lambda j: surface_term_system(u_ext, j, A, smax)
+    )(jnp.arange(N))
+
+    V_all = jax.vmap(
+        lambda Ue, xL, xR: local_volume_system(Ue, xL, xR, A, 24)
+        )(u_cells, xLs, xRs)
     
     def element_rhs(e):
         Vi = V_all[e]  
@@ -142,22 +245,23 @@ def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all):
     RHS = jax.vmap(element_rhs)(jnp.arange(N))
     return RHS
 
+
 # -------------------------
 # RK2 step
 # -------------------------
-@jax.jit
-def rk2_step_system(u_cells, x_nodes, A, smax, dt, M_inv_all):
-    k1 = dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all)
+@jax.jit(static_argnames=("bc",))
+def rk2_step_system(u_cells, x_nodes, A, smax, dt, M_inv_all,bc):
+    k1 = dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all, bc)
     u_mid = u_cells + 0.5 * dt * k1
-    k2 = dg_rhs_system(u_mid, x_nodes, A, smax, M_inv_all)
+    k2 = dg_rhs_system(u_mid, x_nodes, A, smax, M_inv_all, bc)
     return u_cells + dt * k2
 
 # -------------------------
 # Euler step
 # -------------------------
-@jax.jit
-def euler_step_system(u_cells, x_nodes, A, smax, dt, M_inv_all):
-    k1 = dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all)  # (N,2,2)
+@jax.jit(static_argnames=("bc",))
+def euler_step_system(u_cells, x_nodes, A, smax, dt, M_inv_all,bc):
+    k1 = dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all, bc)  # (N,2,2)
     return u_cells + dt * k1
 
 # -------------------------
@@ -191,25 +295,26 @@ def analytic_solution_pv(x_plot, p0_fun, c, t):
     return p_exact, v_exact, w_plus, w_minus
 
 
-def time_integrate_euler(u0, x_nodes, A, smax, dt, nsteps, M_inv_all):
+def time_integrate_euler(u0, x_nodes, A, smax, dt, nsteps, M_inv_all,bc):
 
     def step(u, _):
-        u_next = euler_step_system(u, x_nodes, A, smax, dt, M_inv_all)
+        u_next = euler_step_system(u, x_nodes, A, smax, dt, M_inv_all, bc)
         return u_next, None
 
     u_final, _ = lax.scan(step, u0, None, length=nsteps)
     return u_final
 
-def time_integrate_rk2(u0, x_nodes, A, smax, dt, nsteps, M_inv_all):
+def time_integrate_rk2(u0, x_nodes, A, smax, dt, nsteps, M_inv_all,bc):
 
     def step(u, _):
-        u_next = rk2_step_system(u, x_nodes, A, smax, dt, M_inv_all)
+        u_next = rk2_step_system(u, x_nodes, A, smax, dt, M_inv_all, bc)
         return u_next, None
 
     u_final, _ = lax.scan(step, u0, None, length=nsteps)
     return u_final
 
 
+# Made by chat Gpt
 def parse_args():
     parser = argparse.ArgumentParser(description="DG P1 1D linear wave")
     parser.add_argument("--method", type=str, default="rk2",
@@ -237,9 +342,7 @@ def intit_func(x, phi0=1.0):
     val = (phi0 / 4.0) * jnp.exp(1.0 - 1.0 / (1.0 - (4.0*x - 2.0)**2))
     return jnp.where(mask, val, 0.0)
 
-# -------------------------
-# test: p0 gaussian, v0=0
-# -------------------------
+
 def main():
 
 
@@ -248,7 +351,7 @@ def main():
     method = args.method
     N = args.N
     CFL = args.CFL
-    t_final = args.tfinal
+    T = args.tfinal
 
     # physical params
     c = 1.0
@@ -256,26 +359,38 @@ def main():
     smax = jnp.max(jnp.abs(jnp.linalg.eigvals(A)))
     print('smax',smax)
     CFL = 0.05
-    # initial condition: p0 gaussian, v0 = 0
+    bc = BC(
+    type="dirichlet",
+    left=(0.0, 0.0),
+    right=(0.0, 0.0),
+    )
+
+
+#-------------------------
+# initial condition: p0 compact bump, v0=0
+#-------------------------
 
     def p0(x):
-        #x0 = 0.5
-        #sigma = 0.05
-        #return jnp.exp(-0.5 * ((x - x0)/sigma)**2)
+       
         return intit_func(x, phi0=1.0)
 
     
     def v0(x):
         return 0.0
+    
+    #-------------------------
+    # convergence study
+    #-------------------------
 
     Ns = [100, 200, 400, 800]  # number of cells
 
+    # Prepare CSV file for results
     res_dir = 'Results'
     csv_file = os.path.join(res_dir, 'convergence_results.csv')
     file_exists = os.path.isfile(csv_file)
     if not file_exists:
         print(f"Creating new CSV file: {csv_file}")
-    else : #rewrite it 
+    else : 
         os.remove(csv_file)
 
     with open(csv_file, 'a', newline='') as f:
@@ -285,11 +400,13 @@ def main():
     p_erros = []
     v_errors = [] 
     durations = []
+
+    # Convergence study loop
     for N in Ns:
         print(f"Running simulation with N={N} cells")
-        # mesh
 
-        x_nodes = create_uniform_nodes(N)
+        # mesh
+        x_nodes,ghost_cells = create_uniform_nodes_with_ghosts(N)
         xLs, xRs = cell_edges_from_nodes(x_nodes)
         hs = xRs - xLs
         M_inv_all = jax.vmap(local_mass_inv)(hs)
@@ -298,6 +415,7 @@ def main():
         u_cells = jnp.stack([jnp.stack([jnp.array([p0(xLs[i]), p0(xRs[i])]),
                                         jnp.array([v0(xLs[i]), v0(xRs[i])])]) for i in range(N)], axis=0)
 
+        print('u_cells shape',u_cells.shape)
         # time step (CFL)
         h = xRs[0] - xLs[0]
         print('h',h)
@@ -310,11 +428,12 @@ def main():
 
         u = u_cells.copy()
         stat_time = time.time()
-    
+
+        # time integration
         if method == "euler":
-            u = time_integrate_euler(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+            u = time_integrate_euler(u, x_nodes, A, smax, dt, nsteps, M_inv_all, bc)
         else:
-            u = time_integrate_rk2(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+            u = time_integrate_rk2(u, x_nodes, A, smax, dt, nsteps, M_inv_all, bc)
         end_time = time.time()
 
         duration = end_time - stat_time
@@ -327,15 +446,16 @@ def main():
         # analytic
         p_ex, v_ex, wplus_ex, wminus_ex = analytic_solution_pv(x_plot, p0, c, t_final)
 
-        t_final_2 = 0.3
+        t_final_2 = T
         u = u_cells.copy()
         nsteps = int(jnp.ceil(t_final_2 / dt))
+        print('t_final_2',t_final_2)
         print('nsteps',nsteps)
         
         if method == "euler":
-            u = time_integrate_euler(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+            u = time_integrate_euler(u, x_nodes, A, smax, dt, nsteps, M_inv_all,bc)
         elif method == "rk2":
-            u = time_integrate_rk2(u, x_nodes, A, smax, dt, nsteps, M_inv_all)
+            u = time_integrate_rk2(u, x_nodes, A, smax, dt, nsteps, M_inv_all,bc)
         
         
        
@@ -367,17 +487,17 @@ def main():
     plt.figure(figsize=(10,6))
     plt.subplot(2,1,1)
     plt.plot(x_plot, p_ex, '-', label='p exact at t_final=0.2')
-    plt.plot(x_plot, p_ex2, '-', label='p exact at t_final=0.3')
+    plt.plot(x_plot, p_ex2, '-', label=f'p exact at t_final={t_final_2}')
     plt.plot(x_plot, p_rec, '--', label='p DG at t_final=0.2')
-    plt.plot(x_plot, p_rec2, '--', label='p DG at t_final=0.3')
+    plt.plot(x_plot, p_rec2, '--', label=f'p DG at t_final={t_final_2}')
 
     plt.legend(); plt.grid(True); plt.title(f"p")
 
     plt.subplot(2,1,2)
     plt.plot(x_plot, v_ex, '-', label='v exact at t_final=0.2')
-    plt.plot(x_plot, v_ex2, '-', label='v exact at t_final=0.3')
+    plt.plot(x_plot, v_ex2, '-', label=f'v exact at t_final={t_final_2}')
     plt.plot(x_plot, v_rec, '--', label='v DG at t_final=0.2')
-    plt.plot(x_plot, v_rec2, '--', label='v DG at t_final=0.3')
+    plt.plot(x_plot, v_rec2, '--', label=f'v DG at t_final={t_final_2}')
     plt.legend(); plt.grid(True); plt.title(f"v")
 
     plt.tight_layout()

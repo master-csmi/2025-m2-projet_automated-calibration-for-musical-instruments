@@ -14,16 +14,14 @@ from dataclasses import dataclass
 # -------------------------
 # mesh / basis with ghost cells
 # -------------------------
-def create_uniform_nodes(N_intervals):
-    return jnp.linspace(0.0, 1.0, N_intervals + 3)  # N_intervals + 1 nodes + 2 ghost
 
 def create_uniform_nodes_with_ghosts(N_intervals, x_min=0.0, x_max=1.0):
     dx = (x_max - x_min) / N_intervals
     
-    # nœuds physiques
+    # physical nodes
     x_nodes = jnp.linspace(x_min, x_max, N_intervals + 1)
     
-    # nœuds fantômes en tant que jnp.array
+    # ghost nodes nodes
     left_ghost  = jnp.array([x_nodes[0] - dx])
     right_ghost = jnp.array([x_nodes[-1] + dx])
     ghost_cells = jnp.concatenate([left_ghost, right_ghost])
@@ -137,7 +135,7 @@ def apply_bc_dirichlet(u_cells, bc_left, bc_right):
     return jnp.concatenate(
         [ghost_L[None, ...], u_cells, ghost_R[None, ...]],
         axis=0
-    )
+    ) #shape (N+2, 2, 2)
 
 # Neumann BCs: du/dx = 0  => ghost cell = adjacent cell
 def apply_bc_neumann(u_cells):
@@ -148,30 +146,6 @@ def apply_bc_neumann(u_cells):
         axis=0
     )
 
-
-# -------------------------
-# surface term for system
-# S = f_right * phiR - f_left * phiL  where phiR=[0,1], phiL=[1,0]
-# -------------------------
-
-# implement surface term with that layout of u_ext with ghost cells
-
-#def surface_term_system(u_cells, j, A, smax):
-#    N = u_cells.shape[0]
-#    # left interface between j-1 and j
-#    UL_left = u_cells[(j-1) % N, :, 1]  
-#    UR_left = u_cells[j, :, 0]          
-#    f_left = rusanov_flux(UL_left, UR_left, A, smax)
-#
-#    # right interface between j and j+1
-#    UL_right = u_cells[j, :, 1]
-#    UR_right = u_cells[(j+1) % N, :, 0]
-#    f_right = rusanov_flux(UL_right, UR_right, A, smax)
-#
-#    S = jnp.zeros((2,2))
-#    S = S.at[:,1].set(f_right)
-#    S = S.at[:,0].set(-f_left)
-#    return S
 
 def surface_term_system(u_ext, j, A, smax):
     # j = element index in original u_cells
@@ -193,32 +167,10 @@ def surface_term_system(u_ext, j, A, smax):
 
 v_surface_term_system = jax.vmap(surface_term_system, in_axes=(None, 0, None, None))
 
-# -------------------------
-# assembly RHS for all elements
-# -------------------------
-#def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all):
-#    xLs, xRs = cell_edges_from_nodes(x_nodes)
-#    N = u_cells.shape[0]
-#  
-#    V_all = jax.vmap(lambda Ue, xL, xR: local_volume_system(Ue, xL, xR, A, 24))(u_cells, xLs, xRs)
-#
-#    S_all = jax.vmap(lambda j: surface_term_system(u_cells, j, A, smax))(jnp.arange(N))
-#     
-#    
-#    def element_rhs(e):
-#        Vi = V_all[e]  
-#        Si = S_all[e]
-#        
-#        rhs_comp0 = M_inv_all[e] @ (Vi[0] - Si[0])
-#        rhs_comp1 = M_inv_all[e] @ (Vi[1] - Si[1])
-#        return jnp.stack([rhs_comp0, rhs_comp1], axis=0)  
-#    RHS = jax.vmap(element_rhs)(jnp.arange(N))
-#    return RHS
-
 def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all, bc):
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
-
+    print('N in dg_rhs_system before ghosts',N)
     # add ghost cells according to BC
     if bc.type == "dirichlet":
         u_ext = apply_bc_dirichlet(u_cells, bc.left, bc.right)
@@ -226,6 +178,7 @@ def dg_rhs_system(u_cells, x_nodes, A, smax, M_inv_all, bc):
         u_ext = apply_bc_neumann(u_cells)
 
     N = u_cells.shape[0]
+    print('N in dg_rhs_system after ghosts',u_ext.shape[0])
 
     S_all = jax.vmap(
         lambda j: surface_term_system(u_ext, j, A, smax)
@@ -280,7 +233,7 @@ def reconstruct_system(u_cells, x_nodes, x_plot):
         v = jnp.dot(ph, u_cells[j,1])
         return jnp.stack([p, v])
     UV = jax.vmap(eval_point)(x_plot, idx)  # (len(x_plot),2)
-    return UV[:,0], UV[:,1]
+    return UV[:,0], UV[:,1] # p_rec, v_rec
 
 # -------------------------
 # analytic solution for initial p0 Gaussian and v0=0
@@ -288,8 +241,8 @@ def reconstruct_system(u_cells, x_nodes, x_plot):
 # -------------------------
 def analytic_solution_pv(x_plot, p0_fun, c, t):
     # w+ = p0, w- = p0 at t=0
-    w_plus = p0_fun((x_plot - c * t) % 1.0)
-    w_minus = p0_fun((x_plot + c * t) % 1.0)
+    w_plus = p0_fun((x_plot - c * t))
+    w_minus = p0_fun((x_plot + c * t))
     p_exact = 0.5 * (w_plus + w_minus)
     v_exact = 0.5 * (w_plus - w_minus)
     return p_exact, v_exact, w_plus, w_minus
@@ -378,9 +331,9 @@ def main():
     def v0(x):
         return 0.0
     
-    #-------------------------
-    # convergence study
-    #-------------------------
+#-------------------------
+# convergence study
+#-------------------------
 
     Ns = [100, 200, 400, 800]  # number of cells
 
@@ -501,7 +454,7 @@ def main():
     plt.legend(); plt.grid(True); plt.title(f"v")
 
     plt.tight_layout()
-    output_dir = 'Report&Presentation/Images'
+    output_dir = 'Report_and_Presentation/Images'
     os.makedirs(output_dir, exist_ok=True)
     plt.savefig(os.path.join(output_dir, 'dg_solution.png'), dpi=150, bbox_inches='tight')
     plt.close()

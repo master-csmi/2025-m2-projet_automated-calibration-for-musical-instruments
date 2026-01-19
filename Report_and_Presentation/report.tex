@@ -126,7 +126,7 @@ This kind of system of equation can already be solved numerically with Openwind 
 The main objectives of this project were:
 In JAX framework:
 \begin{enumerate}
-    \item Implement a discontinous Galerkin discretization of the mixt form of the wave equation and numerically solve it.
+    \item Implement a discontinous Galerkin discretization of the mixed form of the wave equation and numerically solve it.
     \item Implement the coupling with an ODE and the boundary conditions.
     \item Compute the gradient with respect to all the problem parameters.   
 \end{enumerate}
@@ -178,16 +178,210 @@ And so finally we can write the update rule for the coefficients $\alpha_{k,j}$ 
 \end{equation}
 where $b_k$ is the right-hand side vector containing the integrals and numerical fluxes.
 
-\subsection{Analitical solving of a simplified model}
-Let's condsider the following equation system :
+\subsection{Discontinuous Galerkin in our context}
+
+\subsubsection{Conservative form}
+In our case, we are interested in solving the mixed form of the wave equation given by the system {\eqref{eq:1a}--\eqref{eq:1b}}. We can rewrite this system in vector form as:
 \begin{equation}
-\partial_t u +cA\partial_x u = 0
+\mathbf{C}(x)\partial_t \mathbf{u} +\partial_x \mathbf{A}\mathbf{u} = 0
 \end{equation}
 
-where $u = \begin{pmatrix} p \\ v \end{pmatrix}$ and $A = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$. \newline
+where $\mathbf{u} = \begin{pmatrix} p \\ v \end{pmatrix}$,$\mathbf{C}=\begin{pmatrix} \frac{S(x)}{cS^*} & 0 \\ 0 & \frac{S^*}{S(x)c} \end{pmatrix}$ $\mathbf{A} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$. \newline
 and the initial condition : $p(x,0) = p_0(x)$ and $v(x,0) = v_0(x)$ \newline
-We obtain the following system 1-D hperbolic system form of the wave equation :
 
+\subsubsection{Mesh and DG space}
+For a mesh
+$$
+0 = x_0 < x_1 < ... < x_{N} = L; \quad K_j=(x_{j-1}, x_j), \quad j=1,...,N
+$$
+We are searching a approched solution  $\mathbf{u_h} = (p_h, v_h)^T \in (V_h^k)^2$ with $V_h^k=\{u\in L^2 : u|_{K_j} \in \mathbb{P}^1{K_j}\}$ 
+
+\subsubsection{Local DG Formulation}
+For each element $K_j$ and for each test function vector $\mathbf{\Phi}=(\phi_p,\phi_v)^T \in (\mathbb{P}^1{K_j})^2$, we have the following weak formulation :
+
+\begin{equation}
+    \begin{aligned}
+\int_{K_j} \mathbf C(x)\, \partial_t \mathbf u_h \cdot \mathbf \Phi \, dx
+-
+\int_{K_j} \mathbf A\, \mathbf u_h \cdot \partial_x \mathbf \Phi \, dx
+& \\
+\quad
++ \widehat{\mathbf F}_{j+\frac12} \cdot \mathbf \Phi(x_j^-)
+-
+\widehat{\mathbf F}_{j-\frac12} \cdot \mathbf \Phi(x_{j-1}^+)
+&= 0.
+\end{aligned}
+\end{equation}
+where $\mathbf{F}(\mathbf{u})=\mathbf{AU} = \begin{pmatrix} v \\ p \end{pmatrix}$ 
+
+\subsubsection{RusanovFlux}
+At each interface $x_{j+\frac12}$, the Rusanov numerical flux:
+(Local Lax--Friedrichs) is defined by
+\begin{equation}
+\widehat{\mathbf F}
+=
+\frac12\Big(
+\mathbf F(\mathbf u^-)
++
+\mathbf F(\mathbf u^+)
+\Big)
+-
+\frac{\lambda_{j+\frac12}}{2}
+\Big(
+\mathbf u^+ - \mathbf u^-
+\Big),
+\end{equation}
+où
+$
+\lambda_{j+\frac12}
+=
+\max\bigl(|\lambda_1|,|\lambda_2|\bigr).
+$
+
+The eighen values $\lambda_1, \lambda_2$ of the matrix $\mathbf{C}^{-1}\mathbf{A}$ are :
+$$
+\lambda_{1,2}
+=
+\pm \sqrt{
+\frac{c^2 S(x)^2}{(S^\ast)^2}
+}
+=
+\pm c.
+$$
+
+Therefore, for the Rusanov flux, we have :
+$$
+\lambda_{j+\frac12}=c\sqrt{\frac{S(x)}{S^*}}.
+$$
+
+\subsubsection{Explicit flux}
+By denoting
+$$
+\mathbf U^\pm =
+\begin{pmatrix}
+p^\pm\\
+v^\pm
+\end{pmatrix},
+\qquad
+\mathbf F(\mathbf U)=
+\begin{pmatrix}
+v\\
+p
+\end{pmatrix},
+$$
+The numerical flux at each interface is given by :
+$$
+\widehat{\mathbf F} =
+\begin{pmatrix}
+\widehat{v}\\
+\widehat{p}
+\end{pmatrix},
+$$
+with
+$$
+\widehat{v}
+=
+\frac12\left(v^-+v^+\right)
+-
+\frac{c}{2}\left(p^+-p^-\right),
+$$
+$$
+\widehat{p}
+=
+\frac12\left(p^-+p^+\right)
+-
+\frac{c}{2}\left(v^+-v^-\right).
+$$
+
+\subsubsection{Final DG formulation}
+For each element $K_j=(x_{j-1},x_j)$ and 
+for each test function $w_p,w_v\in\mathbb P^k(K_j)$, 
+the DG formulation of the mixed form of the wave equation reads :
+
+\begin{equation}
+\begin{aligned}
+\int_{K_j} \frac{S(x)}{cS^\ast}\,
+\partial_t p_h \, \phi_p \, dx
+&-
+\int_{K_j} v_h \, \partial_x \phi_p \, dx \\
+&+
+\widehat{v}_{j+\frac12}\, \phi_p(x_j^-)
+-
+\widehat{v}_{j-\frac12}\, \phi_p(x_{j-1}^+)
+=0,
+\end{aligned}
+\label{eq:dg_wave_p}
+\end{equation}
+
+\begin{equation}
+\begin{aligned}
+\int_{K_j} \frac{S^\ast}{cS(x)}\,
+\partial_t v_h \, \phi_v \, dx
+&-
+\int_{K_j} p_h \, \partial_x \phi_v \, dx \\
+&+
+\widehat{p}_{j+\frac12}\, \phi_v(x_j^-)
+-
+\widehat{p}_{j-\frac12}\, \phi_v(x_{j-1}^+)
+=0.
+\end{aligned}
+\label{eq:dg_wave_v}
+\end{equation}
+
+\subsubsection{Boundary conditions}
+
+On the righthand-side boundary ($x=L$), we need to ensure the conditions derived from equations {\eqref{eq:1c}--\eqref{eq:1d}}.
+
+\begin{equation}
+v(L,t) = \frac{\beta}{Z_T^*} p(L,t) - \sqrt{\alpha}\,\phi(t).
+\tag{BC}
+\end{equation}
+
+From the characteristic variables defined as :
+\begin{equation}
+w^+ = p + v,
+\qquad
+w^- = p - v.
+\end{equation}
+
+At the right boundary, the wave $\omega^+$ is outgoing while $\omega^-$ is incoming.
+The boundary condition must therefore provide a relation to determine $w^-$.
+
+From the definition of $w^-$ and the boundary condition (BC), we have:
+\begin{equation}
+    \begin{aligned}
+        w^-
+        &= p - v \\
+        &= p - \left( \frac{\beta}{Z_T^*} p - \sqrt{\alpha},\phi \right) \\
+        &= \left(1 - \frac{\beta}{Z_T^*}\right)p + \sqrt{\alpha},\phi.
+    \end{aligned}
+\end{equation}
+
+And the expression of $p$ in terms of $w^+$ and $w
+^-$ is :
+\begin{equation}
+p = \frac{w^+ + w^-}{2}.
+\end{equation}
+
+By substituting this into the previous equation, we obtain:
+\begin{equation}
+w^-
+= \left(1 - \frac{\beta}{Z_T^*}\right)\frac{w^+ + w^-}{2} + \sqrt{\alpha} \phi.
+\end{equation}
+
+So the incoming wave $w^-$ can be expressed as:
+\begin{equation}
+\boxed{
+w^- =
+\frac{1 - \frac{\beta}{Z_T^*}}{1 + \frac{\beta}{Z_T^*}}
+w^+
++
+\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z_T^*}} \phi
+}
+\end{equation}
+
+\subsection{Analytical solving of a simplified model}
+Let's consider the following equation system :
 \begin{align}
     \partial_t p + c\,\partial_x v &= 0, \\
     \partial_t v + c\,\partial_x p &= 0.
@@ -205,7 +399,7 @@ With initial data $p(x,0)=p_0(x)$, $v(x,0)=v_0(x)$ we have $r_0=p_0+v_0$ and $s_
 \begin{equation}
     r(x,t)=r_0(x-ct),\qquad s(x,t)=s_0(x+ct).
 \end{equation}
-Recovering $(p,v)$ gives the explicit d'Alembert-type solution
+Recovering $(p,v)$ gives the explicit solution
 \begin{align}
     p(x,t) &= \tfrac12\bigl[r_0(x-ct)+s_0(x+ct)\bigr] \nonumber\\
                  &= \tfrac12\bigl[p_0(x-ct)+p_0(x+ct)\bigr] 

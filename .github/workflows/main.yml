@@ -29,7 +29,7 @@ jobs:
 
             - name: Generate Report pdf
               run: |
-                cd Report&Presentation
+                cd Report_and_Presentation
                 pdflatex report.tex
                 biber report
                 pdflatex report.tex
@@ -37,7 +37,7 @@ jobs:
 
             - name: Generate Presentation pdf
               run: |
-                cd Report&Presentation
+                cd Report_and_Presentation
                 pdflatex presentation.tex
                 biber presentation
                 pdflatex presentation.tex

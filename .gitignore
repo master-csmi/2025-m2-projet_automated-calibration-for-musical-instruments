@@ -16,5 +16,7 @@ venv/
 *.synctex.gz
 presentation.bbl-SAVE-ERROR
 
-results/
-*.png
+dg_bis.py
+dg_ter.py
+dg_quad.py
+test.ipynb

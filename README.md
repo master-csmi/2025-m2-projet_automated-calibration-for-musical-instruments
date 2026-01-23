@@ -34,11 +34,15 @@ In this project, we want to implement a method to automatically compute the para
 │   └── Images/
 │
 ├── requirements.txt
+├── test.py 
 └── README.md
 ```
 
 ### Notes
-- `dg.py` runs the simulation and generates figures.
+- `main.py` runs the simulation and generates figures.
+- `dg_solver/` contains the functions needed to numerically solve the mixed form of the wave equation using a Discontinuous Galerkin method.
+- `bc/` contains the boundary conditions implementation
+- `utils/` contains the initial functions and the different profiles of cross-section
 - `Results/` and `Report_and_Presentation/Images` are created automatically during simulation.
 
 ## Commands 
@@ -53,7 +57,7 @@ pip install -r requirements.txt
 ```
 ### 2. Execute Python Script
 ```bash
-python3 dg.py
+python3 main.py
 ```
 with the following available options
 
@@ -67,3 +71,12 @@ with the following available options
 | `--tfinal`  | float  | `0.2`   | Final simulation time |
 | `--L`       | float  | `1.0`   | Length of the spatial domain |
 | `--type_S`  | string | `const` | Cross-section profile (`const`, `exp`, `cone`, `bump`) |
+
+### 4. Tests
+To run the tests locally (ensure the virtual environment is activated and dependencies are installed):
+
+```bash
+pytest test.py -v
+```
+
+The test verifies the convergence order of the numerical solution for different time integration schemes (Euler vs RK2).

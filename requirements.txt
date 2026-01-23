@@ -16,3 +16,6 @@ jupyter>=1.0.0
 
 # Pandas for data manipulation
 pandas>=2.0.0
+
+# Pytest for testing
+pytest>=7.0.0

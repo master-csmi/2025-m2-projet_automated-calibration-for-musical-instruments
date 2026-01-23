@@ -52,4 +52,3 @@ with the following available options
 | `--tfinal`  | float  | `0.2`   | Final simulation time |
 | `--L`       | float  | `1.0`   | Length of the spatial domain |
 | `--type_S`  | string | `const` | Cross-section profile (`const`, `exp`, `cone`, `bump`) |
-

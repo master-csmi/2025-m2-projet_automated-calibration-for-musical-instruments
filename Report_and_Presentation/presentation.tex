@@ -150,6 +150,7 @@ In JAX framework:
 
 % Section 2
 \section{Methods}
+\subsection{Discontinuous Galerkin Method}
 \slideTitle{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
 \begin{itemize}
     \item Numerical method to solve PDEs.
@@ -197,14 +198,201 @@ Now we consider that the state $u^n$ is known:
 \end{itemize}
 \end{frame}
 
-\slideTitle{Simplified Model}
+\subsection{DG in our context}
+\slideTitle{DG in out context}
+
+\begin{itemize}
+\item Mixed formulation of the wave equation with varying cross-section :
+\begin{equation}
+\mathbf{C}(x)\partial_t \mathbf{u} +\partial_x \mathbf{A}\mathbf{u} = 0
+\end{equation}
+
+where $\mathbf{u} = \begin{pmatrix} p \\ v \end{pmatrix}$,$\mathbf{C}=\begin{pmatrix} \frac{S(x)}{cS^*} & 0 \\ 0 & \frac{S^*}{S(x)c} \end{pmatrix}$ $\mathbf{A} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$. \newline
+and the initial condition : $p(x,0) = p_0(x)$ and $v(x,0) = v_0(x)$ 
+
+\item We partition the domain into $N$ non-overlapping cells $K_j = [x_{j-1}, x_j]$.
+\begin{equation}
+    \begin{aligned}
+\int_{K_j} \mathbf C(x)\, \partial_t \mathbf u_h \cdot \mathbf \phi \, dx
+-
+\int_{K_j} \mathbf A\, \mathbf u_h \cdot \partial_x \mathbf \phi \, dx
+& \\
+\quad
++ \widehat{\mathbf F}_{j+\frac12} \cdot \mathbf \phi(x_j^-)
+-
+\widehat{\mathbf F}_{j-\frac12} \cdot \mathbf \phi(x_{j-1}^+)
+&= 0.
+\end{aligned}
+\end{equation}
+where $\mathbf{F}(\mathbf{u})=\mathbf{AU} = \begin{pmatrix} v \\ p \end{pmatrix}$ 
+
+\end{itemize}
+\end{frame}
+\subsubsection{Rusanov Flux}
+\slideTitle{DG in out context/Rusanov Flux}
+\begin{itemize}
+\item At each interface $x_{j+\frac12}$,
+\begin{equation}
+\widehat{\mathbf F}
+=
+\frac12\Big(
+\mathbf F(\mathbf u^-)
++
+\mathbf F(\mathbf u^+)
+\Big)
+-
+\frac{\lambda_{j+\frac12}}{2}
+\Big(
+\mathbf u^+ - \mathbf u^-
+\Big),
+\end{equation}
+où
+$
+\lambda_{j+\frac12}
+=
+\max\bigl(|\lambda_1|,|\lambda_2|\bigr).
+$
+
+\item The eigenvalues $\lambda_1, \lambda_2$ of $\mathbf{C}^{-1}\mathbf{A}$ are :
+$
+\lambda_{1,2}
+=
+\pm c.
+$
+
+\item Therefore :
+$
+\lambda_{j+\frac12}=c.
+$
+
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        By denoting
+        $$
+        \mathbf U^\pm =
+        \begin{pmatrix}
+        p^\pm\\
+        v^\pm
+        \end{pmatrix}
+        $$
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        The numerical flux at each interface :
+        $$
+        \widehat{\mathbf F} =
+        \begin{pmatrix}
+        \widehat{v}\\
+        \widehat{p}
+        \end{pmatrix},
+        $$
+    \end{column}
+\end{columns}
+with
+$$
+\boxed{
+\begin{aligned}
+\widehat{v}
+& =
+\frac12\left(v^-+v^+\right)
+-
+\frac{c}{2}\left(p^+-p^-\right),
+\\
+\widehat{p}
+& =
+\frac12\left(p^-+p^+\right)
+-
+\frac{c}{2}\left(v^+-v^-\right).
+\end{aligned}
+}
+$$
+\end{itemize}
+\end{frame}
+
+\subsubsection{Final Formulation}
+\slideTitle{DG in out context/Final DG formulation}
+For each element $K_j=(x_{j-1},x_j)$ and 
+for each test function $w_p,w_v\in\mathbb P^k(K_j)$, 
+the DG formulation of the mixed form of the wave equation reads :
+
+\begin{equation}
+\begin{aligned}
+\int_{K_j} \frac{S(x)}{cS^\ast}\,
+\partial_t p_h \, \phi_p \, dx
+&-
+\int_{K_j} v_h \, \partial_x \phi_p \, dx \\
+&+
+\widehat{v}_{j+\frac12}\, \phi_p(x_j^-)
+-
+\widehat{v}_{j-\frac12}\, \phi_p(x_{j-1}^+)
+=0,
+\end{aligned}
+\label{eq:dg_wave_p}
+\end{equation}
+
+\begin{equation}
+\begin{aligned}
+\int_{K_j} \frac{S^\ast}{cS(x)}\,
+\partial_t v_h \, \phi_v \, dx
+&-
+\int_{K_j} p_h \, \partial_x \phi_v \, dx \\
+&+
+\widehat{p}_{j+\frac12}\, \phi_v(x_j^-)
+-
+\widehat{p}_{j-\frac12}\, \phi_v(x_{j-1}^+)
+=0.
+\end{aligned}
+\label{eq:dg_wave_v}
+\end{equation}
+\end{frame}
+
+\subsection{Boundary Conditions}
+\slideTitle{Boundary Conditions}
+\begin{itemize}
+\item At $x=L$, we need to ensure {\eqref{eq:1c}--\eqref{eq:1d}}.
+
+\begin{equation}
+v(L,t) = \frac{\beta}{Z_T^*} p(L,t) - \sqrt{\alpha}\,\phi(t).
+\tag{BC}
+\end{equation}
+
+\item Characteristic variables defined as :
+$
+w^+ = p + v
+\ \text{and} \
+w^- = p - v.
+$
+\begin{equation}
+        w^- = \left(1 - \frac{\beta}{Z_T^*}\right)p + \sqrt{\alpha}\,\phi.
+\end{equation}
+
+\item And the expression of $p$ in terms of $w^+$ and $w
+^-$ is :
+$
+p = \frac{w^+ + w^-}{2}.
+$
+
+\item So the incoming wave $w^-$ can be expressed as:
+\begin{equation}
+\boxed{
+w^- =
+\frac{1 - \frac{\beta}{Z_T^*}}{1 + \frac{\beta}{Z_T^*}}
+w^+
++
+\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z_T^*}} \phi
+}
+\end{equation}
+\end{itemize}
+\end{frame}
+
+\subsubsection{Simplified Model}
+\slideTitle{Simplified Model $S(x)=S^*=1$}
 To validate the implementation of the DGM, we consider a simplified model :
 \begin{itemize}
     \item System of equations :
     \begin{equation}
         \begin{cases}
-            \partial_t p(x,t) + \partial_x v(x,t) = 0 \\
-            \partial_t v(x,t) + \partial_x p(x,t) = 0
+            \partial_t p(x,t) + c\partial_x v(x,t) = 0 \\
+            \partial_t v(x,t) + c\partial_x p(x,t) = 0
         \end{cases}
     \end{equation}
     \item Domain : $x \in [0,L]$, $t \in [0,T]$.
@@ -212,8 +400,8 @@ To validate the implementation of the DGM, we consider a simplified model :
     \item Riemann variables : $r(x,t) = p(x,t) + v(x,t)$, $s(x,t) = p(x,t) - v(x,t)$.
     \begin{equation}
         \begin{cases}
-            \partial_t r(x,t) + \partial_x r(x,t) = 0 \\
-            \partial_t s(x,t) - \partial_x s(x,t) = 0
+            \partial_t r(x,t) + c\partial_x r(x,t) = 0 \\
+            \partial_t s(x,t) - c\partial_x s(x,t) = 0
         \end{cases}
     \end{equation}
 \end{itemize}
@@ -224,61 +412,106 @@ To validate the implementation of the DGM, we consider a simplified model :
     \item Exact solution :
     \begin{equation}
         \begin{cases}
-            r(x,t) = r_0(x-t) = p_0(x-t) + v_0(x-t) \\
-            s(x,t) = s_0(x+t) = p_0(x+t) - v_0(x+t)
+            r(x,t) = r_0(x-ct) = p_0(x-ct) + v_0(x-ct) \\
+            s(x,t) = s_0(x+ct) = p_0(x+ct) - v_0(x+ct)
         \end{cases}
     \end{equation}
     \item Therefore :
     \begin{equation}
         \begin{cases}
             \begin{aligned}
-            p(x,t) &= \tfrac12\bigl[r_0(x-t) + s_0(x+t)\bigr] \\
-            &= \tfrac12\bigl[p_0(x-t) + v_0(x-t) + p_0(x+t) - v_0(x+t)\bigr] \\
-            v(x,t) &= \tfrac12\bigl[r_0(x-t) - s_0(x+t)\bigr] \\
-            &= \tfrac12\bigl[p_0(x-t) + v_0(x-t) - p_0(x+t) + v_0(x+t)\bigr]
+            p(x,t) &= \tfrac12\bigl[r_0(x-ct) + s_0(x+ct)\bigr] \\
+            &= \tfrac12\bigl[p_0(x-ct) + v_0(x-ct) + p_0(x+ct) - v_0(x+ct)\bigr] \\
+            v(x,t) &= \tfrac12\bigl[r_0(x-ct) - s_0(x+ct)\bigr] \\
+            &= \tfrac12\bigl[p_0(x-ct) + v_0(x-ct) - p_0(x+ct) + v_0(x+ct)\bigr]
             \end{aligned}
         \end{cases}
     \end{equation}
 \end{itemize}
 \end{frame}
 
-\subsection{DG's results}
+\section{DG's results}
 
-\slideTitle{Result}
-\begin{columns}[T]
-    \begin{column}{0.58\textwidth}
+\subsection{Result - Constant Cross-Section}
+\slideTitle{Result - Constant Cross-Section}
+    \begin{figure}[htbp]
         \centering
-        \includegraphics[width=\linewidth]{Images/dg_solution.png}
-        \scriptsize DG solution.
-        \label{fig:dg_result}
-    \end{column}
-    \begin{column}{0.42\textwidth}
-       \begin{itemize}
-        \item Numerical solution with DGM.
-        \item $p_0(x) = e^{-0.5((x-0.5)/\sigma)^2}$, $v_0(x) = 0$
-        \item For $N=800$ cells, $L_2$ error is $\approx 9.1 \times 10^{-5}$
-       \end{itemize} 
-    \end{column}
-\end{columns}
+        \includegraphics[width=0.65\textwidth]{Images/dg_solution_const_N800.png}
+        \caption{DG numerical solutions constant cross-section.}
+        \label{fig:dg_solution_const}
+    \end{figure}
+    \scriptsize
+        \begin{equation}
+            \begin{aligned}
+            p_0(x) &=
+            \begin{cases}
+            \dfrac{\phi_0}{4}\,
+            \exp\!\left(1 - \dfrac{1}{1-\xi(x)^2}\right),
+            & \text{if } |\xi(x)| < 1, \\[1.2ex]
+            0, & \text{otherwise}.
+            \end{cases} \text{with } \xi(x) &= \dfrac{4(x - x_c)}{L} \\
+            v_0(x) &= 0 \\
+            \end{aligned}
+        \end{equation}
+    \normalsize
 \end{frame}
 
 \slideTitle{Convergence and Efficiency}
 \begin{columns}[T]
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{Images/dg_convergence_euler.png}
+        \includegraphics[width=\linewidth]{Images/dg_convergence_T0p5_euler.png}
         \scriptsize DG convergence with Explicit Euler scheme.
         \label{fig:dg_convergence_euler}
     \end{column}
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{Images/dg_convergence_rk2.png}
+        \includegraphics[width=\linewidth]{Images/dg_convergence_T0p5_rk2.png}
         \scriptsize DG convergence with Runge-Kutta 2nd order scheme.
         \label{fig:dg_convergence_rk2}
     \end{column}
 \end{columns}
 \end{frame}
 
+\subsection{Result - Varying Cross-Section}
+\subsubsection{Exponential Cross-Section}
+\slideTitle{Exponential Cross-Section}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.65\textwidth]{Images/exp_profile.png}
+    \caption{Exponential cross-section $S(x) = S_0 e^{kx}$.}
+    \label{fig:exp_profile}
+\end{figure}
+\end{frame}
+\slideTitle{Result - Exponential Cross-Section}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.65\textwidth]{Images/dg_solution_exp_N800.png}
+    \caption{DG numerical solutions exponential cross-section.}
+    \label{fig:dg_solution_exp}
+\end{figure}
+\end{frame}
+
+\subsubsection{Conical Cross-Section}
+\slideTitle{Conical Cross-Section}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.65\textwidth]{Images/cone_profile.png}
+    \caption{Conical cross-section $S(x) = S_0 + kx$.}
+    \label{fig:cone_profile}
+\end{figure}
+\end{frame}
+
+\slideTitle{Result - Conical Cross-Section}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.65\textwidth]{Images/dg_solution_cone_N800.png}
+    \caption{DG numerical solutions conical cross-section.}
+    \label{fig:dg_solution_cone}
+\end{figure}
+\end{frame}
+
+\section{Conclusion}
 
 \begin{frame}[allowframebreaks]{References}
 \printbibliography

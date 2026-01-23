@@ -48,32 +48,11 @@ vphi_at = jax.vmap(phi_at, in_axes=(0, None, None))
 # ------------------------------------------------------------------------------------------------------------------------------
 def S_of_x(x):
     # Example: constant cross-section
-    return 1.0 
-
+    return jnp.ones_like(x) 
 
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                          analytic local mass matrix for P1
 # ------------------------------------------------------------------------------------------------------------------------------
-
-def S_of_x(x):
-    # Example: constant cross-section
-    return 1.0
-
-def local_mass_inv_system(h, xL, xR, c=1.0, S_star=1.0):
-    xq = jnp.array([xL, 0.5*(xL+xR), xR])
-    wq = jnp.array([1,4,1]) * (h/6)
-
-    S_q = S_of_x(xq)
-
-    Mp = jnp.sum(wq * S_q) / (c * S_star)
-    Mv = jnp.sum(wq * (S_star / S_q)) / c
-
-    Mloc = (h/6) * jnp.array([[2,1],[1,2]])
-
-    Mp_inv = jnp.linalg.inv(Mp * Mloc)
-    Mv_inv = jnp.linalg.inv(Mv * Mloc)
-
-    return Mp_inv, Mv_inv
 
 def local_mass_inv_system(h, c=1.0):
     Mloc = (h / 6.0) * jnp.array([[2., 1.],
@@ -453,9 +432,9 @@ def main():
     #                                                           physical params
     # ------------------------------------------------------------------------------------------------------------------------------
     c = 1.0
-    alpha = 1.0   # exemple, à ajuster selon ton modèle
-    beta = 1.0    # si besoin dans vR
-    ZT = 1.0      # impédance ou paramètre système
+    alpha = 0.1  
+    beta = 0.2  
+    ZT = 1.0      
 
     A = jnp.array([[0.0, 1.0],[1.0, 0.0]])
     smax = c * jnp.max(jnp.abs(jnp.linalg.eigvals(A)))

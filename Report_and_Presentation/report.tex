@@ -106,8 +106,8 @@ and the effects of the instrumental player \eqref{eq:1e} \eqref{eq:1f} :
 \begin{empheq}[left=\empheqlbrace]{align}
   \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
   \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-  \frac{Z^\ast}{T}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-  -\frac{\beta}{Z^\ast T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+  \frac{Z^\ast}{T^\ast}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+  -\frac{\beta}{Z^\ast T^\ast}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
   -v(0,t) + \zeta_\ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
   \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
   &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
@@ -334,7 +334,7 @@ This property ensures a uniform wave speed c and a CFL condition independent of 
 On the righthand-side boundary ($x=L$), we need to ensure the conditions derived from equations {\eqref{eq:1c}--\eqref{eq:1d}}.
 
 \begin{equation}
-v(L,t) = \frac{\beta}{Z_T^*} p(L,t) - \sqrt{\alpha}\,\phi(t).
+v(L,t) = \frac{\beta}{Z^\ast T^\ast} p(L,t) - \sqrt{\alpha}\,\phi(t).
 \tag{BC}
 \end{equation}
 
@@ -353,8 +353,8 @@ From the definition of $w^-$ and the boundary condition (BC), we have:
     \begin{aligned}
         w^-
         &= p - v \\
-        &= p - \left( \frac{\beta}{Z_T^*} p - \sqrt{\alpha},\phi \right) \\
-        &= \left(1 - \frac{\beta}{Z_T^*}\right)p + \sqrt{\alpha},\phi.
+        &= p - \left( \frac{\beta}{Z^\ast T^\ast} p - \sqrt{\alpha}\,\phi \right) \\
+        &= \left(1 - \frac{\beta}{Z^\ast T^\ast}\right)p + \sqrt{\alpha}\,\phi.
     \end{aligned}
 \end{equation}
 
@@ -367,17 +367,17 @@ p = \frac{w^+ + w^-}{2}.
 By substituting this into the previous equation, we obtain:
 \begin{equation}
 w^-
-= \left(1 - \frac{\beta}{Z_T^*}\right)\frac{w^+ + w^-}{2} + \sqrt{\alpha} \phi.
+= \left(1 - \frac{\beta}{Z^\ast T^\ast}\right)\frac{w^+ + w^-}{2} + \sqrt{\alpha} \phi.
 \end{equation}
 
 So the incoming wave $w^-$ can be expressed as:
 \begin{equation}
 \boxed{
 w^- =
-\frac{1 - \frac{\beta}{Z_T^*}}{1 + \frac{\beta}{Z_T^*}}
+\frac{1 - \frac{\beta}{Z^\ast T^\ast}}{1 + \frac{\beta}{Z^\ast T^\ast}}
 w^+
 +
-\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z_T^*}} \phi
+\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z^\ast T^\ast}} \phi
 }
 \end{equation}
 
@@ -422,9 +422,9 @@ coupled with an auxiliary variable $\phi(t)$:
 \end{align}
 where the coefficients are given by
 \begin{equation}
-a=\frac{1-\beta/Z_T}{1+\beta/Z_T}, \qquad
-b=\frac{2\sqrt{\alpha}}{1+\beta/Z_T}, \qquad
-c_1=\frac{\sqrt{\alpha}}{2Z_T}, \qquad
+a=\frac{1-\beta/(Z^\ast T^\ast)}{1+\beta/(Z^\ast T^\ast)}, \qquad
+b=\frac{2\sqrt{\alpha}}{1+\beta/(Z^\ast T^\ast)}, \qquad
+c_1=\frac{\sqrt{\alpha}}{2Z^\ast T^\ast}, \qquad
 c_2=c_1 b. \label{eq:coeffs}
 \end{equation}
 
@@ -483,6 +483,21 @@ The initial acoustic volume velocity is set to zero:
 v_0(x) = 0.
 \end{equation}
 
+\subsection{Simulation Parameters}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c ccccccc}
+\hline
+Parameters & $\alpha$ & $\beta$ & $S^\ast$ & c & $Z^\ast$ & $T^\ast$ & CLF \\
+\hline
+Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 1.0 & 0.05 \\
+\hline
+\end{tabular}
+\caption{Simulation parameters used in the DG P1 solver.}
+\label{tab:sim_parameters}
+\end{table}
+
 \newpage
 \subsection{DG Method results}
 
@@ -508,7 +523,7 @@ and velocity fields. At the right boundary, the interaction with the radiation c
 computed hence demonstrating the method's capability to handle complex boundary conditions.
 
 \paragraph{Convergence study} $\\ \\$ 
-The convergence of the DG method is verified by comparing the numerical solution to the analytical solution at various size of discrectisation with an Explicit Euler
+The convergence of the DG method is verified by comparing the numerical solution to the analytical solution at various size of discretisation with an Explicit Euler
 time integration scheme and a Runge-Kutta 2nd order scheme. 
 \newpage
 \begin{figure}[htbp]
@@ -611,8 +626,9 @@ as it has stop to be symmetric.
 For example, the pressure is amplified in regions where the cross-sectional area decreases. 
 
 \subsection{Performance Study}
-A performance study was conducted to evaluate the computational efficiency of the Discontinuous Galerkin Method implementation.
-The study focused on measuring the execution time for simulations with varying numbers of elements ($N$). 
+A performance analysis was carried out to assess the computational efficiency of the Discontinuous Galerkin (DG) method implementation.
+The study measured the execution time for simulations with different numbers of elements ($N$), using the parameters listed in 
+Table~\ref{tab:sim_parameters}, with a final simulation time of $T = 0.5\ \mathrm{s}$.
 \subsubsection{Euler explicit time integration}
 
 \input{../Results/table_performance_euler.tex}
@@ -627,7 +643,7 @@ The study focused on measuring the execution time for simulations with varying n
 The performance results indicate that the execution time scales under $N^2$. 
 Since the performance study was done in JAX framework, the first run includes
 compilation time. This explains the higher execution time for the smallest $N$ values 
-for the constant cross-section case in \ref{fig:performance_euler}.
+for the constant cross-section case in Figure~\ref{fig:performance_euler}.
 
 
 \subsubsection{RK2 explicit time integration}
@@ -643,7 +659,7 @@ for the constant cross-section case in \ref{fig:performance_euler}.
 
 The performance results for the RK2 explicit time integration scheme also show a scaling of execution time under $N^2$ 
 but superior to the Euler explicit time integration scheme as expected due to the additional computations involved in the RK2 method.
-That also explain the higher execution time in the performance study in \ref{tab:performance-rk2}.
+That also explain the higher execution time in the performance study in Table~\ref{tab:performance-rk2}.
  
 \newpage
 \section{Conclusion}

@@ -134,8 +134,8 @@ In JAX framework:
 \begin{empheq}[left=\empheqlbrace]{align}
     \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
     \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-    \frac{Z^\ast}{T}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-    -\frac{\beta}{Z^\ast T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+    \frac{Z^\ast}{T^\ast}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+    -\frac{\beta}{Z^\ast T^\ast}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
     -v(0,t) + \zeta_\ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
     \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
     &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
@@ -354,7 +354,7 @@ the DG formulation of the mixed form of the wave equation reads :
 \item At $x=L$, we need to ensure {\eqref{eq:1c}--\eqref{eq:1d}}.
 
 \begin{equation}
-v(L,t) = \frac{\beta}{Z_T^*} p(L,t) - \sqrt{\alpha}\,\phi(t).
+v(L,t) = \frac{\beta}{Z^\ast T^\ast} p(L,t) - \sqrt{\alpha}\,\phi(t).
 \tag{BC}
 \end{equation}
 
@@ -365,7 +365,7 @@ w^+ = p + v
 w^- = p - v.
 $
 \begin{equation}
-        w^- = \left(1 - \frac{\beta}{Z_T^*}\right)p + \sqrt{\alpha}\,\phi.
+        w^- = \left(1 - \frac{\beta}{Z^\ast T^\ast}\right)p + \sqrt{\alpha}\,\phi.
 \end{equation}
 
 \item And the expression of $p$ in terms of $w^+$ and $w
@@ -378,10 +378,10 @@ $
 \begin{equation}
 \boxed{
 w^- =
-\frac{1 - \frac{\beta}{Z_T^*}}{1 + \frac{\beta}{Z_T^*}}
+\frac{1 - \frac{\beta}{Z^\ast T^\ast}}{1 + \frac{\beta}{Z^\ast T^\ast}} 
 w^+
 +
-\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z_T^*}} \phi
+\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z^\ast T^\ast}} \phi
 }
 \end{equation}
 \end{itemize}

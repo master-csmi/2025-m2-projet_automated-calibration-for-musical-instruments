@@ -72,7 +72,8 @@ def main():
 
     alpha_bc = 0.1
     beta = 0.2
-    ZT = 1.0
+    Z = 1.0
+    T_star = 1.0
 
     A = jnp.array([[0.0, 1.0],
                    [1.0, 0.0]])
@@ -149,13 +150,13 @@ def main():
                     u, phi = time_integrate_euler(
                         u0, x_nodes, S_cells, c, A, smax,
                         dt, nsteps, Mp_inv, Mv_inv,
-                        bc, 0.0, beta, ZT, alpha_bc
+                        bc, 0.0, beta, Z,T_star, alpha_bc
                     )
                 else:
                     u, phi = time_integrate_rk2(
                         u0, x_nodes, S_cells, c, A, smax,
                         dt, nsteps, Mp_inv, Mv_inv,
-                        bc, 0.0, beta, ZT, alpha_bc
+                        bc, 0.0, beta, Z,T_star, alpha_bc
                     )
 
                 jax.tree_util.tree_map(lambda x: x.block_until_ready(), (u, phi))

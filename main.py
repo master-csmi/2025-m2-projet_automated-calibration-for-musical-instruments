@@ -52,7 +52,8 @@ def main():
     c = 1.0
     alpha = 0.1
     beta = 0.2
-    ZT = 1.0
+    Z = 1.0
+    T_star = 1.0 
 
     A = jnp.array([[0.0, 1.0],
                    [1.0, 0.0]])
@@ -145,13 +146,13 @@ def main():
                 u, phi = time_integrate_euler(
                     u0, x_nodes, S_cells, c, A, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, ZT, alpha
+                    bc, 0.0, beta, Z, T_star, alpha
                 )
             else:
                 u, phi = time_integrate_rk2(
                     u0, x_nodes, S_cells, c, A, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, ZT, alpha
+                    bc, 0.0, beta, Z, T_star, alpha
                 )
             
 
@@ -167,7 +168,7 @@ def main():
             if type_S == "const":
                 p_ex, v_ex = exact_solution_characteristics(
                     x_plot, T, p0, c, L,
-                    alpha, beta, ZT, dt=1e-4
+                    alpha, beta, Z, T_star, dt=1e-4
                 )
             else:
                 p_ex = v_ex = None
@@ -244,13 +245,13 @@ def main():
             u, phi = time_integrate_euler(
                 u0, x_nodes, S_cells, c, A, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, ZT, alpha
+                bc, 0.0, beta, Z, T_star, alpha
             )
         else:
             u, phi = time_integrate_rk2(
                 u0, x_nodes, S_cells, c, A, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, ZT, alpha
+                bc, 0.0, beta, Z, T_star, alpha
             )
 
         x_plot = jnp.linspace(0.0, L, 2000)
@@ -258,7 +259,7 @@ def main():
 
         p_ex, v_ex = exact_solution_characteristics(
             x_plot, T_conv, p0, c, L,
-            alpha, beta, ZT, dt=1e-4
+            alpha, beta, Z, T_star, dt=1e-4
         )
 
         dx = x_plot[1] - x_plot[0]

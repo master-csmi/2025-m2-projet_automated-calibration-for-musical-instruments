@@ -21,6 +21,7 @@
 \usepackage{empheq}
 \usepackage{siunitx}
 
+
 % Links, citations
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{csquotes}
@@ -607,8 +608,43 @@ The analysis of the numerical results for a non-uniform cross-section is more qu
 to the absence of an analytical solution for direct comparison.
 We can oberse that the wave propagation is influenced by the varying cross-sectional area,
 as it has stop to be symmetric.
+For example, the pressure is amplified in regions where the cross-sectional area decreases. 
+
+\subsection{Performance Study}
+A performance study was conducted to evaluate the computational efficiency of the Discontinuous Galerkin Method implementation.
+The study focused on measuring the execution time for simulations with varying numbers of elements ($N$). 
+\subsubsection{Euler explicit time integration}
+
+\input{../Results/table_performance_euler.tex}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Images/performance_euler.png}
+    \caption{Performance study with Explicit Euler time integration.}
+    \label{fig:performance_euler}
+\end{figure}
+
+The performance results indicate that the execution time scales under $N^2$. 
+Since the performance study was done in JAX framework, the first run includes
+compilation time. This explains the higher execution time for the smallest $N$ values 
+for the constant cross-section case in \ref{fig:performance_euler}.
 
 
+\subsubsection{RK2 explicit time integration}
+
+\input{../Results/table_performance_rk2.tex}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\textwidth]{Images/performance_rk2.png}
+    \caption{Performance study with RK2 explicit time integration.}
+    \label{fig:performance_rk2}
+\end{figure}
+
+The performance results for the RK2 explicit time integration scheme also show a scaling of execution time under $N^2$ 
+but superior to the Euler explicit time integration scheme as expected due to the additional computations involved in the RK2 method.
+That also explain the higher execution time in the performance study in \ref{tab:performance-rk2}.
+ 
 \newpage
 \section{Conclusion}
 \newpage

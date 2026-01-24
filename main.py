@@ -28,6 +28,8 @@ from utils.init_func import init_func
 # Exact solution (only valid for constant section)
 from physics.exact_solution import exact_solution_characteristics
 
+jax.config.update("jax_enable_x64", True)
+
 
 def main():
 
@@ -69,6 +71,11 @@ def main():
     output_dir = "Report_and_Presentation/Images"
     os.makedirs(output_dir, exist_ok=True)
 
+    # Execution performance
+    res_dir = "Results"
+    os.makedirs(res_dir, exist_ok=True)
+
+
     # ==============================================================================
     # 1) SOLUTION FIGURES
     # ==============================================================================
@@ -76,6 +83,8 @@ def main():
 
     for N in Ns:
         print(f"\nSolutions for N = {N}")
+
+        
 
         plt.figure(figsize=(16, 10))
 
@@ -130,6 +139,8 @@ def main():
             # ----------------------------------------------------------------------
             # Time integration
             # ----------------------------------------------------------------------
+
+
             if method == "euler":
                 u, phi = time_integrate_euler(
                     u0, x_nodes, S_cells, c, A, smax,
@@ -142,6 +153,7 @@ def main():
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, ZT, alpha
                 )
+            
 
             # ----------------------------------------------------------------------
             # Reconstruction
@@ -187,6 +199,7 @@ def main():
             dpi=150
         )
         plt.close()
+
 
     # ==============================================================================
     # 2) CONVERGENCE STUDY

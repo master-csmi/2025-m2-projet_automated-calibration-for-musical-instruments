@@ -8,9 +8,12 @@
 \usepackage[french]{babel}
 \usepackage{lmodern}
 \usepackage{microtype}
+% Avoid requests for sans small-caps (Latin Modern Sans has no sc shape)
+\renewcommand{\scshape}{\upshape}
 \usepackage{graphicx}
 \usepackage{amsmath,empheq}
 \usepackage{hyperref}
+\usepackage{csquotes}
 \usepackage[backend=biber, style=numeric]{biblatex}
 \addbibresource{biblio.bib}
 \hypersetup{pdfauthor={R. Vivant}, pdftitle={Automated Calibration of Physical Models}}
@@ -511,10 +514,59 @@ To validate the implementation of the DGM, we consider a simplified model :
 \end{figure}
 \end{frame}
 
+\subsection{Performance Study}
+\begin{frame}
+\frametitle{Performance Study}
+
+\centering \scriptsize Execution time (s) for different cross-section profiles for Euler explicit and Runge--Kutta 
+2 time integration schemes.
+
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/performance_euler.png}
+        \par\smallskip
+        \scriptsize (a) Explicit Euler
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/performance_rk2.png}
+        \par\smallskip
+        \scriptsize (b) Runge--Kutta 2
+    \end{column}
+\end{columns}
+\par\medskip
+\label{fig:execution_time}
+\normalsize
+$$
+\text{T-Scale}_\text{euler}<\text{T-Scale}_\text{rk2}<\text{N}^2
+$$
+
+
+\end{frame}
+
 \section{Conclusion}
 
 \begin{frame}[allowframebreaks]{References}
 \printbibliography
+\end{frame}
+
+\section{Annexes}
+\subsection{Performance Tables}
+
+\slideTitle{Performance Tables}
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \centering
+        \textbf{Euler explicite}\\[0.5em]
+        \input{../Results/table_performance_euler.tex}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        \centering
+        \textbf{Runge--Kutta 2}\\[0.5em]
+        \input{../Results/table_performance_rk2.tex}
+    \end{column}
+\end{columns}
 \end{frame}
 
 \end{document}

@@ -33,11 +33,13 @@ def rk2_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, b
 # ------------------------------------------------------------------------------------------------------------------------------
 
 #Euler step for phi ODE at right BC
+#\phi_n+1 = \phi_n + dt*f(phi_n) 
+# where f is given by phi_rhs
 @jax.jit
 def euler_step_phi(u_cells, phi, dt, Z, T, alpha):
     pL = u_cells[-1, 0, 1]  # p^-
     k1 = phi_rhs(pL, alpha, Z, T)
-    return phi + dt * k1
+    return phi + dt * k1 
 
 # Euler step for system
 @jax.jit(static_argnames=("bc",))
@@ -49,7 +51,7 @@ def euler_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv,
     return u_cells + dt * k1, phi_new
 
 # ------------------------------------------------------------------------------------------------------------------------------
-#                                                           time integrations stef
+#                                                           time integrations step
 # ------------------------------------------------------------------------------------------------------------------------------
 # Fist integrate 
 # RK2 time integration

@@ -2,7 +2,7 @@
 % Scientific article template in English
 % Recommended compilation: pdflatex report.tex -> biber report -> pdflatex report.tex (x2)
 
-\documentclass[11pt,a4paper]{article}
+\documentclass[11pt,a4paper]{report}
 
 % Encoding and language
 \usepackage[T1]{fontenc}
@@ -13,7 +13,7 @@
 \usepackage{geometry}
 \geometry{margin=2.5cm}
 \usepackage{microtype}
-
+\usepackage{placeins}
 % Graphics, tables, mathematics
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -21,11 +21,18 @@
 \usepackage{empheq}
 \usepackage{siunitx}
 
+% For floating algorithms with caption
+\usepackage{algorithm}
+%\usepackage{algorithmic}
+
+
+\usepackage{algpseudocode}  % alternative to algorithmic, works with algorithm
 
 % Links, citations
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 \usepackage{csquotes}
 % biblatex is loaded later with the desired options to avoid an "Option clash for package biblatex" error
+\usepackage{minitoc}
 
 \usepackage[
     backend=biber,
@@ -58,31 +65,57 @@
 \date{\today}
 
 \begin{document}
-
+\dominitoc
 \maketitle
 
 \begin{abstract}
-Abstract (in English): 
+This project focuses on the automated calibration of physical models for reed musical instruments. 
+We develop a numerical framework to simulate wave propagation inside instruments with variable cross-sectional areas using the Discontinuous Galerkin Method (DGM). 
+Special attention is given to the implementation of boundary conditions that model radiation and reed dynamics. 
+The framework is validated against analytical solutions for uniform cross-sections and extended to non-uniform geometries, such as exponential and conical profiles. 
+Results demonstrate accurate wave propagation, proper handling of complex boundaries, and convergence consistent with theoretical expectations. 
+The proposed approach provides a foundation for efficient parameter calibration in virtual instrument models.
+
+
+
+\vspace{3em}
+Ce projet porte sur la calibration automatique de modèles physiques pour les instruments de musique à anche. 
+Nous développons un cadre numérique pour simuler la propagation des ondes à l'intérieur d'instruments présentant des sections transversales variables, en utilisant la méthode de Galerkin discontinu (DGM). 
+Une attention particulière est portée à la mise en œuvre des conditions aux limites modélisant la radiation et la dynamique de l'anche. 
+Le cadre est validé par rapport à des solutions analytiques pour des sections uniformes et étendu à des géométries non uniformes, telles que les profils exponentiels et coniques. 
+Les résultats montrent une propagation des ondes précise, une gestion correcte des conditions aux limites complexes et une convergence conforme aux prédictions théoriques. 
+Cette approche fournit une base solide pour la calibration efficace des paramètres dans les modèles d'instruments virtuels.
 \end{abstract}
 
-
+\newpage
+\setcounter{tocdepth}{2}
+\tableofcontents
 
 \newpage
-\section{Introduction}
-Present the context, a concise state of the art, the motivation and the main contributions of the paper.
+\chapter{Introduction}
 
 During my project of the thrid semester of the CSMI Master degree, I worked on the automated calibration 
 of physical models for musical instruments. 
 The goal of this project was to develop a method to automatically adjust the parameters of physical models 
-so that they accurately reproduce the sound characteristics of reed instruments. \newline
+so that they accurately reproduce the characteristic sounds of reed instruments. \newline
 I worked under the supervision of Dr Emmanuel Franck, Dr Laurent Navoret and Dr Victor Michel-Dansac from 
-the Institut de Recherche Mathématique Avancée (IRMA) in Strasbourg and Dr Juliette Chabassier for Modartt. \newline
-Modartt \cite{Modartt} is a french company specialized in the development of artistic and technological application softwares.
+the Institut de Recherche Mathématique Avancée (IRMA) in Strasbourg and Dr Juliette Chabassier from Modartt. \newline
+Modartt (MOdels and Data for ARTs and Technology)\cite{Modartt} is a french company specialized in the development of artistic and technological application softwares.
+In 2006, they released \textit{Pianoteq}, a software that simulates the sound of various musical instruments using physical modeling techniques isntead 
+of relying on pre-recorded samples. \newline
+First, we present the context of reed instruments and the state of the art of the mathematical modeling of the wave equation inside these instruments.
+Then, we describe the numerical methods used to solve the wave equation with different types of cross-sectional 
+area (uniform, exponential, conical) using the Discontinuous Galerkin Method (DGM). We will particularly focus on the implementation of the boundary conditions
+that represent a crucial aspect of the behavior of the sound produced by the instrument.
+Finally, we present the results of the numerical simulations and the performance analysis of the implemented method.
 
-\subsection{Reed Instruments}
+\minitoc
+
+\newpage
+\section{Reed Instruments}
 A reed is a thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator that acts \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
 (the player’s mouth) and the downstream region (the mouthpiece or mouthpiece tip of the instrument). \newline
-Two principal categories of reed instruments:
+There are two principal categories of reed instruments:
 \begin{itemize}
     \item Free reeds (harmonicas, accordions, ...).
     \item Beating reeds (clarinets, saxophones, ...).
@@ -91,16 +124,19 @@ Two principal categories of reed instruments:
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/reed.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
-    \includegraphics[width=0.9\textwidth]{Images/reed_column.png}
+    \includegraphics[width=0.75\textwidth]{Images/reed_column.png}
     \caption{Reed and saxophone.}
     \label{fig:reed_schematic}
 \end{figure}
-\subsection{State of the art}
+
+
+\section{State of the art}
 The equations governing the behavior of reed instruments are mathematically described \cite{MAMAMIA2024} by a set of coupled 
 differential equations (Partial Differential Equations - PDEs, Ordinary Differential Equations - ODEs, and 
 algebraic equations). These equations capture the complex interactions between the pressure ($p$), the acoustic
-volume velocity ($v$) \eqref{eq:1a} \eqref{eq:1b}, some radiative phenomenons ($\phi$) \eqref{eq:1c} \eqref{eq:1d}, 
+volume velocity ($v$) \eqref{eq:1a} \eqref{eq:1b}, radiative phenomenons happening at the bell of the instrument($\phi$) \eqref{eq:1c} \eqref{eq:1d}, 
 and the effects of the instrumental player \eqref{eq:1e} \eqref{eq:1f} :
+
 % Système d'équations décrivant un modèle réducteur pour un instrument à anche
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
@@ -123,19 +159,28 @@ $\kappa$ is a parameter related to the lip dynamics, $\omega_r$ is the reed's (o
 $Q_r$ is the quality factor of the reed, and $y$ is the dimensionless reed opening. \newline
 This kind of system of equation can already be solved numerically with Openwind \cite{OpenwindInria}.
 
-\subsection{Objectives}
-The main objectives of this project were:
+\section{Objectives}
+The main objectives of this project are: \\
 In JAX framework:
 \begin{enumerate}
     \item Implement a discontinous Galerkin discretization of the mixed form of the wave equation and numerically solve it.
-    \item Implement the coupling with an ODE and the boundary conditions.
+    \item Implement the Left Hand Side boundary conditions (equations \eqref{eq:1c} and \eqref{eq:1d}) coupled with the DG solver.
+    \item Implement the Right Hand Side boundary conditions (equations \eqref{eq:1e} and \eqref{eq:1f}) coupled with the DG solver.
     \item Compute the gradient with respect to all the problem parameters.   
 \end{enumerate}
 
-\section{Methods}
-Describe the method, model or algorithm. Include the essential equations.
-\subsection{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
+\newpage
+\chapter{Methods}
+\minitoc
+\vspace{1em}
+In this section, we present the numerical methods used to solve the wave equation with variable cross-sectional area
+using the Discontinuous Galerkin Method (DGM) and the analytical solution in the simple case of a constant cross-sectional area.
+We will fist introduce the DGM, then we will present its application to our specific problem described in Section 1.2 with 
+the explicit expression of the numerical fluxes and the boundary conditions.
+Finally, we will derive the analytical solution for the case of a constant cross-sectional area.
 
+\newpage
+\section{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
 The Discontinuous Galerkin Method (DGM) is a numerical technique used to solve partial differential equations (PDEs). 
 Let's consider an equation of the form :
 \begin{equation}
@@ -148,110 +193,179 @@ The DGM involves the following steps:
     \item \textbf{Basis Functions:} Choose a set of basis functions (often polynomials) to represent the solution within each element.
     \item  \textbf{Weak Formulation:} Multiply the PDE by a test function (which can be one of the basis functions) and integrate over each element to obtain the weak form of the equation.
     \item \textbf{Numerical Fluxes:} Define numerical fluxes at the interfaces between elements to ensure stability and consistency.
-    \item \textbf{Time Integration:} Use an appropriate time-stepping method (e.g., Runge-Kutta) to advance the solution in time.
+    \item \textbf{Time Integration:} Use an appropriate time-stepping method (e.g., Runge-Kutta;, Euler Explicit) to advance the solution in time.
 \end{enumerate} 
 
-Let's denote the approximate solution at the $n$-th time step as $u^n(x)$. The update from time step $n$ to $n+1$ can be expressed as:
+\section{Time discretization and weak formulation}
+
+Let $u^n(x)$ denote the numerical approximation of the solution at time $t^n$.
+A first-order explicit time discretization yields
 \begin{equation}
-    u^{n+1}(x) = u^n(x) - \Delta t \partial_x F(u^n)
+u^{n+1}(x) = u^n(x) - \Delta t \, \partial_x F\big(u^n(x)\big).
+\label{eq:time_disc}
 \end{equation}
 
-Let's consider test function $\phi_i(x)$, the weak form of the equation becomes in a one cell $\Omega_k$:
+Let $\varphi_i(x)$ be a test function. The weak formulation on a single cell
+$\Omega_k$ reads
 \begin{equation}
-    \int_{\Omega_k} \phi_i(x)  u^{n+1} \, dx =  \int_{\Omega_k} \phi_i(x)  u^{n} \, dx - \Delta t \int_{\Omega_k} \phi_i(x) \partial _x F(u^n) \, dx
-\end{equation}
-Using integration by parts on the second term, we get:
-\begin{equation}
-    \int_{\Omega_k} \phi_i(x)  u^{n+1} \, dx =  \int_{\Omega_k} \phi_i(x)  u^{n} \, dx + \Delta t \int_{\Omega_k} \partial_x \phi_i(x) F(u^n) \, dx - \Delta t \left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}
-\end{equation}
-where $\left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}$ represents the numerical flux at the boundaries of the element $\Omega_k$.
-
-Finally, by expressing $u^{n+1} = \sum_j \alpha_{k,j} \phi_j(x)$ within each element, we can derive a system of equations for the coefficients $\alpha_{k,j}$ that can be solved at each time step :
-\begin{equation}
-    \sum_j \alpha_{k,j}^{n+1} \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx = \int_{\Omega_k} \phi_i(x)  u^{n} \, dx + \Delta t \int_{\Omega_k} \partial_x \phi_i(x) F(u^n) \, dx - \Delta t \left[ \phi_i(x) F(u^n) \right]_{\partial \Omega_k}
-\end{equation}
-
-where $M_{ij} = \int_{\Omega_k} \phi_i(x) \phi_j(x) \, dx$ is a component of the local mass matrix $M$.
-
-And so finally we can write the update rule for the coefficients $\alpha_{k,j}$ as:
-\begin{equation}
-    M\alpha_{k}^{n+1} = b_k
-\end{equation}
-where $b_k$ is the right-hand side vector containing the integrals and numerical fluxes.
-
-\subsection{Discontinuous Galerkin in our context}
-
-\subsubsection{Conservative form}
-In our case, we are interested in solving the mixed form of the wave equation given by the system {\eqref{eq:1a}--\eqref{eq:1b}}. We can rewrite this system in vector form as:
-\begin{equation}
-\mathbf{C}(x)\partial_t \mathbf{u} +\partial_x \mathbf{A}\mathbf{u} = 0
-\end{equation}
-
-where $\mathbf{u} = \begin{pmatrix} p \\ v \end{pmatrix}$,$\mathbf{C}=\begin{pmatrix} \frac{S(x)}{cS^*} & 0 \\ 0 & \frac{S^*}{S(x)c} \end{pmatrix}$ $\mathbf{A} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$. \newline
-and the initial condition : $p(x,0) = p_0(x)$ and $v(x,0) = v_0(x)$ \newline
-
-\subsubsection{Mesh and DG space}
-For a mesh
-$$
-0 = x_0 < x_1 < ... < x_{N} = L; \quad K_j=(x_{j-1}, x_j), \quad j=1,...,N
-$$
-We are searching a approched solution  $\mathbf{u_h} = (p_h, v_h)^T \in (V_h^k)^2$ with $V_h^k=\{u\in L^2 : u|_{K_j} \in \mathbb{P}^1{K_j}\}$ 
-
-\subsubsection{Local DG Formulation}
-For each element $K_j$ and for each test function vector $\mathbf{\Phi}=(\phi_p,\phi_v)^T \in (\mathbb{P}^1{K_j})^2$, we have the following weak formulation :
-
-\begin{equation}
-    \begin{aligned}
-\int_{K_j} \mathbf C(x)\, \partial_t \mathbf u_h \cdot \mathbf \Phi \, dx
--
-\int_{K_j} \mathbf A\, \mathbf u_h \cdot \partial_x \mathbf \Phi \, dx
-& \\
-\quad
-+ \widehat{\mathbf F}_{j+\frac12} \cdot \mathbf \Phi(x_j^-)
--
-\widehat{\mathbf F}_{j-\frac12} \cdot \mathbf \Phi(x_{j-1}^+)
-&= 0.
-\end{aligned}
-\end{equation}
-where $\mathbf{F}(\mathbf{u})=\mathbf{AU} = \begin{pmatrix} v \\ p \end{pmatrix}$ 
-
-\subsubsection{RusanovFlux}
-At each interface $x_{j+\frac12}$, the Rusanov numerical flux:
-(Local Lax--Friedrichs) is defined by
-\begin{equation}
-\widehat{\mathbf F}
+\int_{\Omega_k} \varphi_i(x) u^{n+1}(x)\, dx
 =
-\frac12\Big(
-\mathbf F(\mathbf u^-)
+\int_{\Omega_k} \varphi_i(x) u^n(x)\, dx
+-
+\Delta t \int_{\Omega_k} \varphi_i(x) \partial_x F\big(u^n(x)\big)\, dx.
+\label{eq:weak_form_1}
+\end{equation}
+
+Applying integration by parts to the second term gives
+\begin{equation}
+\int_{\Omega_k} \varphi_i(x) u^{n+1}(x)\, dx
+=
+\int_{\Omega_k} \varphi_i(x) u^n(x)\, dx
 +
-\mathbf F(\mathbf u^+)
-\Big)
+\Delta t \int_{\Omega_k} \partial_x \varphi_i(x) F\big(u^n(x)\big)\, dx
+-
+\Delta t \left[ \varphi_i(x) F\big(u^n(x)\big) \right]_{\partial \Omega_k}.
+\label{eq:weak_form_2}
+\end{equation}
+
+The boundary term is approximated using a numerical flux.
+Expanding the solution in the local basis $\{\varphi_j\}$,
+\begin{equation}
+u^{n+1}(x)\big|_{\Omega_k} = \sum_j \alpha^{n+1}_{k,j} \varphi_j(x),
+\end{equation}
+leads to the local system
+\begin{equation}
+\sum_j \alpha^{n+1}_{k,j}
+\int_{\Omega_k} \varphi_i(x)\varphi_j(x)\, dx
+=
+\int_{\Omega_k} \varphi_i(x) u^n(x)\, dx
++
+\Delta t \int_{\Omega_k} \partial_x \varphi_i(x) F\big(u^n(x)\big)\, dx
+-
+\Delta t \left[ \varphi_i(x) F\big(u^n(x)\big) \right]_{\partial \Omega_k}.
+\label{eq:dg_local}
+\end{equation}
+
+Defining the local mass matrix
+\begin{equation}
+M_{ij} = \int_{\Omega_k} \varphi_i(x)\varphi_j(x)\, dx,
+\end{equation}
+the update can be written compactly as
+\begin{equation}
+M \, \boldsymbol{\alpha}^{n+1}_k = \mathbf{b}_k,
+\label{eq:matrix_form}
+\end{equation}
+where $\mathbf{b}_k$ contains the volume and numerical flux contributions.
+
+\section{Discontinuous Galerkin method in our context}
+
+\subsection{Conservative form}
+
+We consider the mixed formulation of the one-dimensional wave equation.
+Introducing the vector of unknowns
+\begin{equation}
+\mathbf{u} =
+\begin{pmatrix}
+p \\
+v
+\end{pmatrix},
+\end{equation}
+the system can be written in conservative form as
+\begin{equation}
+C(x)\, \partial_t \mathbf{u} + \partial_x \big( A \mathbf{u} \big) = 0,
+\label{eq:conservative_form}
+\end{equation}
+with
+\begin{equation}
+C(x) =
+\begin{pmatrix}
+\dfrac{S(x)}{c S^*} & 0 \\
+0 & \dfrac{S^*}{c S(x)}
+\end{pmatrix},
+\qquad
+A =
+\begin{pmatrix}
+0 & 1 \\
+1 & 0
+\end{pmatrix}.
+\end{equation}
+
+The initial conditions are given by
+\begin{equation}
+p(x,0) = p_0(x), \qquad v(x,0) = v_0(x).
+\end{equation}
+
+\subsection{Mesh and DG space}
+
+Let
+\begin{equation}
+0 = x_0 < x_1 < \dots < x_N = L,
+\qquad
+K_j = (x_{j-1}, x_j), \quad j = 1,\dots,N.
+\end{equation}
+
+We seek an approximate solution
+\begin{equation}
+\mathbf{u}_h = (p_h, v_h)^T \in (V_h^k)^2,
+\end{equation}
+where
+\begin{equation}
+V_h^k =
+\left\{
+u \in L^2(0,L) \;\middle|\;
+u|_{K_j} \in \mathbb{P}_1(K_j)
+\right\}.
+\end{equation}
+
+\subsection{Local DG formulation}
+
+For each element $K_j$ and for each test function vector
+\begin{equation}
+\boldsymbol{\Phi} = (\varphi_p, \varphi_v)^T \in (\mathbb{P}_1(K_j))^2,
+\end{equation}
+the local weak formulation reads
+\begin{equation}
+\int_{K_j} C(x)\, \partial_t \mathbf{u}_h \cdot \boldsymbol{\Phi}\, dx
+-
+\int_{K_j} A \mathbf{u}_h \cdot \partial_x \boldsymbol{\Phi}\, dx
++
+\widehat{\mathbf{F}}_{j+\frac12} \cdot \boldsymbol{\Phi}(x_j^-)
+-
+\widehat{\mathbf{F}}_{j-\frac12} \cdot \boldsymbol{\Phi}(x_{j-1}^+)
+= 0.
+\label{eq:dg_local_vector}
+\end{equation}
+
+The physical flux is defined as
+\begin{equation}
+\mathbf{F}(\mathbf{u}) = A \mathbf{u}
+=
+\begin{pmatrix}
+v \\
+p
+\end{pmatrix}.
+\end{equation}
+
+\subsection{Rusanov flux}
+
+At each interface $x_{j+\frac12}$, the Rusanov (local Lax--Friedrichs) flux is defined by
+\begin{equation}
+\widehat{\mathbf{F}} =
+\frac{1}{2}
+\left(
+\mathbf{F}(\mathbf{u}^-) + \mathbf{F}(\mathbf{u}^+)
+\right)
 -
 \frac{\lambda_{j+\frac12}}{2}
-\Big(
-\mathbf u^+ - \mathbf u^-
-\Big),
+\left(
+\mathbf{u}^+ - \mathbf{u}^-
+\right),
+\label{eq:rusanov}
 \end{equation}
-où
-$
-\lambda_{j+\frac12}
-=
-\max\bigl(|\lambda_1|,|\lambda_2|\bigr).
-$
+where $\lambda_{j+\frac12}$ denotes the maximum characteristic speed at the interface.
 
-The eighen values $\lambda_1, \lambda_2$ of the matrix $\mathbf{C}^{-1}\mathbf{A}$ are :
-$$
-\lambda_{1,2}
-=
-\pm c.
-$$
 
-Therefore, for the Rusanov flux, we have :
-$$
-\lambda_{j+\frac12}=c.
-$$
-
-\subsubsection{Explicit flux}
+\subsection{Explicit flux}
 By denoting
 $$
 \mathbf U^\pm =
@@ -293,7 +407,7 @@ $$
 }
 $$
 
-\subsubsection{Final DG formulation}
+\subsection{Final DG formulation}
 For each element $K_j=(x_{j-1},x_j)$ and 
 for each test function $w_p,w_v\in\mathbb P^k(K_j)$, 
 the DG formulation of the mixed form of the wave equation reads :
@@ -329,10 +443,30 @@ the DG formulation of the mixed form of the wave equation reads :
 \end{equation}
 All the dependence on the variable cross-sectional area $S(x)$ is contained in the mass matrix C(x). 
 This property ensures a uniform wave speed c and a CFL condition independent of S(x)
-\subsubsection{Boundary conditions}
 
-On the righthand-side boundary ($x=L$), we need to ensure the conditions derived from equations {\eqref{eq:1c}--\eqref{eq:1d}}.
+\subsection{Boundary conditions}
 
+One of the difficulties when simulating wave propagation in a wind instrument is to correctly
+compute the influence of the exterior environment at the open end of the instrument. \cite{thibault:tel-04868270}
+To do so, we use a condition of radiation impedance. 
+On the right-hand boundary ($x = L$), the acoustic field is coupled to a boundary dynamical system.
+The boundary conditions are derived from equations~(1c)--(1d).
+
+The boundary model reads:
+\begin{equation}
+\begin{cases}
+\dfrac{Z^\ast}{T^\ast}\,\partial_t \phi(t)
++ \sqrt{\alpha}\, p(L,t) = 0,
+\\[0.4em]
+-\dfrac{\beta}{Z^\ast T^\ast}\, p(L,t)
++ v(L,t)
++ \sqrt{\alpha}\,\phi(t) = 0.
+\end{cases}
+\label{eq:bc_ode_pde}
+\end{equation}
+
+The first equation governs the time evolution of the boundary variable $\phi(t)$, while the second
+equation provides a dynamic impedance relation between pressure and velocity at the boundary.
 \begin{equation}
 v(L,t) = \frac{\beta}{Z^\ast T^\ast} p(L,t) - \sqrt{\alpha}\,\phi(t).
 \tag{BC}
@@ -379,9 +513,74 @@ w^+
 +
 \frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z^\ast T^\ast}} \phi
 }
+\label{eq:wminus_final}
 \end{equation}
 
-\subsection{Analytical solving when $S(x) = S^* = 1$}
+This expression is used to impose the boundary condition in the numerical flux of the DG scheme.
+In the DG framework, boundary conditions are enforced weakly through the numerical flux.
+At the right boundary, the outgoing characteristic is obtained from the interior solution,
+while the incoming characteristic is prescribed by the boundary condition.
+The relation~\eqref{eq:wminus_final} provides the value of the incoming wave $w^-$, from which
+the boundary state is reconstructed and used as the exterior state in the numerical flux.
+\\
+Note : In practice, the boundary ODE~\eqref{eq:bc_ode_pde} is discretized in time using the same time
+integration scheme as the DG solver.
+
+\section{Numerical Algorithm: DG Scheme with Boundary ODE}
+
+The following algorithm implements the Discontinuous Galerkin (DG) scheme 
+for the one-dimensional mixed wave equation with variable cross-section. 
+The right boundary at $x=L$ is coupled to an auxiliary ODE to dynamically 
+impose the boundary condition. The DG update can be performed using either 
+the explicit Euler method or a second-order Runge-Kutta scheme.
+
+\begin{algorithm}[H]
+\caption{DG scheme with boundary ODE at right boundary ($x=L$)}
+\begin{algorithmic}[1]
+\State \textbf{Initialization:}
+\State \quad Project $p_0(x), v_0(x)$ onto DG space
+\State \quad Initialize $\phi^0$
+\For{$n = 0, \dots, N_t-1$}
+    \State \textbf{1. Compute boundary characteristics at $x=L$:}
+    \[
+        w^+ = p_h(L^-) + v_h(L^-)
+    \]
+    \State \textbf{2. Compute incoming wave (boundary condition):}
+    \[
+        w^- = a\, w^+ + b\, \phi^n
+    \]
+    where
+    \[
+        a = \frac{1 - \beta/(Z^* T^*)}{1 + \beta/(Z^* T^*)}, \quad
+        b = \frac{2 \sqrt{\alpha}}{1 + \beta/(Z^* T^*)}.
+    \]
+    \State \textbf{3. Reconstruct ghost state at the boundary:}
+    \[
+        p^+ = \frac{w^+ + w^-}{2},\quad
+        v^+ = \frac{w^+ - w^-}{2}
+    \]
+    \State \textbf{4. Compute numerical flux at the boundary:}
+    \[
+        \hat{\mathbf F}_L = \text{Rusanov}(u^-, u^+)
+    \]
+    \State \textbf{5. Compute internal fluxes:}
+    \For{each interior interface $j+1/2$}
+        \State Compute $\hat{\mathbf F}_{j+1/2}$
+    \EndFor
+    \State \textbf{6. DG update (Euler or RK2):}
+    \[
+        M_k \, u_k^{\,n+1} = b_k(u^n, \hat{\mathbf F})
+    \]
+    \State \textbf{7. Update boundary ODE:}
+    \[
+        \phi^{\,n+1} = \phi^n - \Delta t \, \frac{T^*}{Z^*} \, \sqrt{\alpha} \, p_h(L^-)
+    \]
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+
+\section{Analytical solving when $S(x) = S^* = 1$}
 To assess the validity of our Discontinuous Galerkin Method implementation, we can compare the numerical solution to the analytical solution in the simple case where $S(x) = S^* = 1$.
 Let's consider the following equation system :
 \begin{align}
@@ -389,7 +588,8 @@ Let's consider the following equation system :
     \partial_t v + c\,\partial_x p &= 0.
 \end{align}
 with the boundary conditions {\eqref{eq:1c}--\eqref{eq:1d}}. 
-\subsubsection{Riemann invariants}
+
+\subsection{Riemann invariants}
 Introduce the Riemann variables
 \begin{equation}
     r := p+v,\qquad s := p-v.
@@ -412,7 +612,7 @@ Recovering $(p,v)$ gives the explicit solution
                  &= \tfrac12\bigl[v_0(x-ct)+v_0(x+ct)\bigr] 
                         + \tfrac12\bigl[p_0(x-ct)-p_0(x+ct)\bigr] \label{eq:solution_v}.
 \end{align}
-\subsubsection{Boundary condition at $x=L$}
+\subsection{Boundary condition at $x=L$}
 
 At the right boundary $x=L$, we impose a dynamic impedance-type boundary condition
 coupled with an auxiliary variable $\phi(t)$:
@@ -437,7 +637,7 @@ while the outgoing characteristic $s(L,t)$ is determined by
 This ordinary differential equation system is solved explicitly in time and then propagated
 into the domain along characteristics.
 
-\subsubsection{Final analytical solution}
+\subsection{Final analytical solution}
 
 Denoting by $s_{\mathrm{ref}}(x,t)$ the reflected wave generated at $x=L$ and transported
 with velocity $-c$, the total right-going characteristic reads
@@ -459,9 +659,19 @@ This analytical solution is exactly the one implemented in the function
 \texttt{exact\_solution\_characteristics} and is used as a reference to assess the accuracy
 of the DG scheme.
 
-\section{Numerical Results}
+\chapter{Numerical Results}
 
-\subsection{Initial Condition}
+\minitoc
+\vspace{1em}
+In this section, we present numerical results obtained using the Discontinuous Galerkin Method (DGM) 
+for simulating wave propagation in a one-dimensional domain with variable cross-sectional area.
+We will fist describe the initial conditions and simulation parameters used in the experiments.
+Then, we will present the results of the DGM solver for both uniform and non-uniform cross-sections(exponential and conical shapes),
+with an analyze of the convergence of the method for the uniform cross-section case. 
+Finally, we will present some performance benchmarks of the JAX implementation.
+
+\newpage
+\section{Initial Condition}
 The initial pressure profile is defined as a smooth compactly supported bump function
 centered at $x=L/2$. Introducing the rescaled variable
 \begin{equation}
@@ -483,8 +693,10 @@ The initial acoustic volume velocity is set to zero:
 v_0(x) = 0.
 \end{equation}
 
-\subsection{Simulation Parameters}
-
+\section{Simulation Parameters}
+Here are the parameters used in the simulations presented in this section.
+We used the same set of parameters for all the test cases to ensure consistency 
+and comparability of the results.
 \begin{table}[h!]
 \centering
 \begin{tabular}{c ccccccc}
@@ -498,14 +710,15 @@ Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 1.0 & 0.05 \\
 \label{tab:sim_parameters}
 \end{table}
 
-\newpage
-\subsection{DG Method results}
+\section{DG Method results}
 
-\subsubsection{Uniform cross-section}
+\subsection{Uniform cross-section}
 
 In the case of a uniform cross-section $S(x) = S^* = 1$, the analytical solution described in \eqref{eq:solution_p}--\eqref{eq:solution_v} is available for validation.
+In a future work, we might use the numerical solution obtained with Openwind as a reference for 
+the comparaison when dealing with non-uniform cross-sections.
 
-\paragraph{Solution plots} $\\ \\$
+\subsubsection{Solution plots}
 
 \begin{figure}[htbp]
     \centering
@@ -522,10 +735,11 @@ Inside the domain (Instrument), we can observe the proper propagation of the ini
 and velocity fields. At the right boundary, the interaction with the radiation condition seems to be correctly
 computed hence demonstrating the method's capability to handle complex boundary conditions.
 
-\paragraph{Convergence study} $\\ \\$ 
+\FloatBarrier 
+\subsubsection{Convergence study}
 The convergence of the DG method is verified by comparing the numerical solution to the analytical solution at various size of discretisation with an Explicit Euler
 time integration scheme and a Runge-Kutta 2nd order scheme. 
-\newpage
+
 \begin{figure}[htbp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
@@ -551,9 +765,9 @@ limited by the order of the time integration method: first order for
 the explicit Euler scheme and second order for the second-order 
 Runge–Kutta scheme.
 
-\subsubsection{Non-uniform cross-section}
+\subsection{Non-uniform cross-section}
 In the case of a non-uniform cross-section $S(x) \neq S^*$, no analytical solution is available.
-\paragraph{Case of an exponential cross-section} $\\ \\$
+\subsubsection{Case of an exponential cross-section} $\\ \\$
 We consider an exponential cross-section defined as
 \begin{figure}[htbp]
     \centering
@@ -585,8 +799,7 @@ This is the shape of the clarinet bell for example.
     \label{fig:dg_solution_exp}
 \end{figure}
 
-\newpage
-\paragraph{Case of a conical cross-section} $\\ \\$
+\subsubsection{Case of a conical cross-section} $\\ \\$
 We consider a conical cross-section defined as
 \begin{figure}[htbp]
     \centering
@@ -610,7 +823,6 @@ We consider a conical cross-section defined as
 
 This is another shape of musical instrument.
 
-\newpage
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/dg_solution.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
@@ -625,12 +837,12 @@ We can oberse that the wave propagation is influenced by the varying cross-secti
 as it has stop to be symmetric.
 For example, the pressure is amplified in regions where the cross-sectional area decreases. 
 
-\subsection{Performance Study}
+\newpage
+\section{Performance Study}
 A performance analysis was carried out to assess the computational efficiency of the Discontinuous Galerkin (DG) method implementation.
 The study measured the execution time for simulations with different numbers of elements ($N$), using the parameters listed in 
 Table~\ref{tab:sim_parameters}, with a final simulation time of $T = 0.5\ \mathrm{s}$.
-\subsubsection{Euler explicit time integration}
-
+\subsection{Euler explicit time integration}
 \input{../Results/table_performance_euler.tex}
 
 \begin{figure}[htbp]
@@ -645,8 +857,8 @@ Since the performance study was done in JAX framework, the first run includes
 compilation time. This explains the higher execution time for the smallest $N$ values 
 for the constant cross-section case in Figure~\ref{fig:performance_euler}.
 
-
-\subsubsection{RK2 explicit time integration}
+\newpage
+\subsection{RK2 explicit time integration}
 
 \input{../Results/table_performance_rk2.tex}
 
@@ -662,7 +874,7 @@ but superior to the Euler explicit time integration scheme as expected due to th
 That also explain the higher execution time in the performance study in Table~\ref{tab:performance-rk2}.
  
 \newpage
-\section{Conclusion}
+\chapter{Conclusion}
 \newpage
 \printbibliography
 

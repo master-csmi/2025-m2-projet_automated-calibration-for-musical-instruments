@@ -447,7 +447,7 @@ This property ensures a uniform wave speed c and a CFL condition independent of 
 \subsection{Boundary conditions}
 
 One of the difficulties when simulating wave propagation in a wind instrument is to correctly
-compute the influence of the exterior environment at the open end of the instrument. \cite{thibault:tel-04868270}
+compute the influence of the exterior environment at the open end of the instrument. \cite{thibault}
 To do so, we use a condition of radiation impedance. 
 On the right-hand boundary ($x = L$), the acoustic field is coupled to a boundary dynamical system.
 The boundary conditions are derived from equations~(1c)--(1d).
@@ -759,7 +759,7 @@ time integration scheme and a Runge-Kutta 2nd order scheme.
 
 The numerical results confirm the theoretical convergence rates of the discontinuous Galerkin method.
 For a polynomial degree $d$, the spatial discretization achieves an order of accuracy
-$\mathcal{O}(h^{d+1})$ in the $L^2$ norm for sufficiently smooth solutions.
+$\mathcal{O}(h^{d+1})$ in the $L^2$ norm for sufficiently smooth solutions. \cite[Section~4.5]{HesthavenWarburton2008} 
 The overall convergence rate of the fully discrete scheme is 
 limited by the order of the time integration method: first order for 
 the explicit Euler scheme and second order for the second-order 
@@ -875,6 +875,30 @@ That also explain the higher execution time in the performance study in Table~\r
  
 \newpage
 \chapter{Conclusion}
+The main objective of my third-semester Master’s project was to develop a framework for the automated calibration of a set of parameters 
+governing wave propagation inside a reed instrument. To achieve this goal, I implemented a Discontinuous Galerkin Method (DGM) solver for 
+the one-dimensional mixed formulation of the acoustic wave equation in a duct with variable cross-sectional area.
+
+The primary challenges of this work were the correct formulation of the DGM for the mixed wave system, the implementation of the radiation 
+boundary condition at the open end of the instrument, and the validation of the numerical solver against an analytical solution in the 
+simplified case of a constant cross-sectional area. Particular attention was paid to the consistent treatment of boundary conditions, which 
+play a crucial role in accurately modeling wave reflection and radiation phenomena in wind instruments.
+
+The solver was implemented using the JAX framework, enabling just-in-time compilation and paving the way for future developments involving 
+automatic differentiation. Both Explicit Euler and second-order Runge–Kutta (RK2) time integration schemes were implemented and tested. 
+Numerical experiments demonstrated that the proposed DGM solver is accurate and stable for wave propagation in ducts with both uniform and 
+non-uniform cross-sectional profiles. Furthermore, a convergence study confirmed that the numerical method achieves the expected theoretical 
+rates of convergence. Performance analyses showed that the JAX-based implementation scales efficiently with the number of elements, making 
+it suitable for large-scale simulations required in calibration and optimization tasks.
+
+Future work will focus on extending the solver to include the full right-hand-side boundary conditions described by equations~\eqref{eq:1e} 
+and~\eqref{eq:1f}, which are essential for modeling the complete reed–instrument interaction. In addition, further investigations will be 
+required to design an effective automated calibration strategy, including data preprocessing, parameter selection, and the choice of 
+appropriate loss functions for optimization.
+
+I would like to express my sincere gratitude to my supervisors—Dr. Emmanuel Franck, Dr. Juliette Chabassier, Dr. Laurent Navoret, Dr. Victor
+ Michel-Dansac, and Dr. Alexis Thibault—for their invaluable guidance, insightful discussions, and continuous support throughout this project.
+
 \newpage
 \printbibliography
 

@@ -101,17 +101,13 @@ def S_of_x(x, type_S="const", **kwargs):
 #                                                          analytic local mass matrix for P1 (S(x) variable)
 # ------------------------------------------------------------------------------------------------------------------------------
 
-def local_mass_inv_system(h, S_cell, c=1.0, S_star=1.0):
+def local_mass_inv_system(h):
     """
-    Correct DG P1 mass inverse for the weighted system
+    DG P1 mass inverse pour hyperbolique standard.
     """
     M_ref = (h / 6.0) * jnp.array([[2., 1.],
-                                  [1., 2.]])
-
-    Mp = (S_cell / (c * S_star)) * M_ref
-    Mv = (S_star / (c * S_cell)) * M_ref
-
-    return jnp.linalg.inv(Mp), jnp.linalg.inv(Mv)
+                                   [1., 2.]])
+    return jnp.linalg.inv(M_ref), jnp.linalg.inv(M_ref)
 
 
 
@@ -119,27 +115,43 @@ def local_mass_inv_system(h, S_cell, c=1.0, S_star=1.0):
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                          flux for system (linear)
 # ------------------------------------------------------------------------------------------------------------------------------
-def linear_system_flux(A):
-    def Flux(U):
-        # U shape (...,2)
-        return U @ A.T 
-    return Flux
-
-def rusanov_flux(U_L, U_R, c=1.0):
+def physical_flux(x, U, S_cell, c=1.0, S_star=1.0):
+    p_t, v_t = U
+    a = S_cell / (c * S_star)
+    b = c * S_star / S_cell
+    return jnp.array([
+        a * v_t,
+        b * p_t
+    ])
+def upwind_flux_hyperbolic(U_L, U_R, S_face, c=1.0, S_star=1.0):
     """
-    Correct Rusanov flux for
-    F(U) = (v, p)
+    Flux upwind pour système hyperbolique : ∂t U + A(x) ∂x U = 0
+    U = [p,v]
     """
-    smax = c
-    F_L = jnp.array([U_L[1], U_L[0]])
-    F_R = jnp.array([U_R[1], U_R[0]])
+    # Diagonalisation A = R Λ R^{-1}
+    a = c * S_star / S_face
+    b = c * S_face / S_star
 
-    return 0.5 * (F_L + F_R) - 0.5 * smax * (U_R - U_L)
+    # valeurs caractéristiques
+    wL = U_L[0] + jnp.sqrt(a/b)*U_L[1]
+    wR = U_R[0] + jnp.sqrt(a/b)*U_R[1]
+
+    # vitesse de propagation max
+    lam = c  # tu peux mettre max(c*S*/S, c*S/S*) pour CFL local si nécessaire
+
+    # flux simple : Rusanov
+    F_L = jnp.array([b*U_L[1], a*U_L[0]])
+    F_R = jnp.array([b*U_R[1], a*U_R[0]])
+
+    jump = U_R - U_L
+    diss = lam * jump
+
+    return 0.5*(F_L + F_R) - 0.5*diss
 
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                          local volume term for system
 # ------------------------------------------------------------------------------------------------------------------------------
-def local_volume_system(u_cell, xL, xR, A, nq=24):
+def local_volume_system(u_cell, xL, xR, S_cell, c=1.0, S_star=1.0, nq=24):
     h = xR - xL
     xq = jnp.linspace(xL, xR, nq)
     w  = jnp.ones(nq) * (h/(nq-1))
@@ -150,9 +162,14 @@ def local_volume_system(u_cell, xL, xR, A, nq=24):
     phi_q = vphi_at(xq, xL, xR)       
     p_q = phi_q @ u_cell[0]           
     v_q = phi_q @ u_cell[1]           
-    Uq = jnp.stack([p_q, v_q], axis=1)
 
-    Fq = Uq @ A.T                    
+    a = S_cell / (c * S_star)
+    b = c * S_star / S_cell
+
+    Fq = jnp.stack([
+        a * v_q,
+        b * p_q
+    ], axis=1)                  
 
     # exact derivative of basis functions
     dphi0 = -1.0 / h
@@ -165,7 +182,7 @@ def local_volume_system(u_cell, xL, xR, A, nq=24):
     return jnp.stack([V0, V1], axis=1)   
 
 
-v_local_volume_system = jax.vmap(local_volume_system, in_axes=(0, 0, 0, None, None))
+v_local_volume_system = jax.vmap(local_volume_system, in_axes=(0, 0, 0, None, None, None, None))
 
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                          Boundary conditions 
@@ -230,7 +247,7 @@ def apply_bc_neumann(u_cells):
     )
 
 
-def surface_term_system(u_ext, j, c=1.0):
+def surface_term_system(u_ext, j, S_cells, c=1.0):
     """
     Compute DG surface term for cell j with S(x) variable.
 
@@ -251,8 +268,11 @@ def surface_term_system(u_ext, j, c=1.0):
     UR_right = u_ext[jp+1, :, 0]  # left node of right cell
     
 
-    f_left  = rusanov_flux(UL_left, UR_left, c)
-    f_right = rusanov_flux(UL_right, UR_right, c)
+    S_face_L = 0.5 * (S_cells[j-1] + S_cells[j])
+    S_face_R = 0.5 * (S_cells[j]   + S_cells[j+1])
+
+    f_left  = upwind_flux_hyperbolic(UL_left, UR_left, S_face_L, c)
+    f_right = upwind_flux_hyperbolic(UL_right, UR_right, S_face_R, c)
     # assemble surface term (2x2)
     S_term = jnp.zeros((2,2))
     S_term = S_term.at[:,0].set(-f_left)
@@ -260,9 +280,9 @@ def surface_term_system(u_ext, j, c=1.0):
     return S_term
 
 
-v_surface_term_system = jax.vmap(surface_term_system, in_axes=(None, 0, None))
+v_surface_term_system = jax.vmap(surface_term_system, in_axes=(None, 0, None, None))
 
-def dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha):
+def dg_rhs_system(u_cells, x_nodes, S_cells, c, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha):
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
 
@@ -272,18 +292,17 @@ def dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi, beta
     elif bc.type == "neumann":
         u_ext = apply_bc_neumann(u_cells)
 
-    # S at nodes/interfaces with ghost cells
-    S_nodes_ext = jnp.concatenate([S_cells[:1], S_cells, S_cells[-1:]])  
+   
 
     # Surface term (fluxes)
     S_all = jax.vmap(
-        lambda j: surface_term_system(u_ext, j, c=c)
+        lambda j: surface_term_system(u_ext, j, S_cells, c=c)
     )(jnp.arange(N))
 
     # Volume term
     V_all = jax.vmap(
-        lambda Ue, xL, xR: local_volume_system(Ue, xL, xR, A, 24)
-    )(u_cells, xLs, xRs)
+        lambda Ue, xL, xR, S: local_volume_system(Ue, xL, xR, S, c, 1.0, 24)
+    )(u_cells, xLs, xRs, S_cells)
 
     # assemble RHS cell by cell
     def element_rhs(e):
@@ -312,13 +331,13 @@ def rk2_step_phi(u_cells, phi, dt, ZT, alpha):
 
 # RK2 time step for system
 @jax.jit(static_argnames=("bc",))
-def rk2_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha):
+def rk2_step_system(u_cells, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha):
     # First phi
     phi_new = rk2_step_phi(u_cells, phi, dt, ZT, alpha)
     # Then RHS
-    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi_new, beta, ZT, alpha)
+    k1 = dg_rhs_system(u_cells, x_nodes, S_cells,c , Mp_inv, Mv_inv, bc, phi_new, beta, ZT, alpha)
     u_mid = u_cells + 0.5 * dt * k1
-    k2 = dg_rhs_system(u_mid, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi_new, beta, ZT, alpha)
+    k2 = dg_rhs_system(u_mid, x_nodes, S_cells, c, Mp_inv, Mv_inv, bc, phi_new, beta, ZT, alpha)
     return u_cells + dt * k2, phi_new
 
 # ------------------------------------------------------------------------------------------------------------------------------
@@ -334,11 +353,11 @@ def euler_step_phi(u_cells, phi, dt, ZT, alpha):
 
 # Euler step for system
 @jax.jit(static_argnames=("bc",))
-def euler_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha):
+def euler_step_system(u_cells, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha):
     # First phi
     phi_new = euler_step_phi(u_cells, phi, dt, ZT, alpha)
     # Then RHS
-    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi_new, beta, ZT, alpha)  # (N,2,2)
+    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, Mp_inv, Mv_inv, bc, phi_new, beta, ZT, alpha)  # (N,2,2)
     return u_cells + dt * k1, phi_new
 
 # ------------------------------------------------------------------------------------------------------------------------------
@@ -430,19 +449,19 @@ def exact_solution_characteristics(x, t, p0_fun, c, L, alpha, beta, ZT, dt=1e-4)
 # ------------------------------------------------------------------------------------------------------------------------------
 # Fist integrate 
 # RK2 time integration
-def time_integrate_rk2(u0, x_nodes, S_cells, c, A, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, ZT, alpha):
+def time_integrate_rk2(u0, x_nodes, S_cells, c, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, ZT, alpha):
     def step(carry, _):
         u, phi = carry
-        u_next, phi_next = rk2_step_system(u, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha)
+        u_next, phi_next = rk2_step_system(u, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha)
         return (u_next, phi_next), None
     (u_final, phi_final), _ = lax.scan(step, (u0, phi0), None, length=nsteps)
     return u_final, phi_final
 
 # Euler time integration
-def time_integrate_euler(u0, x_nodes, S_cells, c, A, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, ZT, alpha):
+def time_integrate_euler(u0, x_nodes, S_cells, c, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, ZT, alpha):
     def step_sys(carry, _):
         u, phi = carry
-        u_next,phi_next = euler_step_system(u, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha)
+        u_next,phi_next = euler_step_system(u, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, ZT, alpha)
         return (u_next, phi_next), None
     
     (u_final, phi_final), _ = lax.scan(step_sys, (u0, phi0), None, length=nsteps)
@@ -504,10 +523,10 @@ def main():
     alpha = 0.1
     beta = 0.2
     ZT = 1.0
+    S_star = 1.0
 
-    A = jnp.array([[0.0, 1.0],
-                   [1.0, 0.0]])
-    smax = c * jnp.max(jnp.abs(jnp.linalg.eigvals(A)))
+   
+    smax = 1.0
     print("smax =", smax)
 
     bc = BC(type="dirichlet", left=(0.0, 0.0), right=(0.0, 0.0))
@@ -548,8 +567,8 @@ def main():
 
             # ---- inverse mass matrices
             Mp_inv, Mv_inv = jax.vmap(
-                local_mass_inv_system, in_axes=(0, 0, None, None)
-            )(hs, S_cells, c, 1.0)
+                local_mass_inv_system, in_axes=(0,)
+            )(hs)
 
             # ---- initial condition
             u0 = jnp.stack([
@@ -562,19 +581,20 @@ def main():
 
             # ---- time step
             h = xRs[0] - xLs[0]
-            dt = CFL * h / c
+            c_max = jnp.max(jnp.array([c*S_star/Si for Si in S_cells]))
+            dt = CFL * h / c_max
             nsteps = int(jnp.ceil(T / dt))
 
             # ---- time integration
             if method == "euler":
                 u, phi = time_integrate_euler(
-                    u0, x_nodes, S_cells, c, A, smax,
+                    u0, x_nodes, S_cells, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, ZT, alpha
                 )
             else:
                 u, phi = time_integrate_rk2(
-                    u0, x_nodes, S_cells, c, A, smax,
+                    u0, x_nodes, S_cells, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, ZT, alpha
                 )
@@ -638,8 +658,8 @@ def main():
         S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
         Mp_inv, Mv_inv = jax.vmap(
-            local_mass_inv_system, in_axes=(0, 0, None, None)
-        )(hs, S_cells, c, 1.0)
+            local_mass_inv_system, in_axes=(0,)
+        )(hs)
 
         u0 = jnp.stack([
             jnp.stack([
@@ -650,19 +670,20 @@ def main():
         ], axis=0)
 
         h = xRs[0] - xLs[0]
-        dt = CFL * h / c
+        c_max = jnp.max(jnp.array([c*S_star/Si for Si in S_cells]))
+        dt = CFL * h / c_max
         nsteps = int(jnp.ceil(T_conv / dt))
 
         # ---- time integration
         if method == "euler":
             u, phi = time_integrate_euler(
-                u0, x_nodes, S_cells, c, A, smax,
+                u0, x_nodes, S_cells, c, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, 0.0, beta, ZT, alpha
             )
         else:
             u, phi = time_integrate_rk2(
-                u0, x_nodes, S_cells, c, A, smax,
+                u0, x_nodes, S_cells, c, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, 0.0, beta, ZT, alpha
             )

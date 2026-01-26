@@ -1,8 +1,9 @@
 import jax.numpy as jnp
 from dataclasses import dataclass
 
-def phi_rhs(pR, alpha, ZT):
-    return -jnp.sqrt(alpha)/ZT * pR
+# Right Hand Side of the ODE for phi at right BC
+def phi_rhs(pR, alpha, Z, T):
+    return -jnp.sqrt(alpha)/ (Z * T) * pR
 
 @dataclass(frozen=True)
 class BC:
@@ -10,7 +11,7 @@ class BC:
     left: tuple
     right: tuple
 
-def apply_bc_right_impedance(u_cells, phi, beta, ZT, alpha):
+def apply_bc_right_impedance(u_cells, phi, beta, Z,T, alpha):
         # values inside the domain at right boundary
         pR = u_cells[-1,0,1]
         vR = u_cells[-1,1,1]
@@ -19,10 +20,10 @@ def apply_bc_right_impedance(u_cells, phi, beta, ZT, alpha):
         w_plus = pR + vR
 
         # reflection coefficient
-        r = (1.0 - beta / ZT) / (1.0 + beta / ZT)
+        r = (1.0 - beta / (Z*T)) / (1.0 + beta / (Z*T))
 
         # incoming wave from ODE
-        w_minus = r * w_plus + (2.0 * jnp.sqrt(alpha) / (1.0 + beta / ZT)) * phi
+        w_minus = r * w_plus + (2.0 * jnp.sqrt(alpha) / (1.0 + beta / (Z*T))) * phi
 
         # reconstruct p and v
         p_ext = 0.5 * (w_plus + w_minus)
@@ -34,14 +35,14 @@ def apply_bc_right_impedance(u_cells, phi, beta, ZT, alpha):
         ])
         return ghost_R
 
-def apply_bc(u_cells, bc_left, phi, beta, ZT, alpha):
+def apply_bc(u_cells, bc_left, phi, beta, Z, T, alpha):
     # u_cells: (N, 2, 2)
     ghost_L = jnp.stack([
         jnp.array([bc_left[0], bc_left[0]]),
         jnp.array([bc_left[1], bc_left[1]])
     ])
 
-    ghost_R = apply_bc_right_impedance(u_cells, phi, beta, ZT, alpha)
+    ghost_R = apply_bc_right_impedance(u_cells, phi, beta, Z, T, alpha)
 
     return jnp.concatenate([ghost_L[None, ...], u_cells, ghost_R[None, ...]],axis=0) #shape (N+2, 2, 2)
 

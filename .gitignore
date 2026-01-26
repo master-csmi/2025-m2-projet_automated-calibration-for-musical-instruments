@@ -14,6 +14,8 @@ venv/
 *.snm
 *.toc
 *.synctex.gz
+*.maf
+*.mtc*
 presentation.bbl-SAVE-ERROR
 
 dg_bis.py
@@ -24,3 +26,5 @@ test.ipynb
 
 
 __pycache__/
+
+prompt.md

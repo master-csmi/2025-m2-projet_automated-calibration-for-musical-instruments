@@ -54,11 +54,9 @@ def main():
     beta = 0.2
     Z = 1.0
     T_star = 1.0 
+    S_star = 1.0
 
-    A = jnp.array([[0.0, 1.0],
-                   [1.0, 0.0]])
-
-    smax = c * jnp.max(jnp.abs(jnp.linalg.eigvals(A)))
+    smax = 1.0
     print("smax =", smax)
 
     # Dirichlet BC at left + impedance BC at right
@@ -115,9 +113,8 @@ def main():
             # Inverse mass matrices
             # ----------------------------------------------------------------------
             Mp_inv, Mv_inv = jax.vmap(
-                local_mass_inv_system,
-                in_axes=(0, 0, None, None)
-            )(hs, S_cells, c, 1.0)
+                local_mass_inv_system, in_axes=(0,)
+            )(hs)
 
             # ----------------------------------------------------------------------
             # Initial DG coefficients
@@ -134,7 +131,8 @@ def main():
             # Time step
             # ----------------------------------------------------------------------
             h = xRs[0] - xLs[0]
-            dt = CFL * h / c
+            c_max = jnp.max(jnp.array([c*S_star/Si for Si in S_cells]))
+            dt = CFL * h / c_max
             nsteps = int(jnp.ceil(T / dt))
 
             # ----------------------------------------------------------------------
@@ -144,13 +142,13 @@ def main():
 
             if method == "euler":
                 u, phi = time_integrate_euler(
-                    u0, x_nodes, S_cells, c, A, smax,
+                    u0, x_nodes, S_cells, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, T_star, alpha
                 )
             else:
                 u, phi = time_integrate_rk2(
-                    u0, x_nodes, S_cells, c, A, smax,
+                    u0, x_nodes, S_cells, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, T_star, alpha
                 )
@@ -225,9 +223,8 @@ def main():
         S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
         Mp_inv, Mv_inv = jax.vmap(
-            local_mass_inv_system,
-            in_axes=(0, 0, None, None)
-        )(hs, S_cells, c, 1.0)
+                local_mass_inv_system, in_axes=(0,)
+            )(hs)
 
         u0 = jnp.stack([
             jnp.stack([
@@ -238,18 +235,19 @@ def main():
         ], axis=0)
 
         h = xRs[0] - xLs[0]
-        dt = CFL * h / c
+        c_max = jnp.max(jnp.array([c*S_star/Si for Si in S_cells]))
+        dt = CFL * h / c_max
         nsteps = int(jnp.ceil(T_conv / dt))
 
         if method == "euler":
             u, phi = time_integrate_euler(
-                u0, x_nodes, S_cells, c, A, smax,
+                u0, x_nodes, S_cells, c, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, 0.0, beta, Z, T_star, alpha
             )
         else:
             u, phi = time_integrate_rk2(
-                u0, x_nodes, S_cells, c, A, smax,
+                u0, x_nodes, S_cells, c, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, 0.0, beta, Z, T_star, alpha
             )

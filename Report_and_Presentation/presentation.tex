@@ -86,8 +86,13 @@
 \begin{itemize}
     \item Automatically adjust parameters of physical models to match target sounds of reed instruments.
     \item Joint collaboration between IRMA and Modartt.
-    \item Modartt \cite{Modartt} is a French company specialized in the development of artistic and technological application software (PIANOTEQ model).
+    \item Modartt \footnotemark is a French company specialized in the development of artistic and technological application software (PIANOTEQ model).
 \end{itemize}
+
+\footnotetext{
+{\footnotesize \cite{Modartt}
+\url{https://www.modartt.com/}}
+}
 \end{frame}
 
 \slideTitle{Objectives}
@@ -102,8 +107,8 @@ In JAX framework:
 \section{Theoritical Aspects}
 \slideTitle{Reed Instruments}
 \begin{itemize}
-    \item \cite{Universalis_Anche} Reed : thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator.
-    \item \cite{chaigne:hal-05370840} When subjected to a pressure difference $\rightarrow$ generates self-sustained oscillations (sound).
+    \item \footnotemark[1] Reed : thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator.
+    \item \footnotemark[2] When subjected to a pressure difference $\rightarrow$ generates self-sustained oscillations (sound).
 \end{itemize}
             
 \begin{columns}[T]
@@ -125,11 +130,22 @@ In JAX framework:
         \label{fig:sax_reed}
     \end{column}
 \end{columns}
+\footnotetext[1]{
+{\footnotesize \cite{Universalis_Anche} 
+Encyclopædia Universalis, "Anche (instrument de musique)".
+}
+}
+\footnotetext[2]{
+{\footnotesize \cite{chaigne:hal-05370840}
+Chaigne, A. (2010). "Physical models of musical instruments". HAL.
+}
+}
 \end{frame}
 
-\slideTitle{Physical Model \cite{MAMAMIA2024}}
+\slideTitle{Physical Model}
+
+\scriptsize 
 \noindent\begin{minipage}[t]{\linewidth}
-\scriptsize
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
     \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
@@ -144,10 +160,15 @@ In JAX framework:
 \end{minipage}
 {\scriptsize
 \begin{itemize}
-    \item Equations \eqref{eq:1a} and \eqref{eq:1b}: wave propagation (pressure and acoustic volume velocity)in a variable section tube.
+    \item Equations \eqref{eq:1a} and \eqref{eq:1b}: wave propagation (pressure and acoustic volume velocity)in a variable section tube. \footnotemark[1]
     \item Equations \eqref{eq:1c} and \eqref{eq:1d}: Radiative phenomenons ($\phi$).
     \item Equations \eqref{eq:1e} and \eqref{eq:1f}: effects of the instrumental player at the input boundary.
 \end{itemize}
+}
+\footnotetext[1]{
+{\scriptsize \cite{MAMAMIA2024}
+Michel-Dansac, V., Thibault, A., Franck, E., Chabassier, J., Navoret, L. (2024). "Automated Calibration of Physical Models for Reed Instruments". MAMAMIA 2024.
+}
 }
 \end{frame}
 
@@ -155,10 +176,10 @@ In JAX framework:
 \section{Methods}
 \subsection{Discontinuous Galerkin Method}
 
-\slideTitle{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
+\slideTitle{Discontinuous Galerkin Method}
 
 \begin{itemize}
-    \item Numerical method for the spatial discretization of partial differential equations.
+    \item \footnotemark Numerical method for the spatial discretization of partial differential equations.
     \item We consider a scalar conservation law:
     \begin{equation}\label{eq:transport}
         \partial_t u(x,t) + \partial_x F\big(u(x,t)\big) = 0,
@@ -171,6 +192,10 @@ In JAX framework:
         u^{n+1}(x) = u^n(x) - \Delta t\, \partial_x F\big(u^n(x)\big).
     \end{equation}
 \end{itemize}
+\footnotetext{
+\footnotesize \cite[Section~2]{HesthavenWarburton2008}
+Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Section~4.5
+}
 \end{frame}
 
 
@@ -406,7 +431,8 @@ the DG formulation of the mixed form of the wave equation reads :
 \slideTitle{Boundary Conditions: ODE--PDE Coupling}
 
 \begin{itemize}
-    \item At the outlet $x=L$,
+    \item At the outlet $x=L$ : Influence of exterior environment through a condition
+    of radiation impedance \footnotemark[1],
     
     \item As shown in equations \eqref{eq:1c} and \eqref{eq:1d} :
     \begin{equation}
@@ -423,6 +449,10 @@ the DG formulation of the mixed form of the wave equation reads :
     \item The first equation : time evolution of the boundary variable $\phi(t)$. (Euler Explicit or RK2 time integration).
     \item The second equation enforces a dynamic impedance relation between pressure and velocity (link to DG).
 \end{itemize}
+\footnotetext[1]{
+{\footnotesize \cite{thibault}
+Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acoustique dissipative dans les tubes poreux ou rugueux : application aux instruments {\`a} vent}}
+}
 \end{frame}
 
 \slideTitle{Boundary Conditions in Characteristic Variables}
@@ -525,21 +555,45 @@ To validate the implementation of the DGM, we consider a simplified model :
 \end{frame}
 
 \slideTitle{Convergence and Efficiency}
+
 \begin{columns}[T]
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{Images/dg_convergence_T0p5_euler.png}
-        \scriptsize DG convergence with Explicit Euler scheme.
-        \label{fig:dg_convergence_euler}
+        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0p5_euler.png}
+        
+        {\scriptsize DG convergence with Explicit Euler scheme.}
     \end{column}
+
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{Images/dg_convergence_T0p5_rk2.png}
-        \scriptsize DG convergence with Runge-Kutta 2nd order scheme.
-        \label{fig:dg_convergence_rk2}
+        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0p5_rk2.png}
+        
+        {\scriptsize DG convergence with Runge--Kutta second-order scheme.}
     \end{column}
 \end{columns}
+
+\vspace{0.3cm}
+\scriptsize
+\begin{itemize}
+    \item \textbf{Spatial convergence:} order $d+1$ with polynomial degree $d$
+    \footnotemark
+    \item \textbf{Temporal convergence:}
+    \begin{itemize}
+        \item Explicit Euler: first order
+        \item Runge--Kutta 2: second order
+    \end{itemize}
+\end{itemize}
+\normalsize
+
+\footnotetext{
+{\footnotesize
+\cite[Section~4.5]{HesthavenWarburton2008}
+Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Section~4.5
+}
+}
+
 \end{frame}
+
 
 \subsection{Result - Varying Cross-Section}               
 \subsubsection{Examples of Cross-Section}
@@ -611,11 +665,54 @@ To validate the implementation of the DGM, we consider a simplified model :
 $$
 \text{T-Scale}_\text{euler}<\text{T-Scale}_\text{rk2}<\text{N}^2
 $$
-
-
+Good News !
+    
 \end{frame}
 
 \section{Conclusion}
+\slideTitle{Conclusion}
+
+\begin{itemize}
+    \item This project focused on the automated calibration of physical parameters
+    in a one-dimensional wave model for reed instruments.
+    
+    \item A Discontinuous Galerkin Method (DG) solver was developed for the mixed
+    wave equation with variable cross-sectional area.
+    
+    \item Key contributions:
+    \begin{itemize}
+        \item Formulation and implementation of a DG scheme for the mixed wave system,
+        \item Treatment of radiation boundary conditions using characteristic variables
+        coupled with a boundary ODE,
+        \item Validation against analytical solutions in the constant-section case,
+        \item Implementation with Explicit Euler and RK2 time integration schemes.
+    \end{itemize}
+
+    \item Numerical results demonstrate accuracy, stability, and expected convergence rates.
+    
+    \item The JAX-based implementation shows good computational scalability and
+    is well suited for future automated calibration tasks.
+\end{itemize}
+\end{frame}
+
+\slideTitle{Perspectives}
+Future work may include:
+\begin{itemize}
+    \item Extension to full RHS boundary conditions,
+    \item Integration into an automated calibration and optimization framework,
+    \item Investigation of suitable loss functions and training strategies.
+\end{itemize}
+
+\vspace{2em}
+\textbf{Acknowledgments:} 
+\vspace{0.5em}
+
+I would like to express my sincere gratitude to my supervisors\\[0.2em]
+\textbf{Dr.\ Emmanuel Franck, Dr.\ Juliette Chabassier, Dr.\ Laurent Navoret,\\
+Dr.\ Victor Michel-Dansac, and Dr.\ Alexis Thibault}\\[0.4em]
+for their invaluable guidance, insightful discussions, and continuous
+support throughout this project.
+\end{frame}
 
 \begin{frame}[allowframebreaks]{References}
 \printbibliography

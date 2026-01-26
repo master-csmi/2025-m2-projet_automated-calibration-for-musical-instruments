@@ -19,13 +19,13 @@ def rk2_step_phi(u_cells, phi, dt, Z, T, alpha):
 
 # RK2 time step for system
 @jax.jit(static_argnames=("bc",))
-def rk2_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha):
+def rk2_step_system(u_cells, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha):
     # First phi
     phi_new = rk2_step_phi(u_cells, phi, dt, Z, T, alpha)
     # Then RHS
-    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi_new, beta, Z, T, alpha)
+    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, Mp_inv, Mv_inv, bc, phi_new, beta, Z, T, alpha)
     u_mid = u_cells + 0.5 * dt * k1
-    k2 = dg_rhs_system(u_mid, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi_new, beta, Z, T, alpha)
+    k2 = dg_rhs_system(u_mid, x_nodes, S_cells, c, Mp_inv, Mv_inv, bc, phi_new, beta, Z, T, alpha)
     return u_cells + dt * k2, phi_new
 
 # ------------------------------------------------------------------------------------------------------------------------------
@@ -43,11 +43,11 @@ def euler_step_phi(u_cells, phi, dt, Z, T, alpha):
 
 # Euler step for system
 @jax.jit(static_argnames=("bc",))
-def euler_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha):
+def euler_step_system(u_cells, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha):
     # First phi
     phi_new = euler_step_phi(u_cells, phi, dt, Z, T, alpha)
     # Then RHS
-    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi_new, beta, Z, T, alpha)  # (N,2,2)
+    k1 = dg_rhs_system(u_cells, x_nodes, S_cells, c, Mp_inv, Mv_inv, bc, phi_new, beta, Z, T, alpha)  # (N,2,2)
     return u_cells + dt * k1, phi_new
 
 # ------------------------------------------------------------------------------------------------------------------------------
@@ -55,19 +55,19 @@ def euler_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv,
 # ------------------------------------------------------------------------------------------------------------------------------
 # Fist integrate 
 # RK2 time integration
-def time_integrate_rk2(u0, x_nodes, S_cells, c, A, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, T, alpha):
+def time_integrate_rk2(u0, x_nodes, S_cells, c, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, T, alpha):
     def step(carry, _):
         u, phi = carry
-        u_next, phi_next = rk2_step_system(u, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha)
+        u_next, phi_next = rk2_step_system(u, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha)
         return (u_next, phi_next), None
     (u_final, phi_final), _ = lax.scan(step, (u0, phi0), None, length=nsteps)
     return u_final, phi_final
 
 # Euler time integration
-def time_integrate_euler(u0, x_nodes, S_cells, c, A, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, T, alpha):
+def time_integrate_euler(u0, x_nodes, S_cells, c, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, T, alpha):
     def step_sys(carry, _):
         u, phi = carry
-        u_next,phi_next = euler_step_system(u, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha)
+        u_next,phi_next = euler_step_system(u, x_nodes, S_cells, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha)
         return (u_next, phi_next), None
     
     (u_final, phi_final), _ = lax.scan(step_sys, (u0, phi0), None, length=nsteps)

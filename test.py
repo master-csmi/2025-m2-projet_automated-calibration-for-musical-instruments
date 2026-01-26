@@ -33,7 +33,8 @@ def test_convergence_rate(method, slope_min, slope_max):
     c = 1.0
     alpha = 0.1
     beta = 0.2
-    ZT = 1.0
+    Z = 1.0
+    T_star = 1.0
 
     A = jnp.array([[0.0, 1.0],
                    [1.0, 0.0]])
@@ -80,13 +81,13 @@ def test_convergence_rate(method, slope_min, slope_max):
             u, _ = time_integrate_euler(
                 u0, x_nodes, S_cells, c, A, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, ZT, alpha
+                bc, 0.0, beta, Z,T_star, alpha
             )
         else:
             u, _ = time_integrate_rk2(
                 u0, x_nodes, S_cells, c, A, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, ZT, alpha
+                bc, 0.0, beta, Z,T_star, alpha
             )
 
         x_plot = jnp.linspace(0.0, L, 3000)
@@ -94,7 +95,7 @@ def test_convergence_rate(method, slope_min, slope_max):
 
         p_ex, _ = exact_solution_characteristics(
             x_plot, T, p0, c, L,
-            alpha, beta, ZT, dt=1e-4
+            alpha, beta, Z,T_star, dt=1e-4
         )
 
         dx = x_plot[1] - x_plot[0]

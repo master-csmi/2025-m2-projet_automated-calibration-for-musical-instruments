@@ -5,14 +5,14 @@ import jax.numpy as jnp
 #                                                 decomposition into w+ = p+v, w- = p-v
 # ------------------------------------------------------------------------------------------------------------------------------
 
-def exact_solution_characteristics(x, t, p0_fun, c, L, alpha, beta, ZT, dt=1e-4):
+def exact_solution_characteristics(x, t, p0_fun, c, L, alpha, beta, Z,T, dt=1e-4):
 
     # ----------------------------
     # Precompute coefficients
     # ----------------------------
-    a = (1.0 - beta / ZT) / (1.0 + beta / ZT)
-    b = 2.0 * jnp.sqrt(alpha) / (1.0 + beta / ZT)
-    c1 = jnp.sqrt(alpha) / (2.0 * ZT)
+    a = (1.0 - beta / (Z * T)) / (1.0 + beta / (Z * T))
+    b = 2.0 * jnp.sqrt(alpha) / (1.0 + beta / (Z * T))
+    c1 = jnp.sqrt(alpha) / (2.0 * Z * T)
     c2 = c1 * b
 
     # ----------------------------

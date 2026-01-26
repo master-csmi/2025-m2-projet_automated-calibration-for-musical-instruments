@@ -8,9 +8,12 @@
 \usepackage[french]{babel}
 \usepackage{lmodern}
 \usepackage{microtype}
+% Avoid requests for sans small-caps (Latin Modern Sans has no sc shape)
+\renewcommand{\scshape}{\upshape}
 \usepackage{graphicx}
 \usepackage{amsmath,empheq}
 \usepackage{hyperref}
+\usepackage{csquotes}
 \usepackage[backend=biber, style=numeric]{biblatex}
 \addbibresource{biblio.bib}
 \hypersetup{pdfauthor={R. Vivant}, pdftitle={Automated Calibration of Physical Models}}
@@ -131,8 +134,8 @@ In JAX framework:
 \begin{empheq}[left=\empheqlbrace]{align}
     \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
     \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-    \frac{Z^\ast}{T}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-    -\frac{\beta}{Z^\ast T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+    \frac{Z^\ast}{T^\ast}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+    -\frac{\beta}{Z^\ast T^\ast}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
     -v(0,t) + \zeta_\ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
     \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
     &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
@@ -151,161 +154,214 @@ In JAX framework:
 % Section 2
 \section{Methods}
 \subsection{Discontinuous Galerkin Method}
+
 \slideTitle{Discontinuous Galerkin Method \cite{HesthavenWarburton2008}}
+
 \begin{itemize}
-    \item Numerical method to solve PDEs.
-    \item Consider a scalar conservation law :
-\begin{equation}\label{eq:transport}
-\partial_t u(x,t) + \partial_x F(u(x,t)) = 0,\qquad u:\Omega\times[0,T]\to\mathbb R.
-\end{equation}
-    \begin{itemize}
-        \item where $u \in \Omega \times [0,T] \rightarrow \mathbb{R}$,
-        \item $F : \mathbb{R} \rightarrow \mathbb{R}$ is the flux function
-    \end{itemize}
-    \item Let's consider an Euler explicit time discretization with time step $\Delta t$.
-    \item At each time step $t^n = n\Delta t$, we want to approximate $u(x,t^n)$ by $u^n(x)$.
-    \item this gives :
-\begin{equation}
-    u^{n+1}(x) = u^n(x)  - \Delta t \, \partial_x F(u^n(x))
-\end{equation}
+    \item Numerical method for the spatial discretization of partial differential equations.
+    \item We consider a scalar conservation law:
+    \begin{equation}\label{eq:transport}
+        \partial_t u(x,t) + \partial_x F\big(u(x,t)\big) = 0,
+        \qquad u : \Omega \times [0,T] \rightarrow \mathbb{R}.
+    \end{equation}
+    \item $F : \mathbb{R} \rightarrow \mathbb{R}$ denotes the flux function.
+    \item Time discretization using an explicit Euler scheme with time step $\Delta t$.
+    \item At time $t^n = n\Delta t$, we approximate $u(x,t^n)$ by $u^n(x)$:
+    \begin{equation}
+        u^{n+1}(x) = u^n(x) - \Delta t\, \partial_x F\big(u^n(x)\big).
+    \end{equation}
 \end{itemize}
 \end{frame}
 
-\slideTitle{Discontinuous Galerkin Method (contd.)}
-Now we consider that the state $u^n$ is known: 
+
+\slideTitle{Discontinuous Galerkin Method (cont.)}
+
+Assume that $u_h^n$ is known.
 \begin{itemize}
-    \item Partition $\Omega$ into $K$ non-overlapping elements $\{\Omega_k\}$.
-    \item On each element approximate $u^n(x)\approx u_h^n(x)=\sum_j \alpha_{k,j}^n \phi_j(x)$ with local basis $\{\phi_j\}$ and enforce the weak (Galerkin) form:
-\begin{equation}
-    \int_{\Omega_k} u^{n+1}(x)\phi_i = \int_{\Omega_k} u^n(x) \phi_i - \Delta t \, \int_{\Omega_k}  \partial_x F(u^n(x)) \phi_i(x)\,dx
-\end{equation}
-    \item Integrate by parts:
-  \scriptsize
-  \begin{equation}
-    \sum_j \alpha_{k,j}^{n+1}\!\int_{\Omega_k}\!\phi_j\phi_i
-    =
-    \int_{\Omega_k} u^n_h\phi_i
-    +\Delta t\int_{\Omega_k} F(u^n_h)\partial_x\phi_i\,dx
-    -\Delta t\;\left[ F(u^n(x)) \phi_i(x) \right]_{\partial \Omega_k},
-    \end{equation}  
-    \normalsize
-    \item Denote $M_{ij}=\int_{\Omega_k}\phi_j\phi_i$. Then
-  \begin{equation}
-    M\boldsymbol{\alpha}_k^{\,n+1}=\mathbf b_k,
-  \end{equation}
-  where $\mathbf b_k$ is known from $u^n_h$. In practice $M$ is small and local.
-    \item Note: choose $\Delta t$ to satisfy a CFL condition; impose boundary conditions via the numerical flux.
+    \item Partition the domain $\Omega$ into $K$ non-overlapping elements $\{\Omega_k\}$.
+    \item On each element $\Omega_k$, approximate the solution by
+    \[
+        u_h^n(x) = \sum_j \alpha_{k,j}^n \, \phi_j(x),
+    \]
+    where $\{\phi_j\}$ is a local polynomial basis.
+    \item Enforce the weak formulation on each element:
+    \begin{equation}
+        \int_{\Omega_k} u_h^{n+1}(x)\phi_i(x)\,dx
+        =
+        \int_{\Omega_k} u_h^n(x)\phi_i(x)\,dx
+        -
+        \Delta t
+        \int_{\Omega_k} \partial_x F\big(u_h^n(x)\big)\phi_i(x)\,dx.
+    \end{equation}
+
 \end{itemize}
 \end{frame}
+
+\slideTitle{Discontinuous Galerkin Method (cont.)}
+\begin{itemize}
+    \item Integration by parts yields:
+    \tiny
+    \begin{equation}
+        \sum_j \alpha_{k,j}^{n+1}
+        \int_{\Omega_k} \phi_j(x)\phi_i(x)\,dx
+        =
+        \int_{\Omega_k} u_h^n(x)\phi_i(x)\,dx
+        +
+        \Delta t\int_{\Omega_k} F\big(u_h^n(x)\big)\partial_x\phi_i(x)\,dx
+        -
+        \Delta t\left[ F(u_h^n)\phi_i \right]_{\partial\Omega_k}
+    \end{equation}
+    \normalsize
+    \item Define the local mass matrix
+    $
+        M_{ij} = \int_{\Omega_k} \phi_j(x)\phi_i(x)\,dx.
+    $
+    \item The local system reads:
+    \begin{equation}
+        M\,\boldsymbol{\alpha}_k^{\,n+1} = \mathbf{b}_k,
+    \end{equation}
+    where $\mathbf{b}_k$ depends only on $u_h^n$ and numerical fluxes.
+\end{itemize}
+\end{frame}
+
 
 \subsection{DG in our context}
-\slideTitle{DG in out context}
+
+\slideTitle{DG in our context}
 
 \begin{itemize}
-\item Mixed formulation of the wave equation with varying cross-section :
-\begin{equation}
-\mathbf{C}(x)\partial_t \mathbf{u} +\partial_x \mathbf{A}\mathbf{u} = 0
-\end{equation}
-
-where $\mathbf{u} = \begin{pmatrix} p \\ v \end{pmatrix}$,$\mathbf{C}=\begin{pmatrix} \frac{S(x)}{cS^*} & 0 \\ 0 & \frac{S^*}{S(x)c} \end{pmatrix}$ $\mathbf{A} = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}$. \newline
-and the initial condition : $p(x,0) = p_0(x)$ and $v(x,0) = v_0(x)$ 
-
-\item We partition the domain into $N$ non-overlapping cells $K_j = [x_{j-1}, x_j]$.
-\begin{equation}
-    \begin{aligned}
-\int_{K_j} \mathbf C(x)\, \partial_t \mathbf u_h \cdot \mathbf \phi \, dx
--
-\int_{K_j} \mathbf A\, \mathbf u_h \cdot \partial_x \mathbf \phi \, dx
-& \\
-\quad
-+ \widehat{\mathbf F}_{j+\frac12} \cdot \mathbf \phi(x_j^-)
--
-\widehat{\mathbf F}_{j-\frac12} \cdot \mathbf \phi(x_{j-1}^+)
-&= 0.
-\end{aligned}
-\end{equation}
-where $\mathbf{F}(\mathbf{u})=\mathbf{AU} = \begin{pmatrix} v \\ p \end{pmatrix}$ 
-
-\end{itemize}
-\end{frame}
-\subsubsection{Rusanov Flux}
-\slideTitle{DG in out context/Rusanov Flux}
-\begin{itemize}
-\item At each interface $x_{j+\frac12}$,
-\begin{equation}
-\widehat{\mathbf F}
-=
-\frac12\Big(
-\mathbf F(\mathbf u^-)
-+
-\mathbf F(\mathbf u^+)
-\Big)
--
-\frac{\lambda_{j+\frac12}}{2}
-\Big(
-\mathbf u^+ - \mathbf u^-
-\Big),
-\end{equation}
-où
-$
-\lambda_{j+\frac12}
-=
-\max\bigl(|\lambda_1|,|\lambda_2|\bigr).
-$
-
-\item The eigenvalues $\lambda_1, \lambda_2$ of $\mathbf{C}^{-1}\mathbf{A}$ are :
-$
-\lambda_{1,2}
-=
-\pm c.
-$
-
-\item Therefore :
-$
-\lambda_{j+\frac12}=c.
-$
-
-\begin{columns}[T]
-    \begin{column}{0.5\textwidth}
-        By denoting
-        $$
-        \mathbf U^\pm =
+    \item Mixed formulation of the one-dimensional wave equation with variable cross-section:
+    \small
+    \begin{equation}
+        \mathbf{C}(x)\,\partial_t \mathbf{u}
+        +
+        \partial_x \big( \mathbf{A}\mathbf{u} \big)
+        = 0,
+    \end{equation}
+    \normalsize
+    where
+    \scriptsize
+    \[
+        \mathbf{u} =
         \begin{pmatrix}
-        p^\pm\\
-        v^\pm
-        \end{pmatrix}
-        $$
-    \end{column}
-    \begin{column}{0.5\textwidth}
-        The numerical flux at each interface :
-        $$
-        \widehat{\mathbf F} =
-        \begin{pmatrix}
-        \widehat{v}\\
-        \widehat{p}
+        p \\
+        v
         \end{pmatrix},
-        $$
-    \end{column}
+        \quad
+        \mathbf{C}(x) =
+        \begin{pmatrix}
+        \dfrac{S(x)}{cS^*} & 0 \\
+        0 & \dfrac{S^*}{cS(x)}
+        \end{pmatrix},
+        \quad
+        \mathbf{A} =
+        \begin{pmatrix}
+        0 & 1 \\
+        1 & 0
+        \end{pmatrix}.
+    \]
+    \normalsize
+    \item Initial conditions:
+    \[
+        p(x,0) = p_0(x), \qquad v(x,0) = v_0(x).
+    \]
+    \item The domain is partitioned into $N$ non-overlapping cells
+    $K_j = [x_{j-1},x_j]$.
+\end{itemize}
+
+\begin{equation}
+\scriptsize
+\int_{K_j} \mathbf{C}(x)\,\partial_t \mathbf{u}_h \cdot \boldsymbol{\phi}\,dx
+-
+\int_{K_j} \mathbf{A}\mathbf{u}_h \cdot \partial_x \boldsymbol{\phi}\,dx
++ \widehat{\mathbf{F}}_{j+\frac12}\cdot \boldsymbol{\phi}(x_j^-)
+-
+\widehat{\mathbf{F}}_{j-\frac12}\cdot \boldsymbol{\phi}(x_{j-1}^+)
+= 0,
+\normalsize
+\end{equation}
+
+where
+\small
+\[
+\mathbf{F}(\mathbf{u}) = \mathbf{A}\mathbf{u}
+=
+\begin{pmatrix}
+v \\
+p
+\end{pmatrix}.
+\]
+\normalsize
+\end{frame}
+
+\subsubsection{Rusanov Flux}
+
+\slideTitle{DG in our context -- Rusanov Flux}
+
+\begin{itemize}
+    \item At each interface $x_{j+\frac12}$, the Rusanov (local Lax--Friedrichs) flux is defined as
+    \begin{equation}
+        \widehat{\mathbf{F}}
+        =
+        \frac12
+        \Big(
+        \mathbf{F}(\mathbf{u}^-)
+        +
+        \mathbf{F}(\mathbf{u}^+)
+        \Big)
+        -
+        \frac{\lambda_{j+\frac12}}{2}
+        \Big(
+        \mathbf{u}^+ - \mathbf{u}^-
+        \Big).
+    \end{equation}
+
+    \item The eigenvalues of $\mathbf{C}^{-1}\mathbf{A}$ are
+    \[
+        \lambda_{1,2} = \pm c
+        \quad \Rightarrow \quad
+        \lambda_{j+\frac12} = c.
+    \]
+\end{itemize}
+
+\begin{columns}
+\column{0.48\textwidth}
+\[
+\mathbf{u}^\pm =
+\begin{pmatrix}
+p^\pm \\
+v^\pm
+\end{pmatrix}
+\]
+
+\column{0.48\textwidth}
+\[
+\widehat{\mathbf{F}} =
+\begin{pmatrix}
+\widehat{v} \\
+\widehat{p}
+\end{pmatrix}
+\]
 \end{columns}
-with
-$$
+
+\[
 \boxed{
 \begin{aligned}
 \widehat{v}
-& =
-\frac12\left(v^-+v^+\right)
+&=
+\frac12\left(v^- + v^+\right)
 -
-\frac{c}{2}\left(p^+-p^-\right),
+\frac{c}{2}\left(p^+ - p^-\right),
 \\
 \widehat{p}
-& =
-\frac12\left(p^-+p^+\right)
+&=
+\frac12\left(p^- + p^+\right)
 -
-\frac{c}{2}\left(v^+-v^-\right).
+\frac{c}{2}\left(v^+ - v^-\right).
 \end{aligned}
 }
-$$
-\end{itemize}
+\]
+
 \end{frame}
 
 \subsubsection{Final Formulation}
@@ -346,41 +402,53 @@ the DG formulation of the mixed form of the wave equation reads :
 \end{frame}
 
 \subsection{Boundary Conditions}
-\slideTitle{Boundary Conditions}
+
+\slideTitle{Boundary Conditions: ODE--PDE Coupling}
+
 \begin{itemize}
-\item At $x=L$, we need to ensure {\eqref{eq:1c}--\eqref{eq:1d}}.
+    \item At the outlet $x=L$,
+    
+    \item As shown in equations \eqref{eq:1c} and \eqref{eq:1d} :
+    \begin{equation}
+    \begin{cases}
+        \dfrac{Z^\ast}{T^\ast}\,\partial_t \phi(t)
+        + \sqrt{\alpha}\, p(L,t) = 0,
+        \\[0.3em]
+        -\dfrac{\beta}{Z^\ast T^\ast}\, p(L,t)
+        + v(L,t)
+        + \sqrt{\alpha}\,\phi(t) = 0.
+    \end{cases}
+    \end{equation}
 
-\begin{equation}
-v(L,t) = \frac{\beta}{Z_T^*} p(L,t) - \sqrt{\alpha}\,\phi(t).
-\tag{BC}
-\end{equation}
+    \item The first equation : time evolution of the boundary variable $\phi(t)$. (Euler Explicit or RK2 time integration).
+    \item The second equation enforces a dynamic impedance relation between pressure and velocity (link to DG).
+\end{itemize}
+\end{frame}
 
-\item Characteristic variables defined as :
-$
-w^+ = p + v
-\ \text{and} \
-w^- = p - v.
-$
-\begin{equation}
-        w^- = \left(1 - \frac{\beta}{Z_T^*}\right)p + \sqrt{\alpha}\,\phi.
-\end{equation}
+\slideTitle{Boundary Conditions in Characteristic Variables}
 
-\item And the expression of $p$ in terms of $w^+$ and $w
-^-$ is :
-$
-p = \frac{w^+ + w^-}{2}.
-$
+\begin{itemize}
+    \item Introduce characteristic variables at the boundary:
+    \[
+        w^+ = p + v,
+        \qquad
+        w^- = p - v.
+    \]
 
-\item So the incoming wave $w^-$ can be expressed as:
-\begin{equation}
-\boxed{
-w^- =
-\frac{1 - \frac{\beta}{Z_T^*}}{1 + \frac{\beta}{Z_T^*}}
-w^+
-+
-\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z_T^*}} \phi
-}
-\end{equation}
+    \item Using the impedance condition, the incoming characteristic can be expressed as:
+    \[
+        \boxed{
+        w^- =
+        \frac{1-\frac{\beta}{Z^\ast T^\ast}}
+             {1+\frac{\beta}{\beta Z^\ast T^\ast}}\, w^+
+        +
+        \frac{2\sqrt{\alpha}}
+             {1+\frac{\beta}{Z^\ast T^\ast}}\,\phi(t)
+        }
+    \]
+
+    \item This formulation allows a natural implementation within the DG framework:
+    only the incoming wave $w^-$ is imposed.
 \end{itemize}
 \end{frame}
 
@@ -473,32 +541,37 @@ To validate the implementation of the DGM, we consider a simplified model :
 \end{columns}
 \end{frame}
 
-\subsection{Result - Varying Cross-Section}
-\subsubsection{Exponential Cross-Section}
-\slideTitle{Exponential Cross-Section}
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.65\textwidth]{Images/exp_profile.png}
-    \caption{Exponential cross-section $S(x) = S_0 e^{kx}$.}
-    \label{fig:exp_profile}
-\end{figure}
+\subsection{Result - Varying Cross-Section}               
+\subsubsection{Examples of Cross-Section}
+\slideTitle{Examples of Cross-Section}
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \begin{figure}[htbp]
+            \centering
+            \includegraphics[width=\linewidth]{Images/exp_profile.png}
+            \caption{Exponential cross-section $S(x) = S_0 e^{kx}$.}
+            \label{fig:exp_profile}
+        \end{figure}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        \begin{figure}[htbp]
+            \centering
+            \includegraphics[width=\linewidth]{Images/cone_profile.png}
+            \caption{Conical cross-section $S(x) = S_0 + kx$.}
+            \label{fig:cone_profile}
+        \end{figure}
+    \end{column}
+\end{columns}
+
+
 \end{frame}
+\subsubsection{Results}
 \slideTitle{Result - Exponential Cross-Section}
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.65\textwidth]{Images/dg_solution_exp_N800.png}
     \caption{DG numerical solutions exponential cross-section.}
     \label{fig:dg_solution_exp}
-\end{figure}
-\end{frame}
-
-\subsubsection{Conical Cross-Section}
-\slideTitle{Conical Cross-Section}
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.65\textwidth]{Images/cone_profile.png}
-    \caption{Conical cross-section $S(x) = S_0 + kx$.}
-    \label{fig:cone_profile}
 \end{figure}
 \end{frame}
 
@@ -511,10 +584,59 @@ To validate the implementation of the DGM, we consider a simplified model :
 \end{figure}
 \end{frame}
 
+\subsection{Performance Study}
+\begin{frame}
+\frametitle{Performance Study}
+
+\centering \scriptsize Execution time (s) for different cross-section profiles for Euler explicit and Runge--Kutta 
+2 time integration schemes.
+
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/performance_euler.png}
+        \par\smallskip
+        \scriptsize (a) Explicit Euler
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{Images/performance_rk2.png}
+        \par\smallskip
+        \scriptsize (b) Runge--Kutta 2
+    \end{column}
+\end{columns}
+\par\medskip
+\label{fig:execution_time}
+\normalsize
+$$
+\text{T-Scale}_\text{euler}<\text{T-Scale}_\text{rk2}<\text{N}^2
+$$
+
+
+\end{frame}
+
 \section{Conclusion}
 
 \begin{frame}[allowframebreaks]{References}
 \printbibliography
+\end{frame}
+
+\section{Annexes}
+\subsection{Performance Tables}
+
+\slideTitle{Performance Tables}
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \centering
+        \textbf{Euler explicite}\\[0.5em]
+        \input{../Results/table_performance_euler.tex}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+        \centering
+        \textbf{Runge--Kutta 2}\\[0.5em]
+        \input{../Results/table_performance_rk2.tex}
+    \end{column}
+\end{columns}
 \end{frame}
 
 \end{document}

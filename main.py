@@ -20,13 +20,13 @@ from dg_solver.reconstruction import reconstruct_system
 
 # Boundary conditions
 from bc.bc import BC
-
+from bc.bc import l, F
 # Utilities
 from utils.S_profiles import S_of_x
 from utils.init_func import init_func
 
 # Exact solution (only valid for constant section)
-from physics.exact_solution import exact_solution_characteristics
+from physics.exact_solution import exact_solution_characteristics_reed
 
 jax.config.update("jax_enable_x64", True)
 
@@ -63,6 +63,14 @@ def main():
 
     # Dirichlet BC at left + impedance BC at right
     bc = BC(type="dirichlet", left=(0.0, 0.0), right=(0.0, 0.0))
+
+    # Left ODE y(0,t)
+    y0 = 0.0
+    dy0 = 0.0
+    
+
+    # Right ODE phi(L,t)
+    phi0 = 0.0
 
     # Initial conditions
     def p0(x): return init_func(x, L, phi0=1.0)
@@ -137,22 +145,26 @@ def main():
             dt = CFL * h / c
             nsteps = int(jnp.ceil(T / dt))
 
-            # ----------------------------------------------------------------------
+            # ------------------------------------------------------------------
             # Time integration
-            # ----------------------------------------------------------------------
-
-
+            # ------------------------------------------------------------------
             if method == "euler":
-                u, phi = time_integrate_euler(
+                u, phi, y, dy = time_integrate_euler(
                     u0, x_nodes, S_cells, c, A, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, T_star, alpha
+                    bc, phi0, beta, Z, T_star, alpha,
+                    y0, dy0, gamma=0.1, epsilon=0.0,
+                    kappa=0.2, omega_r=1.0, Qr=1.0,
+                    zeta=0.0, l_func=l, F_func=F
                 )
             else:
-                u, phi = time_integrate_rk2(
+                u, phi, y, dy = time_integrate_rk2(
                     u0, x_nodes, S_cells, c, A, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, T_star, alpha
+                    bc, phi0, beta, Z, T_star, alpha,
+                    y0, dy0, gamma=0.1, epsilon=0.0,
+                    kappa=0.2, omega_r=1.0, Qr=1.0,
+                    zeta=0., l_func=l, F_func=F
                 )
             
 
@@ -166,9 +178,12 @@ def main():
             # Exact solution (only for constant section)
             # ----------------------------------------------------------------------
             if type_S == "const":
-                p_ex, v_ex = exact_solution_characteristics(
+                p_ex, v_ex = exact_solution_characteristics_reed(
                     x_plot, T, p0, c, L,
-                    alpha, beta, Z, T_star, dt=1e-4
+                    alpha, beta, Z, T_star, dt=1e-4,
+                    y0=y0, dy0=dy0, gamma=0.1, epsilon=0.01,
+                    kappa=0.2, omega_r=1.0, Qr=1.0,
+                    zeta=0.1, l_func=l, F_func=F
                 )
             else:
                 p_ex = v_ex = None
@@ -242,24 +257,33 @@ def main():
         nsteps = int(jnp.ceil(T_conv / dt))
 
         if method == "euler":
-            u, phi = time_integrate_euler(
+            u, phi,_,_ = time_integrate_euler(
                 u0, x_nodes, S_cells, c, A, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, Z, T_star, alpha
+                bc, 0.0, beta, Z, T_star, alpha, y0=y0, dy0=dy0,
+                gamma=0.1, epsilon=0.0,
+                kappa=0.2, omega_r=1.0, Qr=1.0,
+                zeta=0., l_func=l, F_func=F
             )
         else:
-            u, phi = time_integrate_rk2(
+            u, phi,_,_ = time_integrate_rk2(
                 u0, x_nodes, S_cells, c, A, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, Z, T_star, alpha
+                bc, 0.0, beta, Z, T_star, alpha, y0=y0, dy0=dy0,
+                gamma=0.1, epsilon=0.00,
+                kappa=0.2, omega_r=1.0, Qr=1.0,
+                zeta=0.0, l_func=l, F_func=F
             )
 
         x_plot = jnp.linspace(0.0, L, 2000)
         p_num, v_num = reconstruct_system(u, x_nodes, x_plot)
 
-        p_ex, v_ex = exact_solution_characteristics(
+        p_ex, v_ex = exact_solution_characteristics_reed(
             x_plot, T_conv, p0, c, L,
-            alpha, beta, Z, T_star, dt=1e-4
+            alpha, beta, Z, T_star, dt=1e-4,
+            y0=y0, dy0=dy0, gamma=0.1, epsilon=0.01,
+            kappa=0.2, omega_r=1.0, Qr=1.0,
+            zeta=0.1, l_func=l, F_func=F
         )
 
         dx = x_plot[1] - x_plot[0]

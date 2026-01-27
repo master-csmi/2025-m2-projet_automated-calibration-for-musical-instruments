@@ -69,13 +69,13 @@ def surface_term_system(u_ext, j, c=1.0):
 
 v_surface_term_system = jax.vmap(surface_term_system, in_axes=(None, 0, None))
 
-def dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha):
+def dg_rhs_system(u_cells, x_nodes, S_cells, c, A, Mp_inv, Mv_inv, bc, phi, beta, Z, T, alpha, y, dy, gamma, epsilon, kappa, omega_r, Qr, zeta, l_func, F_func, dt):
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
 
     # add ghost cells according to BC
     if bc.type == "dirichlet":
-        u_ext = apply_bc(u_cells, bc.left, phi, beta, Z, T, alpha)
+        u_ext, y_new, dy_new = apply_bc(u_cells, bc.left, phi, beta, Z, T, alpha, y, dy, gamma, epsilon, kappa, omega_r, Qr, zeta, l_func, F_func, dt)
     elif bc.type == "neumann":
         u_ext = apply_bc_neumann(u_cells)
 

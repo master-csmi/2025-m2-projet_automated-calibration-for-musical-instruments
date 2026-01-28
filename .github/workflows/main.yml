@@ -30,15 +30,15 @@ jobs:
             - name: Generate Report pdf
               run: |
                 cd Report_and_Presentation
-                pdflatex report.tex
-                biber report
-                pdflatex report.tex
-                pdflatex report.tex
+                pdflatex CSMI-M2-2025-auto-calibration-instrument.tex
+                biber CSMI-M2-2025-auto-calibration-instrument
+                pdflatex CSMI-M2-2025-auto-calibration-instrument.tex
+                pdflatex CSMI-M2-2025-auto-calibration-instrument.tex
 
             - name: Generate Presentation pdf
               run: |
                 cd Report_and_Presentation
-                pdflatex presentation.tex
-                biber presentation
-                pdflatex presentation.tex
-                pdflatex presentation.tex
+                pdflatex CSMI-M2-2025-auto-calibration-instrument-slides.tex
+                biber CSMI-M2-2025-auto-calibration-instrument-slides
+                pdflatex CSMI-M2-2025-auto-calibration-instrument-slides.tex
+                pdflatex CSMI-M2-2025-auto-calibration-instrument-slides.tex

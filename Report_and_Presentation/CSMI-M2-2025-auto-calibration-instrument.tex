@@ -113,7 +113,7 @@ Finally, we present the results of the numerical simulations and the performance
 
 \newpage
 \section{Reed Instruments}
-A reed is a thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator that acts \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
+A reed is a thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator that acts \cite{Universalis_Anche} \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
 (the player’s mouth) and the downstream region (the mouthpiece or mouthpiece tip of the instrument). \newline
 There are two principal categories of reed instruments:
 \begin{itemize}
@@ -142,16 +142,16 @@ and the effects of the instrumental player \eqref{eq:1e} \eqref{eq:1f} :
 \begin{empheq}[left=\empheqlbrace]{align}
   \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
   \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-  \frac{Z^\ast}{T^\ast}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-  -\frac{\beta}{Z^\ast T^\ast}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
-  -v(0,t) + \zeta_\ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
+  Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+  -\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+  -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
   \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
   &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
 \end{empheq}
 \end{subequations}
 
 where $S(x)$ is the cross-sectional area of the instrument at position $x$, $S^\ast$ is a reference area,
-$c$ is the speed of sound, $Z^\ast$ is a reference acoustic impedance, $T$ is a characteristic time, 
+$c$ is the speed of sound, $Z^\ast_T$ is a reference acoustic impedance, 
 $\alpha$ and $\beta$ are parameters related to the radiation effects, $L$ is the length of the instrument,
 $\zeta_\ell(y)$ is a function representing the lip-reed coupling, $F$ is a nonlinear function ($F(\Delta p)=\Delta p \, \text{sign} (\Delta p)$),
 $\gamma$ is the dimensionless blowing pressure, $\varepsilon$ =-1 for a reed instrument, 
@@ -363,6 +363,7 @@ At each interface $x_{j+\frac12}$, the Rusanov (local Lax--Friedrichs) flux is d
 \label{eq:rusanov}
 \end{equation}
 where $\lambda_{j+\frac12}$ denotes the maximum characteristic speed at the interface.
+At that state of development, the 
 
 
 \subsection{Explicit flux}
@@ -455,10 +456,10 @@ The boundary conditions are derived from equations~(1c)--(1d).
 The boundary model reads:
 \begin{equation}
 \begin{cases}
-\dfrac{Z^\ast}{T^\ast}\,\partial_t \phi(t)
+Z^\ast_T\,\partial_t \phi(t)
 + \sqrt{\alpha}\, p(L,t) = 0,
 \\[0.4em]
--\dfrac{\beta}{Z^\ast T^\ast}\, p(L,t)
+-\dfrac{\beta}{Z^\ast_T}\, p(L,t)
 + v(L,t)
 + \sqrt{\alpha}\,\phi(t) = 0.
 \end{cases}
@@ -468,7 +469,7 @@ The boundary model reads:
 The first equation governs the time evolution of the boundary variable $\phi(t)$, while the second
 equation provides a dynamic impedance relation between pressure and velocity at the boundary.
 \begin{equation}
-v(L,t) = \frac{\beta}{Z^\ast T^\ast} p(L,t) - \sqrt{\alpha}\,\phi(t).
+v(L,t) = \frac{\beta}{Z^\ast_T} p(L,t) - \sqrt{\alpha}\,\phi(t).
 \tag{BC}
 \end{equation}
 
@@ -487,8 +488,8 @@ From the definition of $w^-$ and the boundary condition (BC), we have:
     \begin{aligned}
         w^-
         &= p - v \\
-        &= p - \left( \frac{\beta}{Z^\ast T^\ast} p - \sqrt{\alpha}\,\phi \right) \\
-        &= \left(1 - \frac{\beta}{Z^\ast T^\ast}\right)p + \sqrt{\alpha}\,\phi.
+        &= p - \left( \frac{\beta}{Z^\ast_T} p - \sqrt{\alpha}\,\phi \right) \\
+        &= \left(1 - \frac{\beta}{Z^\ast_T}\right)p + \sqrt{\alpha}\,\phi.
     \end{aligned}
 \end{equation}
 
@@ -501,17 +502,17 @@ p = \frac{w^+ + w^-}{2}.
 By substituting this into the previous equation, we obtain:
 \begin{equation}
 w^-
-= \left(1 - \frac{\beta}{Z^\ast T^\ast}\right)\frac{w^+ + w^-}{2} + \sqrt{\alpha} \phi.
+= \left(1 - \frac{\beta}{Z^\ast_T}\right)\frac{w^+ + w^-}{2} + \sqrt{\alpha} \phi.
 \end{equation}
 
 So the incoming wave $w^-$ can be expressed as:
 \begin{equation}
 \boxed{
 w^- =
-\frac{1 - \frac{\beta}{Z^\ast T^\ast}}{1 + \frac{\beta}{Z^\ast T^\ast}}
+\frac{1 - \frac{\beta}{Z^\ast_T}}{1 + \frac{\beta}{Z^\ast_T}}
 w^+
 +
-\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z^\ast T^\ast}} \phi
+\frac{2\sqrt{\alpha}}{1 + \frac{\beta}{Z^\ast_T}} \phi
 }
 \label{eq:wminus_final}
 \end{equation}
@@ -524,7 +525,7 @@ The relation~\eqref{eq:wminus_final} provides the value of the incoming wave $w^
 the boundary state is reconstructed and used as the exterior state in the numerical flux.
 \\
 Note : In practice, the boundary ODE~\eqref{eq:bc_ode_pde} is discretized in time using the same time
-integration scheme as the DG solver.
+integration scheme as the DG solver, ensuring a consistent coupling between the PDE and ODE systems. (see Algorithm~\ref{alg:dg_scheme_boundary_ode_rk2}).
 
 \section{Numerical Algorithm: DG Scheme with Boundary ODE}
 
@@ -540,124 +541,263 @@ the explicit Euler method or a second-order Runge-Kutta scheme.
 \State \textbf{Initialization:}
 \State \quad Project $p_0(x), v_0(x)$ onto DG space
 \State \quad Initialize $\phi^0$
+
 \For{$n = 0, \dots, N_t-1$}
+
     \State \textbf{1. Compute boundary characteristics at $x=L$:}
     \[
-        w^+ = p_h(L^-) + v_h(L^-)
+        w^{+,n} = p_h^n(L^-) + v_h^n(L^-)
     \]
-    \State \textbf{2. Compute incoming wave (boundary condition):}
+
+    \State \textbf{2. Incoming wave (boundary condition):}
     \[
-        w^- = a\, w^+ + b\, \phi^n
+        w^{-,n} = a\, w^{+,n} + b\, \phi^n,
+    \quad
+        a = \frac{1 - \beta/(Z^\ast_T)}{1 + \beta/(Z^\ast_T)},
+    \quad
+        b = \frac{2 \sqrt{\alpha}}{1 + \beta/(Z^\ast_T)}
     \]
-    where
+
+    \State \textbf{3. Reconstruct ghost state:}
     \[
-        a = \frac{1 - \beta/(Z^* T^*)}{1 + \beta/(Z^* T^*)}, \quad
-        b = \frac{2 \sqrt{\alpha}}{1 + \beta/(Z^* T^*)}.
+        p^{+,n} = \tfrac{1}{2}(w^{+,n} + w^{-,n}),
+        \quad
+        v^{+,n} = \tfrac{1}{2}(w^{+,n} - w^{-,n})
     \]
-    \State \textbf{3. Reconstruct ghost state at the boundary:}
+
+    \State \textbf{4. Compute numerical fluxes} $\hat{\mathbf F}^n$
+    \State \textbf{5. DG residual:}
     \[
-        p^+ = \frac{w^+ + w^-}{2},\quad
-        v^+ = \frac{w^+ - w^-}{2}
+        k_1^u = \mathcal{L}(u^n,\phi^n)
     \]
-    \State \textbf{4. Compute numerical flux at the boundary:}
+
+    \State \textbf{6. Boundary ODE residual:}
     \[
-        \hat{\mathbf F}_L = \text{Rusanov}(u^-, u^+)
+        k_1^\phi = -\frac{\sqrt{\alpha}}{Z^\ast_T}\, p_h^n(L^-)
     \]
-    \State \textbf{5. Compute internal fluxes:}
-    \For{each interior interface $j+1/2$}
-        \State Compute $\hat{\mathbf F}_{j+1/2}$
-    \EndFor
-    \State \textbf{6. DG update (Euler or RK2):}
-    \[
-        M_k \, u_k^{\,n+1} = b_k(u^n, \hat{\mathbf F})
-    \]
-    \State \textbf{7. Update boundary ODE:}
-    \[
-        \phi^{\,n+1} = \phi^n - \Delta t \, \frac{T^*}{Z^*} \, \sqrt{\alpha} \, p_h(L^-)
-    \]
+
+    \If{Euler time integration}
+
+        \State \textbf{7a. Euler update:}
+        \[
+            u^{n+1} = u^n + \Delta t\, k_1^u,
+            \quad
+            \phi^{n+1} = \phi^n + \Delta t\, k_1^\phi
+        \]
+
+    \Else \Comment{RK2 mixed DG--ODE}
+
+        \State \textbf{7b. Midpoint stage:}
+        \[
+            u^{n+\frac12} = u^n + \tfrac{\Delta t}{2} k_1^u,
+            \quad
+            \phi^{n+\frac12} = \phi^n + \tfrac{\Delta t}{2} k_1^\phi
+        \]
+
+        \State Recompute boundary characteristics using $u^{n+\frac12}$:
+        \[
+            w^{+,n+\frac12} = p_h^{n+\frac12}(L^-) + v_h^{n+\frac12}(L^-)
+        \]
+
+        \State Incoming wave at midpoint:
+        \[
+            w^{-,n+\frac12} = a\, w^{+,n+\frac12} + b\, \phi^{n+\frac12}
+        \]
+
+        \State Reconstruct midpoint ghost state and fluxes
+
+        \State \textbf{8. Second-stage residuals:}
+        \[
+            k_2^u = \mathcal{L}(u^{n+\frac12},\phi^{n+\frac12}),
+            \quad
+            k_2^\phi = -\frac{\sqrt{\alpha}}{Z^\ast_T}\,
+            p_h^{n+\frac12}(L^-)
+        \]
+
+        \State \textbf{9. RK2 update:}
+        \[
+            u^{n+1} = u^n + \Delta t\, k_2^u,
+            \quad
+            \phi^{n+1} = \phi^n + \Delta t\, k_2^\phi
+        \]
+
+    \EndIf
+
 \EndFor
 \end{algorithmic}
+\label{alg:dg_scheme_boundary_ode_rk2}
 \end{algorithm}
 
 
-\section{Analytical solving when $S(x) = S^* = 1$}
-To assess the validity of our Discontinuous Galerkin Method implementation, we can compare the numerical solution to the analytical solution in the simple case where $S(x) = S^* = 1$.
-Let's consider the following equation system :
+
+\section{Analytical Solution for Constant Section ($S(x)=S^\ast=1$)}
+
+To assess the accuracy of the Discontinuous Galerkin (DG) implementation, we consider a uniform duct cross-section $S(x)=S^\ast=1$, for which an analytical solution is available. The governing equations read
 \begin{align}
     \partial_t p + c\,\partial_x v &= 0, \\
-    \partial_t v + c\,\partial_x p &= 0.
+    \partial_t v + c\,\partial_x p &= 0,
 \end{align}
-with the boundary conditions {\eqref{eq:1c}--\eqref{eq:1d}}. 
+supplemented with the boundary conditions \eqref{eq:1c}--\eqref{eq:1d}.
 
-\subsection{Riemann invariants}
-Introduce the Riemann variables
+\subsection{Riemann Invariants}
+
+Introducing the characteristic variables
 \begin{equation}
-    r := p+v,\qquad s := p-v.
+    w^+_{pde} := p+v, \qquad w^-_{pde} := p-v,
 \end{equation}
-They satisfy decoupled transport equations
+the system decouples into two transport equations:
 \begin{align}
-    \partial_t r + c\,\partial_x r &= 0, \label{eq:transport_r}\\
-    \partial_t s - c\,\partial_x s &= 0. \label{eq:transport_s}
+    \partial_t w^+_{pde} + c\,\partial_x w^+_{pde} &= 0, \\
+    \partial_t w^-_{pde} - c\,\partial_x w^-_{pde} &= 0.
 \end{align}
-With initial data $p(x,0)=p_0(x)$, $v(x,0)=v_0(x)$ we have $r_0=p_0+v_0$ and $s_0=p_0-v_0$, hence from \eqref{eq:transport_r}--\eqref{eq:transport_s}
+With initial data $p(x,0)=p_0(x)$ and $v(x,0)=v_0(x)$, this yields
 \begin{equation}
-    r(x,t)=r_0(x-ct),\qquad s(x,t)=s_0(x+ct).
+    w^+_{pde}(x,t) = w_0^+(x-ct), \qquad
+    w^-_{pde}(x,t) = w_0^-(x+ct),
 \end{equation}
-Recovering $(p,v)$ gives the explicit solution
+where $w_0^\pm = p_0 \pm v_0$.
+\subsection{Derivation of the Boundary Conditions in Characteristic Variables}
+
+\subsubsection{Physical boundary conditions}
+
+At the right boundary $x=L$, we consider an impedance-type termination described by an
+auxiliary variable $\phi(t)$, governed by the following system (equations \eqref{eq:1c}--\eqref{eq:1d}):
 \begin{align}
-    p(x,t) &= \tfrac12\bigl[r_0(x-ct)+s_0(x+ct)\bigr] \nonumber\\
-                 &= \tfrac12\bigl[p_0(x-ct)+p_0(x+ct)\bigr] 
-                        + \tfrac12\bigl[v_0(x-ct)-v_0(x+ct)\bigr] \label{eq:solution_p}, \\
-    v(x,t) &= \tfrac12\bigl[r_0(x-ct)-s_0(x+ct)\bigr] \nonumber\\
-                 &= \tfrac12\bigl[v_0(x-ct)+v_0(x+ct)\bigr] 
-                        + \tfrac12\bigl[p_0(x-ct)-p_0(x+ct)\bigr] \label{eq:solution_v}.
+    Z_T^\ast \,\partial_t \phi(t) + \sqrt{\alpha}\, p(L,t) &= 0,
+    \label{eq:bc_phi_phys}\\
+    -\frac{\beta}{Z_T^\ast}\, p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi(t) &= 0.
+    \label{eq:bc_pv_phys}
 \end{align}
-\subsection{Boundary condition at $x=L$}
+This formulation models the dynamic response of the boundary.
 
-At the right boundary $x=L$, we impose a dynamic impedance-type boundary condition
-coupled with an auxiliary variable $\phi(t)$:
+\subsubsection{Characteristic variables}
+
+Let's introduce again the Riemann (characteristic) variables
+\begin{equation}
+    w^+ = p + v, \qquad
+    w^- = p - v,
+\end{equation}
+with inverse relations
+\begin{equation}
+    p = \frac12 (w^+ + w^-), \qquad
+    v = \frac12 (w^+ - w^-).
+\end{equation}
+
+\subsubsection{Algebraic boundary condition}
+
+Substituting the characteristic variables into \eqref{eq:bc_pv_phys} yields
 \begin{align}
-&\partial_t \phi(t) + c_1\,r(L,t) + c_2\,\phi(t) = 0, \label{eq:phi_bc} \\
-&s(L,t) = a\,r(L,t) + b\,\phi(t), \label{eq:s_bc}
+    -\frac{\beta}{Z_T^\ast}\,\frac{w^+ + w^-}{2}
+    + \frac{w^+ - w^-}{2}
+    + \sqrt{\alpha}\,\phi
+    &= 0.
 \end{align}
-where the coefficients are given by
+Multiplying by $2$ and rearranging terms gives
+\begin{align}
+    \left(-1 - \frac{\beta}{Z_T^\ast}\right) w^-
+    + \left(1 - \frac{\beta}{Z_T^\ast}\right) w^+
+    + 2\sqrt{\alpha}\,\phi
+    &= 0,
+\end{align}
+which leads to the outgoing characteristic at the boundary:
 \begin{equation}
-a=\frac{1-\beta/(Z^\ast T^\ast)}{1+\beta/(Z^\ast T^\ast)}, \qquad
-b=\frac{2\sqrt{\alpha}}{1+\beta/(Z^\ast T^\ast)}, \qquad
-c_1=\frac{\sqrt{\alpha}}{2Z^\ast T^\ast}, \qquad
-c_2=c_1 b. \label{eq:coeffs}
+    \boxed{
+    w^-(L,t)
+    =
+    a\, w^+(L,t)
+    + b\, \phi(t)
+    }
+    \label{eq:wminus_bc}
+\end{equation}
+with
+\begin{equation}
+    a = \frac{1-\beta/Z_T^\ast}{1+\beta/Z_T^\ast},
+    \qquad
+    b = \frac{2\sqrt{\alpha}}{1+\beta/Z_T^\ast}.
 \end{equation}
 
-The incoming characteristic at the boundary is
-\begin{equation}
-r(L,t)=p_0(L-ct), \label{eq:r_boundary}
-\end{equation}
-while the outgoing characteristic $s(L,t)$ is determined by
-\eqref{eq:s_bc}--\eqref{eq:phi_bc}.  
-This ordinary differential equation system is solved explicitly in time and then propagated
-into the domain along characteristics.
+\subsubsection{Dynamic equation for the auxiliary variable}
 
-\subsection{Final analytical solution}
-
-Denoting by $s_{\mathrm{ref}}(x,t)$ the reflected wave generated at $x=L$ and transported
-with velocity $-c$, the total right-going characteristic reads
+The dynamic boundary condition \eqref{eq:bc_phi_phys} can be rewritten as
 \begin{equation}
-s(x,t)=p_0(x+ct)+s_{\mathrm{ref}}(x,t),
+    \partial_t \phi
+    + \frac{\sqrt{\alpha}}{Z_T^\ast}\, p(L,t) = 0.
 \end{equation}
-while the left-going characteristic remains
+Using $p = (w^+ + w^-)/2$ and substituting \eqref{eq:wminus_bc} for $w^-$, we obtain a closed
+ordinary differential equation:
 \begin{equation}
-r(x,t)=p_0(x-ct).
+    \boxed{
+    \partial_t \phi
+    + c_1\, (1+a) \, w^+(L,t)
+    + c_2\, \phi(t)
+    = 0
+    }
+\end{equation}
+where
+\begin{equation}
+    c_1 = \frac{\sqrt{\alpha}}{2 Z_T^\ast},
+    \qquad
+    c_2 = c_1\, b.
 \end{equation}
 
+\subsubsection{Definition of the reflected wave}
+
+The free outgoing characteristic associated with the initial condition is
+\begin{equation}
+    w^-_{pde}(x,t) = w_0^-(x+ct).
+\end{equation}
+The boundary generates an additional reflected contribution, defined at $x=L$ by
+\begin{equation}
+    \boxed{
+    w^-_{\mathrm{ref}}(L,t)
+    :=
+    a\, w^+_{pde}(L,t)
+    + b\, \phi(t)
+    }.
+\end{equation}
+This reflected wave is propagated into the domain along characteristics:
+\begin{equation}
+    w^-_{\mathrm{ref}}(x,t)
+    =
+    w^-_{\mathrm{ref}}
+    \!\left(L,\, t - \frac{L-x}{c}\right),
+    \qquad x \le L.
+\end{equation}
+
+The total outgoing characteristic is therefore
+\begin{equation}
+    w^-(x,t)
+    =
+    w^-_{pde}(x,t)
+    + w^-_{\mathrm{ref}}(x,t).
+\end{equation}
+
+\subsubsection{Interpretation}
+
+The impedance boundary condition acts as a dynamic reflection operator: the incoming
+characteristic $w^+$ excites the auxiliary variable $\phi(t)$, which in turn generates
+a reflected wave $w^-_{\mathrm{ref}}$ propagating back into the computational domain.
+
+\subsection{Construction of the Analytical Solution}
+
+The reflected characteristic $w^-_{ref}(L,t)$ is propagated into the domain along the characteristic lines with velocity $-c$. The total characteristics are therefore
+\begin{align}
+    w^+(x,t) &= w^+_{pde}(x,t) = w_0^+(x-ct), \\
+    w^-(x,t) &= w^-_{pde}(x,t) + w^-_{ref}(x,t)
+             = w_0^-(x+ct) + w^-_{ref}(x,t).
+\end{align}
 The pressure and velocity fields are finally reconstructed as
-\begin{align}
-p(x,t) &= \frac12\bigl[r(x,t)+s(x,t)\bigr], \label{eq:p_final} \\
-v(x,t) &= \frac12\bigl[r(x,t)-s(x,t)\bigr]. \label{eq:v_final}
-\end{align}
+\begin{equation}
+\begin{aligned}
+    p(x,t) &= \tfrac12 \bigl[w^+(x,t) + w^-(x,t)\bigr], \\
+    v(x,t) &= \tfrac12 \bigl[w^+(x,t) - w^-(x,t)\bigr].
+\end{aligned}
+\label{eq:exact_sol}
+\end{equation}
 
-This analytical solution is exactly the one implemented in the function
-\texttt{exact\_solution\_characteristics} and is used as a reference to assess the accuracy
-of the DG scheme.
+This analytical solution is implemented in the function \texttt{exact\_solution\_characteristics} and serves as a reference to assess the accuracy of the DG scheme.
+
+
 
 \chapter{Numerical Results}
 
@@ -665,9 +805,9 @@ of the DG scheme.
 \vspace{1em}
 In this section, we present numerical results obtained using the Discontinuous Galerkin Method (DGM) 
 for simulating wave propagation in a one-dimensional domain with variable cross-sectional area.
-We will fist describe the initial conditions and simulation parameters used in the experiments.
+We will first describe the initial conditions and simulation parameters used in the experiments.
 Then, we will present the results of the DGM solver for both uniform and non-uniform cross-sections(exponential and conical shapes),
-with an analyze of the convergence of the method for the uniform cross-section case. 
+with an analysis of the convergence of the method for the uniform cross-section case. 
 Finally, we will present some performance benchmarks of the JAX implementation.
 
 \newpage
@@ -699,22 +839,25 @@ We used the same set of parameters for all the test cases to ensure consistency
 and comparability of the results.
 \begin{table}[h!]
 \centering
-\begin{tabular}{c ccccccc}
+\begin{tabular}{c cccccc}
 \hline
-Parameters & $\alpha$ & $\beta$ & $S^\ast$ & c & $Z^\ast$ & $T^\ast$ & CLF \\
+Parameters & $\alpha$ & $\beta$ & $S^\ast$ & c & $Z^\ast_T$ & CLF \\
 \hline
-Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 1.0 & 0.05 \\
+Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 0.05 \\
 \hline
 \end{tabular}
 \caption{Simulation parameters used in the DG P1 solver.}
 \label{tab:sim_parameters}
 \end{table}
 
+These parameters define the physical properties of the wave propagation and take into
+account certain aspects of the geometry of the instrument. 
+
 \section{DG Method results}
 
 \subsection{Uniform cross-section}
 
-In the case of a uniform cross-section $S(x) = S^* = 1$, the analytical solution described in \eqref{eq:solution_p}--\eqref{eq:solution_v} is available for validation.
+In the case of a uniform cross-section $S(x) = S^* = 1$, the analytical solution described in \eqref{eq:exact_sol} is available for validation.
 In a future work, we might use the numerical solution obtained with Openwind as a reference for 
 the comparaison when dealing with non-uniform cross-sections.
 
@@ -729,7 +872,7 @@ the comparaison when dealing with non-uniform cross-sections.
 \end{figure}
 
 As shown in Figure \ref{fig:dg_solution_const}, the numerical solution obtained using the Discontinuous Galerkin Method accurately captures 
-the wave propagation over time described in \ref{eq:solution_p} and \ref{eq:solution_v}. The method effectively resolves the wave fronts 
+the wave propagation over time described in \ref{eq:exact_sol}. The method effectively resolves the wave fronts 
 and maintains stability throughout the simulation.
 Inside the domain (Instrument), we can observe the proper propagation of the initial pressure bump, splitting into left-going and right-going waves for the pressure 
 and velocity fields. At the right boundary, the interaction with the radiation condition seems to be correctly
@@ -738,22 +881,25 @@ computed hence demonstrating the method's capability to handle complex boundary 
 \FloatBarrier 
 \subsubsection{Convergence study}
 The convergence of the DG method is verified by comparing the numerical solution to the analytical solution at various size of discretisation with an Explicit Euler
-time integration scheme and a Runge-Kutta 2nd order scheme. 
+time integration scheme and a Runge-Kutta 2nd order scheme by computing the $L^2$ norm of the error at final time $T=0.5\ \mathrm{s}$ and $T=0.8\ \mathrm{s}$ using 
+the $L^2$ error.
+This two final times are chosen to observe the solution before and after the wave has interacted with the right boundary to see the effect of the boundary condition on the convergence.
+
 
 \begin{figure}[htbp]
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/dg_convergence_T0p5_euler.png}
+        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.5_euler.png}
         \caption{Convergence of the DG method with Explicit Euler scheme.}
-        \label{fig:convergence_plot_euler}
+        \label{fig:convergence_plot_euler_t_05}
     \end{minipage}
     \hfill
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/dg_convergence_T0p5_rk2.png}
-        \caption{Convergence of the DG method with Rk2 scheme.}
-        \label{fig:convergence_plot_rk2}
+        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.5_rk2.png}
+        \caption{Convergence of the DG method with RK2 scheme.}
+        \label{fig:convergence_plot_rk2_t_05}
     \end{minipage}
 \end{figure}
 
@@ -764,6 +910,29 @@ The overall convergence rate of the fully discrete scheme is
 limited by the order of the time integration method: first order for 
 the explicit Euler scheme and second order for the second-order 
 Runge–Kutta scheme.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.8_euler.png}
+        \caption{Convergence of the DG method with Explicit Euler scheme.}
+        \label{fig:convergence_plot_euler_t_08}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.8_rk2.png}
+        \caption{Convergence of the DG method with Rk2 scheme.}
+        \label{fig:convergence_plot_rk2_t_08}
+    \end{minipage}
+\end{figure}
+
+As shown in Figures \ref{fig:convergence_plot_euler_t_08} and \ref{fig:convergence_plot_rk2_t_08},
+the convergence behavior remains consistent even after the wave has interacted with the boundary.
+This indicates that the boundary condition is correctly implemented (with similar order of accuracy for 
+the DG solver and the Boundary condition solver) and so, does not affect the accuracy of the numerically
+computed solution.
 
 \subsection{Non-uniform cross-section}
 In the case of a non-uniform cross-section $S(x) \neq S^*$, no analytical solution is available.
@@ -783,7 +952,7 @@ We consider an exponential cross-section defined as
     \hfill
     \begin{minipage}[c]{0.58\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/exp_profile.png}
+        \includegraphics[width=0.8\textwidth]{Images/exp_profile.png}
     \end{minipage}
     \caption{Exponential variation of the cross-sectional area $S(x)$.}
     \label{fig:exp_profile}
@@ -799,6 +968,7 @@ This is the shape of the clarinet bell for example.
     \label{fig:dg_solution_exp}
 \end{figure}
 
+\newpage
 \subsubsection{Case of a conical cross-section} $\\ \\$
 We consider a conical cross-section defined as
 \begin{figure}[htbp]
@@ -815,14 +985,14 @@ We consider a conical cross-section defined as
     \hfill
     \begin{minipage}[c]{0.58\textwidth}
         \centering
-        \includegraphics[width=0.9\textwidth]{Images/cone_profile.png}
+        \includegraphics[width=0.8\textwidth]{Images/cone_profile.png}
     \end{minipage}
     \caption{Profile of an instrument with a conical cross-section.}
     \label{fig:cone_profile}
 \end{figure}
 
 This is another shape of musical instrument.
-
+\newpage
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/dg_solution.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
@@ -837,7 +1007,12 @@ We can oberse that the wave propagation is influenced by the varying cross-secti
 as it has stop to be symmetric.
 For example, the pressure is amplified in regions where the cross-sectional area decreases. 
 
-\newpage
+Note: Since we assume the wave speed to be the maximum eigenvalue of $C^{-1}(x)A$, 
+the Rusanov flux does not directly account for the variable cross-section. 
+As the system is not strictly conservative, some numerical energy dissipation is observed 
+(e.g., the pressure becomes negative in Figure~\ref{fig:dg_solution_exp}, 
+and the acoustic velocity remains positive where it should vanish (see figures \ref{fig:dg_solution_exp} and \ref{fig:dg_solution_cone})).
+
 \section{Performance Study}
 A performance analysis was carried out to assess the computational efficiency of the Discontinuous Galerkin (DG) method implementation.
 The study measured the execution time for simulations with different numbers of elements ($N$), using the parameters listed in 
@@ -861,7 +1036,7 @@ for the constant cross-section case in Figure~\ref{fig:performance_euler}.
 \subsection{RK2 explicit time integration}
 
 \input{../Results/table_performance_rk2.tex}
-
+\newpage
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.7\textwidth]{Images/performance_rk2.png}
@@ -891,10 +1066,12 @@ non-uniform cross-sectional profiles. Furthermore, a convergence study confirmed
 rates of convergence. Performance analyses showed that the JAX-based implementation scales efficiently with the number of elements, making 
 it suitable for large-scale simulations required in calibration and optimization tasks.
 
-Future work will focus on extending the solver to include the full right-hand-side boundary conditions described by equations~\eqref{eq:1e} 
-and~\eqref{eq:1f}, which are essential for modeling the complete reed–instrument interaction. In addition, further investigations will be 
-required to design an effective automated calibration strategy, including data preprocessing, parameter selection, and the choice of 
-appropriate loss functions for optimization.
+Future work will focus on extending the solver to handle a fully conservative system of equations, 
+as well as implementing the complete right-hand-side boundary conditions described by 
+equations~\eqref{eq:1e} and~\eqref{eq:1f}, which are essential for accurately modeling the 
+reed–instrument interaction. Additionally, further investigations will be required to develop 
+an effective automated calibration strategy, including data preprocessing, parameter selection, 
+and the choice of appropriate loss functions for optimization.
 
 I would like to express my sincere gratitude to my supervisors—Dr. Emmanuel Franck, Dr. Juliette Chabassier, Dr. Laurent Navoret, Dr. Victor
  Michel-Dansac, and Dr. Alexis Thibault—for their invaluable guidance, insightful discussions, and continuous support throughout this project.

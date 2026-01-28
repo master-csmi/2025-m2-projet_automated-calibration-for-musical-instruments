@@ -144,33 +144,77 @@ Chaigne, A. (2010). "Physical models of musical instruments". HAL.
 
 \slideTitle{Physical Model}
 
-\scriptsize 
+\small
 \noindent\begin{minipage}[t]{\linewidth}
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
     \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
     \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-    \frac{Z^\ast}{T^\ast}\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-    -\frac{\beta}{Z^\ast T^\ast}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
-    -v(0,t) + \zeta_\ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
+    Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+    -\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+    -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
     \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
     &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
 \end{empheq}
 \end{subequations}
 \end{minipage}
-{\scriptsize
+\end{frame}
+
+\slideTitle{Physical Model}
+\noindent\begin{minipage}[t]{\linewidth}
+\begin{subequations}
+\begin{empheq}[left=\empheqlbrace]{align}
+    \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \\[4pt]
+    \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0
+\end{empheq}
+\end{subequations}
+\end{minipage}
 \begin{itemize}
     \item Equations \eqref{eq:1a} and \eqref{eq:1b}: wave propagation (pressure and acoustic volume velocity)in a variable section tube. \footnotemark[1]
-    \item Equations \eqref{eq:1c} and \eqref{eq:1d}: Radiative phenomenons ($\phi$).
-    \item Equations \eqref{eq:1e} and \eqref{eq:1f}: effects of the instrumental player at the input boundary.
+    \item $S(x)$: cross-section area, $c$: speed of sound, $S^\ast$: reference cross-section area.
 \end{itemize}
-}
 \footnotetext[1]{
 {\scriptsize \cite{MAMAMIA2024}
 Michel-Dansac, V., Thibault, A., Franck, E., Chabassier, J., Navoret, L. (2024). "Automated Calibration of Physical Models for Reed Instruments". MAMAMIA 2024.
 }
 }
 \end{frame}
+
+\slideTitle{Physical Model}
+\noindent\begin{minipage}[t]{\linewidth}
+\begin{subequations}
+\begin{empheq}[left=\empheqlbrace]{align}
+    &Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) = 0 \\[4pt]
+    -&\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi = 0 
+\end{empheq}
+\end{subequations}
+\end{minipage}
+\begin{itemize}
+    \item Equations \eqref{eq:1c} and \eqref{eq:1d}: Radiative phenomenons ($\phi$).
+    \item $Z_T^\ast$: characteristic impedance, $\alpha,\beta$: parameters related to the acoustic load.
+\end{itemize}
+\end{frame}
+
+\slideTitle{Physical Model}
+\noindent\begin{minipage}[t]{\linewidth}
+\begin{subequations}
+\begin{empheq}[left=\empheqlbrace]{align}
+    -&v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y = 0 \\[6pt]
+    &\frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
+    = \varepsilon(\gamma - p(0,t))
+\end{empheq}
+\end{subequations}
+\end{minipage}
+\begin{itemize}
+    \item Equations \eqref{eq:1e} and \eqref{eq:1f}: effects of the instrumental player at the input boundary.
+    \item \(\gamma\) denotes the mouth pressure, \(\omega_r = 2\pi f_r\) the resonance frequency of the lips or 
+    reed, \(Q_r\) quality factor , \(\zeta\) a dimensionless stiffness parameter, and \(\kappa\) the reed flow 
+    efficiency, \(\varepsilon = \pm 1\).
+    \item $F$: nonlinear function modeling the airflow through the reed channel. $F(\Delta p) = \sqrt{\Delta p}sign(\Delta p)$
+\end{itemize}
+\end{frame}
+
+
 
 % Section 2
 \section{Methods}
@@ -201,22 +245,22 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 
 \slideTitle{Discontinuous Galerkin Method (cont.)}
 
-Assume that $u_h^n$ is known.
+Assume that $u_h^n$ (approximation of $u(\cdot,t^n)$) is known.
 \begin{itemize}
     \item Partition the domain $\Omega$ into $K$ non-overlapping elements $\{\Omega_k\}$.
     \item On each element $\Omega_k$, approximate the solution by
     \[
-        u_h^n(x) = \sum_j \alpha_{k,j}^n \, \phi_j(x),
+        u_h^n|_{\Omega_k} = u_k^n(x) = \sum_j \alpha_{k,j}^n \, \phi_j(x),
     \]
     where $\{\phi_j\}$ is a local polynomial basis.
     \item Enforce the weak formulation on each element:
     \begin{equation}
-        \int_{\Omega_k} u_h^{n+1}(x)\phi_i(x)\,dx
+        \int_{\Omega_k} u_k^{n+1}(x)\phi_i(x)\,dx
         =
-        \int_{\Omega_k} u_h^n(x)\phi_i(x)\,dx
+        \int_{\Omega_k} u_k^n(x)\phi_i(x)\,dx
         -
         \Delta t
-        \int_{\Omega_k} \partial_x F\big(u_h^n(x)\big)\phi_i(x)\,dx.
+        \int_{\Omega_k} \partial_x F\big(u_k^n(x)\big)\phi_i(x)\,dx.
     \end{equation}
 
 \end{itemize}
@@ -230,22 +274,22 @@ Assume that $u_h^n$ is known.
         \sum_j \alpha_{k,j}^{n+1}
         \int_{\Omega_k} \phi_j(x)\phi_i(x)\,dx
         =
-        \int_{\Omega_k} u_h^n(x)\phi_i(x)\,dx
+        \int_{\Omega_k} u_k^n(x)\phi_i(x)\,dx
         +
-        \Delta t\int_{\Omega_k} F\big(u_h^n(x)\big)\partial_x\phi_i(x)\,dx
+        \Delta t\int_{\Omega_k} F\big(u_k^n(x)\big)\partial_x\phi_i(x)\,dx
         -
-        \Delta t\left[ F(u_h^n)\phi_i \right]_{\partial\Omega_k}
+        \Delta t\left[ F(u_k^n)\phi_i \right]_{\partial\Omega_k}
     \end{equation}
     \normalsize
     \item Define the local mass matrix
     $
         M_{ij} = \int_{\Omega_k} \phi_j(x)\phi_i(x)\,dx.
     $
-    \item The local system reads:
+    \item The local system (on each element $\Omega_k$) reads:
     \begin{equation}
         M\,\boldsymbol{\alpha}_k^{\,n+1} = \mathbf{b}_k,
     \end{equation}
-    where $\mathbf{b}_k$ depends only on $u_h^n$ and numerical fluxes.
+    where $\mathbf{b}_k$ depends only on $u_k^n$ and numerical fluxes.
 \end{itemize}
 \end{frame}
 
@@ -341,7 +385,7 @@ p
         \Big).
     \end{equation}
 
-    \item The eigenvalues of $\mathbf{C}^{-1}\mathbf{A}$ are
+    \item The eigenvalues of $\mathbf{C}^{-1}\mathbf{A}$ (non conservative approach / need to be fixed) are
     \[
         \lambda_{1,2} = \pm c
         \quad \Rightarrow \quad
@@ -437,10 +481,10 @@ the DG formulation of the mixed form of the wave equation reads :
     \item As shown in equations \eqref{eq:1c} and \eqref{eq:1d} :
     \begin{equation}
     \begin{cases}
-        \dfrac{Z^\ast}{T^\ast}\,\partial_t \phi(t)
+        Z^\ast_T\,\partial_t \phi(t)
         + \sqrt{\alpha}\, p(L,t) = 0,
         \\[0.3em]
-        -\dfrac{\beta}{Z^\ast T^\ast}\, p(L,t)
+        -\dfrac{\beta}{Z^\ast_T}\, p(L,t)
         + v(L,t)
         + \sqrt{\alpha}\,\phi(t) = 0.
     \end{cases}
@@ -459,74 +503,78 @@ Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acou
 
 \begin{itemize}
     \item Introduce characteristic variables at the boundary:
-    \[
+    \begin{align}
         w^+ = p + v,
         \qquad
         w^- = p - v.
-    \]
+    \end{align}
 
     \item Using the impedance condition, the incoming characteristic can be expressed as:
-    \[
+    \begin{align}
         \boxed{
         w^- =
-        \frac{1-\frac{\beta}{Z^\ast T^\ast}}
-             {1+\frac{\beta}{\beta Z^\ast T^\ast}}\, w^+
+        \frac{1-\frac{\beta}{Z^\ast_T}}
+             {1+\frac{\beta}{Z^\ast_T}}\, w^+
         +
         \frac{2\sqrt{\alpha}}
-             {1+\frac{\beta}{Z^\ast T^\ast}}\,\phi(t)
+             {1+\frac{\beta}{Z^\ast_T}}\,\phi(t)
         }
-    \]
+    \end{align}
 
     \item This formulation allows a natural implementation within the DG framework:
     only the incoming wave $w^-$ is imposed.
 \end{itemize}
 \end{frame}
 
-\subsubsection{Simplified Model}
-\slideTitle{Simplified Model $S(x)=S^*=1$}
-To validate the implementation of the DGM, we consider a simplified model :
+\slideTitle{Simplified Model and Exact Solution ($S(x)= S^* =1$)}
+
 \begin{itemize}
-    \item System of equations :
-    \begin{equation}
-        \begin{cases}
-            \partial_t p(x,t) + c\partial_x v(x,t) = 0 \\
-            \partial_t v(x,t) + c\partial_x p(x,t) = 0
-        \end{cases}
-    \end{equation}
-    \item Domain : $x \in [0,L]$, $t \in [0,T]$.
-    \item Initial conditions : $p(x,0) = p_0(x)$, $v(x,0) = v_0(x)$.
-    \item Riemann variables : $r(x,t) = p(x,t) + v(x,t)$, $s(x,t) = p(x,t) - v(x,t)$.
-    \begin{equation}
-        \begin{cases}
-            \partial_t r(x,t) + c\partial_x r(x,t) = 0 \\
-            \partial_t s(x,t) - c\partial_x s(x,t) = 0
-        \end{cases}
-    \end{equation}
+    \item System: 
+    \begin{align}
+    \partial_t p + c \partial_x v &= 0 \\
+    \partial_t v + c \partial_x p &= 0,
+    \end{align}
+    with $c$ constant and $x \in [0,L], t \in [0,T], \text{initial data } p_0, v_0$.
+    \item Characteristics: 
+    $$w^+_{pde} = p+v, \quad w^-_{pde} = p-v$$ 
+    satisfy
+    \begin{align}
+    \partial_t w^+_{pde} + c \partial_x w^+_{pde} &= 0 \\
+    \partial_t w^-_{pde} - c \partial_x w^-_{pde} &= 0.
+    \end{align}
+    \item Solution along characteristics:
+    $$w^+_{pde}(x,t) = w^+_0(x-ct), \quad w^-_{pde}(x,t) = w^-_0(x+ct).$$
 \end{itemize}
 \end{frame}
 
-\slideTitle{Simplified Model (contd.)}
+\slideTitle{Boundary at $x=L$}
+
 \begin{itemize}
-    \item Exact solution :
-    \begin{equation}
-        \begin{cases}
-            r(x,t) = r_0(x-ct) = p_0(x-ct) + v_0(x-ct) \\
-            s(x,t) = s_0(x+ct) = p_0(x+ct) - v_0(x+ct)
-        \end{cases}
-    \end{equation}
-    \item Therefore :
-    \begin{equation}
-        \begin{cases}
-            \begin{aligned}
-            p(x,t) &= \tfrac12\bigl[r_0(x-ct) + s_0(x+ct)\bigr] \\
-            &= \tfrac12\bigl[p_0(x-ct) + v_0(x-ct) + p_0(x+ct) - v_0(x+ct)\bigr] \\
-            v(x,t) &= \tfrac12\bigl[r_0(x-ct) - s_0(x+ct)\bigr] \\
-            &= \tfrac12\bigl[p_0(x-ct) + v_0(x-ct) - p_0(x+ct) + v_0(x+ct)\bigr]
-            \end{aligned}
-        \end{cases}
-    \end{equation}
+    \item Impedance-type BC at $x=L$ with auxiliary variable $\phi(t)$:
+    \begin{align}
+        &\partial_t \phi(t) + c_1\, (1+a) w^+_{pde}(L,t) + c_2\, \phi(t) = 0,\\
+        &w^-_{\mathrm{ref}}(L,t) = a\, w^+_{pde}(L,t) + b\, \phi(t).
+    \end{align}
+    Coefficients:
+    \[
+    a=\frac{1-\dfrac{\beta}{Z_T^\ast}}{1+\dfrac{\beta}{Z_T^\ast}}, \quad
+    b=\frac{2\sqrt{\alpha}}{1+\dfrac{\beta}{Z_T^\ast}}, \quad
+    c_1=\frac{\sqrt{\alpha}}{2Z_T^\ast}, \quad
+    c_2=c_1 b.
+    \]
+    \item Solve $\phi(t)$ (Euler explicit or RK2), then propagate $w^-_{\mathrm{ref}}$ along the characteristic.
 \end{itemize}
 \end{frame}
+
+\slideTitle{Reflected Wave and Reconstruction}
+
+\begin{itemize}
+    \item Total right-going characteristic: $$w^-(x,t)= w^-_{pde}(x,t) + w^-_\mathrm{ref}(x,t)= w^-_0(x+ct) + w^-_\mathrm{ref}(x,t)$$.
+    \item Left-going characteristic: $$w^+(x,t) = w^+_{pde}(x,t) =  w^+_0(x-ct)$$.
+    \item Final solution: $$p = (w^+ + w^-)/2, \quad v = (w^+ - w^-)/2$$.
+\end{itemize}
+\end{frame}
+
 
 \section{DG's results}
 
@@ -554,19 +602,59 @@ To validate the implementation of the DGM, we consider a simplified model :
     \normalsize
 \end{frame}
 
-\slideTitle{Convergence and Efficiency}
+\slideTitle{Convergence and Efficiency (Inside the domain)}
 
 \begin{columns}[T]
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0p5_euler.png}
+        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.5_euler.png}
         
         {\scriptsize DG convergence with Explicit Euler scheme.}
     \end{column}
 
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0p5_rk2.png}
+        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.5_rk2.png}
+        
+        {\scriptsize DG convergence with Runge--Kutta second-order scheme.}
+    \end{column}
+\end{columns}
+
+\vspace{0.3cm}
+\scriptsize
+\begin{itemize}
+    \item \textbf{Spatial convergence:} order $d+1$ with polynomial degree $d$
+    \footnotemark[1]
+    \item \textbf{Temporal convergence:}
+    \begin{itemize}
+        \item Explicit Euler: first order
+        \item Runge--Kutta 2: second order
+    \end{itemize}
+\end{itemize}
+\normalsize
+
+\footnotetext[1]{
+{\footnotesize
+\cite[Section~4.5]{HesthavenWarburton2008}
+Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Section~4.5
+}
+}
+
+\end{frame}
+
+\slideTitle{Convergence and Efficiency (At the boundary)}
+
+\begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.8_euler.png}
+        
+        {\scriptsize DG convergence with Explicit Euler scheme.}
+    \end{column}
+
+    \begin{column}{0.5\textwidth}
+        \centering
+        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.8_rk2.png}
         
         {\scriptsize DG convergence with Runge--Kutta second-order scheme.}
     \end{column}
@@ -676,12 +764,9 @@ Good News !
     \item This project focused on the automated calibration of physical parameters
     in a one-dimensional wave model for reed instruments.
     
-    \item A Discontinuous Galerkin Method (DG) solver was developed for the mixed
-    wave equation with variable cross-sectional area.
-    
     \item Key contributions:
     \begin{itemize}
-        \item Formulation and implementation of a DG scheme for the mixed wave system,
+        \item Formulation and implementation of a DG scheme for the mixed wave system with variable cross-section,
         \item Treatment of radiation boundary conditions using characteristic variables
         coupled with a boundary ODE,
         \item Validation against analytical solutions in the constant-section case,
@@ -698,9 +783,10 @@ Good News !
 \slideTitle{Perspectives}
 Future work may include:
 \begin{itemize}
-    \item Extension to full RHS boundary conditions,
-    \item Integration into an automated calibration and optimization framework,
-    \item Investigation of suitable loss functions and training strategies.
+    \item Compute the conservative form of the mixed wave equations,
+    \item Extension to full model by adding LHS boundary conditions,
+    \item Investigation of suitable loss functions and training strategies,
+    \item Integration into an automated calibration and optimization framework.
 \end{itemize}
 
 \vspace{2em}
@@ -734,6 +820,23 @@ support throughout this project.
         \input{../Results/table_performance_rk2.tex}
     \end{column}
 \end{columns}
+\end{frame}
+
+\subsection{Simulation Parameters}
+
+\slideTitle{Simulation Parameters}
+\begin{table}[h!]
+\centering
+\begin{tabular}{c cccccc}
+\hline
+Parameters & $\alpha$ & $\beta$ & $S^\ast$ & c & $Z^\ast_T$ & CLF \\
+\hline
+Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 0.05 \\
+\hline
+\end{tabular}
+\caption{Simulation parameters used in the DG P1 solver.}
+\label{tab:sim_parameters}
+\end{table}
 \end{frame}
 
 \end{document}

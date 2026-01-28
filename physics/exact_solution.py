@@ -1,39 +1,65 @@
 import jax.numpy as jnp
 
-# ------------------------------------------------------------------------------------------------------------------------------
-#                                                 analytic solution for initial p0 Gaussian and v0=0
-#                                                 decomposition into w+ = p+v, w- = p-v
-# ------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
+# Analytic / reference solution for constant section
+# Initial condition: p0(x), v0 = 0
+# Boundary condition: impedance with boundary ODE
+# Time integration of boundary ODE: Euler or RK2 (Heun)
+# ----------------------------------------------------------------------------------------------------------------------
 
-def exact_solution_characteristics(x, t, p0_fun, c, L, alpha, beta, Z,T, dt=1e-4):
+def exact_solution_characteristics(
+    x, t, p0_fun, c, L,
+    alpha, beta, Z,
+    dt=1e-4,
+    method="rk2",   # "euler" or "rk2"
+):
+    # ----------------------------
+    # Coefficients
+    # ----------------------------
+    a = (1.0 - beta / Z) / (1.0 + beta / Z)
+    b = 2.0 * jnp.sqrt(alpha) / (1.0 + beta / Z)
 
-    # ----------------------------
-    # Precompute coefficients
-    # ----------------------------
-    a = (1.0 - beta / (Z * T)) / (1.0 + beta / (Z * T))
-    b = 2.0 * jnp.sqrt(alpha) / (1.0 + beta / (Z * T))
-    c1 = jnp.sqrt(alpha) / (2.0 * Z * T)
+    c1 = jnp.sqrt(alpha) / (2.0 * Z)
     c2 = c1 * b
 
     # ----------------------------
-    # Left-going wave
+    # Left-going wave (exact)
     # ----------------------------
     w_plus = p0_fun(x - c * t)
 
     # ----------------------------
-    # Boundary dynamics (x = L)
+    # Boundary dynamics at x = L
     # ----------------------------
     Nt = int(jnp.ceil(t / dt))
     t_grid = jnp.linspace(0.0, t, Nt)
-    wp_L = p0_fun(L - c * t_grid)
+
+    # Outgoing wave at boundary
+    w_plus_L = p0_fun(L - c * t_grid)
 
     phi = 0.0
     w_minus_L = []
 
-    for wp in wp_L:
+    for wp in w_plus_L:
+
+        def rhs(phi_val):
+            return -c1 *(1.0+a) * wp - c2 * phi_val
+
+        if method == "euler":
+            # Euler explicite
+            phi = phi + dt * rhs(phi)
+
+        elif method == "rk2":
+            # RK2 
+            k1 = rhs(phi)
+            phi_star = phi + dt * k1
+            k2 = rhs(phi_star)
+            phi = phi + 0.5 * dt * (k1 + k2)
+
+        else:
+            raise ValueError(f"Unknown method '{method}' (use 'euler' or 'rk2')")
+
         wm = a * wp + b * phi
         w_minus_L.append(wm)
-        phi = phi + dt * (-c1 * wp - c2 * phi)
 
     w_minus_L = jnp.array(w_minus_L)
 
@@ -42,7 +68,7 @@ def exact_solution_characteristics(x, t, p0_fun, c, L, alpha, beta, Z,T, dt=1e-4
     # ----------------------------
     t_ref = t - (L - x) / c
 
-    w_minus_ref = jnp.where( #linear interpolation
+    w_minus_ref = jnp.where(
         t_ref > 0.0,
         jnp.interp(t_ref, t_grid, w_minus_L, left=0.0, right=0.0),
         0.0

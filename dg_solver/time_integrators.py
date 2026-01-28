@@ -72,7 +72,7 @@ def euler_step_system(u_cells, x_nodes, S_cells, c, A, smax, dt, Mp_inv, Mv_inv,
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                           time integrations step
 # ------------------------------------------------------------------------------------------------------------------------------
-# Fist integrate 
+# First integrate 
 # RK2 time integration
 def time_integrate_rk2(u0, x_nodes, S_cells, c, A, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, alpha):
     def step(carry, _):

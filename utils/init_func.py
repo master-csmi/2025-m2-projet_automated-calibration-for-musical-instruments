@@ -10,7 +10,7 @@ def init_func(x, L, phi0=1.0):
 
     inside = xi**2 < 1.0
 
-    # dénominateur sûr (jamais nul)
+    # safe denominator (never zero)
     denom = jnp.where(inside, 1.0 - xi**2, 1.0)
 
     bump = (phi0 / 4.0) * jnp.exp(1.0 - 1.0 / denom)

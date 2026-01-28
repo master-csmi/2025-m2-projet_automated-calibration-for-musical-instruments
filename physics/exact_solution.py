@@ -45,7 +45,7 @@ def exact_solution_characteristics(
             return -c1 *(1.0+a) * wp - c2 * phi_val
 
         if method == "euler":
-            # Euler explicite
+            # Euler explicit
             phi = phi + dt * rhs(phi)
 
         elif method == "rk2":

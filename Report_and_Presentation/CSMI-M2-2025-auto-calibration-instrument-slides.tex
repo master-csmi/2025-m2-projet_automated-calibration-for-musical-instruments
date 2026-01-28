@@ -569,8 +569,8 @@ Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acou
 \slideTitle{Reflected Wave and Reconstruction}
 
 \begin{itemize}
-    \item Total right-going characteristic: $$w^-(x,t)= w^-_{pde}(x,t) + w^-_\mathrm{ref}(x,t)= w^-_0(x+ct) + w^-_\mathrm{ref}(x,t)$$.
-    \item Left-going characteristic: $$w^+(x,t) = w^+_{pde}(x,t) =  w^+_0(x-ct)$$.
+    \item Total left-going characteristic: $$w^-(x,t)= w^-_{pde}(x,t) + w^-_\mathrm{ref}(x,t)= w^-_0(x+ct) + w^-_\mathrm{ref}(x,t)$$.
+    \item Right-going characteristic: $$w^+(x,t) = w^+_{pde}(x,t) =  w^+_0(x-ct)$$.
     \item Final solution: $$p = (w^+ + w^-)/2, \quad v = (w^+ - w^-)/2$$.
 \end{itemize}
 \end{frame}
@@ -837,6 +837,41 @@ Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 0.05 \\
 \caption{Simulation parameters used in the DG P1 solver.}
 \label{tab:sim_parameters}
 \end{table}
+\end{frame}
+
+\subsection{Use of AI Assistance}
+\begin{frame}{Use of Artificial Intelligence Assistance}
+
+\small
+\begin{itemize}
+    \item Some parts of this work were prepared with the assistance of Artificial Intelligence (AI) tools.
+    
+    \item \textbf{Tool used:}
+    \begin{itemize}
+        \item \textbf{ChatGPT} (OpenAI, GPT-4 / GPT-5 family)
+    \end{itemize}
+
+    \item \textbf{Scope of use:}
+    \begin{itemize}
+        \item Code support and debugging
+        \item Documentation and algorithm reformulation
+        \item Bibliography generation
+    \end{itemize}
+
+    \item \textbf{Typical prompts included:}
+    \begin{itemize}
+        \item Argument parsing in Python
+        \item Repository structure documentation
+        \item \texttt{.bib} file generation
+        \item Ghost-cell debugging
+        \item CSV $\rightarrow$ \LaTeX{} $\rightarrow$ PDF automation
+        \item Physical modeling examples (cross-sections, compact support)
+        \item Pertinent commentaries for code
+    \end{itemize}
+
+    \item All AI outputs were verified, adapted, and corrected by the authors, who take full responsibility for the scientific integrity of this work.
+\end{itemize}
+
 \end{frame}
 
 \end{document}

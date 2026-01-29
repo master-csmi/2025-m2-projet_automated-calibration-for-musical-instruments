@@ -148,13 +148,13 @@ Chaigne, A. (2010). "Physical models of musical instruments". HAL.
 \noindent\begin{minipage}[t]{\linewidth}
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
-    \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
-    \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-    Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-    -\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
-    -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
+    \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0\\[4pt]
+    \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \\[4pt]
+    Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \\[4pt]
+    -\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \\[4pt]
+    -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \\[6pt]
     \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
-    &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
+    &= \varepsilon(\gamma - p(0,t)) 
 \end{empheq}
 \end{subequations}
 \end{minipage}
@@ -164,8 +164,8 @@ Chaigne, A. (2010). "Physical models of musical instruments". HAL.
 \noindent\begin{minipage}[t]{\linewidth}
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
-    \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \\[4pt]
-    \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0
+    \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0\label{eq:1a} \\[4pt]
+    \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0\label{eq:1b}
 \end{empheq}
 \end{subequations}
 \end{minipage}
@@ -181,27 +181,37 @@ Michel-Dansac, V., Thibault, A., Franck, E., Chabassier, J., Navoret, L. (2024).
 \end{frame}
 
 \slideTitle{Physical Model}
+\begin{itemize}
+    \item At the outlet $x=L$ : Influence of exterior environment through a condition
+    of radiation impedance \footnotemark[1],
+\end{itemize}
 \noindent\begin{minipage}[t]{\linewidth}
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
-    &Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) = 0 \\[4pt]
-    -&\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi = 0 
+    &Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) = 0 \label{eq:1c} \\[4pt]
+    -&\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi = 0 \label{eq:1d} 
 \end{empheq}
 \end{subequations}
 \end{minipage}
 \begin{itemize}
-    \item Equations \eqref{eq:1c} and \eqref{eq:1d}: Radiative phenomenons ($\phi$).
+    \item \ref{eq:1c} : time evolution of the boundary variable $\phi(t)$. (Euler Explicit or RK2 time integration).
+    \item \ref{eq:1d} enforces a dynamic impedance relation between pressure and velocity (link to DG).
     \item $Z_T^\ast$: characteristic impedance, $\alpha,\beta$: parameters related to the acoustic load.
 \end{itemize}
+
+\footnotetext[1]{
+{\footnotesize \cite{thibault}
+Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acoustique dissipative dans les tubes poreux ou rugueux : application aux instruments {\`a} vent}}
+}
 \end{frame}
 
 \slideTitle{Physical Model}
 \noindent\begin{minipage}[t]{\linewidth}
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
-    -&v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y = 0 \\[6pt]
+    -&v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y = 0 \label{eq:1e} \\[6pt]
     &\frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
-    = \varepsilon(\gamma - p(0,t))
+    = \varepsilon(\gamma - p(0,t)) \label{eq:1f}
 \end{empheq}
 \end{subequations}
 \end{minipage}
@@ -269,16 +279,18 @@ Assume that $u_h^n$ (approximation of $u(\cdot,t^n)$) is known.
 \slideTitle{Discontinuous Galerkin Method (cont.)}
 \begin{itemize}
     \item Integration by parts yields:
-    \tiny
+    \small
     \begin{equation}
+        \begin{aligned}
         \sum_j \alpha_{k,j}^{n+1}
         \int_{\Omega_k} \phi_j(x)\phi_i(x)\,dx
-        =
+        &= 
         \int_{\Omega_k} u_k^n(x)\phi_i(x)\,dx
-        +
-        \Delta t\int_{\Omega_k} F\big(u_k^n(x)\big)\partial_x\phi_i(x)\,dx
+        +\\
+        &\Delta t\int_{\Omega_k} F\big(u_k^n(x)\big)\partial_x\phi_i(x)\,dx
         -
         \Delta t\left[ F(u_k^n)\phi_i \right]_{\partial\Omega_k}
+        \end{aligned}
     \end{equation}
     \normalsize
     \item Define the local mass matrix
@@ -287,7 +299,7 @@ Assume that $u_h^n$ (approximation of $u(\cdot,t^n)$) is known.
     $
     \item The local system (on each element $\Omega_k$) reads:
     \begin{equation}
-        M\,\boldsymbol{\alpha}_k^{\,n+1} = \mathbf{b}_k,
+        M\,\boldsymbol{\alpha}_k^{\,n+1} = \mathbf{b}_k^n,
     \end{equation}
     where $\mathbf{b}_k$ depends only on $u_k^n$ and numerical fluxes.
 \end{itemize}
@@ -299,7 +311,7 @@ Assume that $u_h^n$ (approximation of $u(\cdot,t^n)$) is known.
 \slideTitle{DG in our context}
 
 \begin{itemize}
-    \item Mixed formulation of the one-dimensional wave equation with variable cross-section:
+    \item From the general expression : 
     \small
     \begin{equation}
         \mathbf{C}(x)\,\partial_t \mathbf{u}
@@ -336,6 +348,7 @@ Assume that $u_h^n$ (approximation of $u(\cdot,t^n)$) is known.
     \]
     \item The domain is partitioned into $N$ non-overlapping cells
     $K_j = [x_{j-1},x_j]$.
+    \item Mixed formulation of the one-dimensional wave equation with variable cross-section:
 \end{itemize}
 
 \begin{equation}
@@ -350,17 +363,6 @@ Assume that $u_h^n$ (approximation of $u(\cdot,t^n)$) is known.
 \normalsize
 \end{equation}
 
-where
-\small
-\[
-\mathbf{F}(\mathbf{u}) = \mathbf{A}\mathbf{u}
-=
-\begin{pmatrix}
-v \\
-p
-\end{pmatrix}.
-\]
-\normalsize
 \end{frame}
 
 \subsubsection{Rusanov Flux}
@@ -392,44 +394,6 @@ p
         \lambda_{j+\frac12} = c.
     \]
 \end{itemize}
-
-\begin{columns}
-\column{0.48\textwidth}
-\[
-\mathbf{u}^\pm =
-\begin{pmatrix}
-p^\pm \\
-v^\pm
-\end{pmatrix}
-\]
-
-\column{0.48\textwidth}
-\[
-\widehat{\mathbf{F}} =
-\begin{pmatrix}
-\widehat{v} \\
-\widehat{p}
-\end{pmatrix}
-\]
-\end{columns}
-
-\[
-\boxed{
-\begin{aligned}
-\widehat{v}
-&=
-\frac12\left(v^- + v^+\right)
--
-\frac{c}{2}\left(p^+ - p^-\right),
-\\
-\widehat{p}
-&=
-\frac12\left(p^- + p^+\right)
--
-\frac{c}{2}\left(v^+ - v^-\right).
-\end{aligned}
-}
-\]
 
 \end{frame}
 
@@ -562,15 +526,16 @@ Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acou
     c_1=\frac{\sqrt{\alpha}}{2Z_T^\ast}, \quad
     c_2=c_1 b.
     \]
-    \item Solve $\phi(t)$ (Euler explicit or RK2), then propagate $w^-_{\mathrm{ref}}$ along the characteristic.
+    \item Solve $\phi(t)$ (Euler explicit or RK2)
+    \item $w^-_{\mathrm{ref}}(x,t)=w^-_{\mathrm{ref}}(L,t-\frac{L-x}{c})$
 \end{itemize}
 \end{frame}
 
 \slideTitle{Reflected Wave and Reconstruction}
 
 \begin{itemize}
-    \item Total right-going characteristic: $$w^-(x,t)= w^-_{pde}(x,t) + w^-_\mathrm{ref}(x,t)= w^-_0(x+ct) + w^-_\mathrm{ref}(x,t)$$.
-    \item Left-going characteristic: $$w^+(x,t) = w^+_{pde}(x,t) =  w^+_0(x-ct)$$.
+    \item Total left-going characteristic: $$w^-(x,t)= w^-_{pde}(x,t) + w^-_\mathrm{ref}(x,t)= w^-_0(x+ct) + w^-_\mathrm{ref}(x,t)$$.
+    \item Right-going characteristic: $$w^+(x,t) = w^+_{pde}(x,t) =  w^+_0(x-ct)$$.
     \item Final solution: $$p = (w^+ + w^-)/2, \quad v = (w^+ - w^-)/2$$.
 \end{itemize}
 \end{frame}
@@ -750,13 +715,8 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 \par\medskip
 \label{fig:execution_time}
 \normalsize
-$$
-\text{T-Scale}_\text{euler}<\text{T-Scale}_\text{rk2}<\text{N}^2
-$$
-Good News !
-    
+For larger $N$, the execution time scales $\sim N^2$, as expected.
 \end{frame}
-
 \section{Conclusion}
 \slideTitle{Conclusion}
 
@@ -837,6 +797,41 @@ Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 0.05 \\
 \caption{Simulation parameters used in the DG P1 solver.}
 \label{tab:sim_parameters}
 \end{table}
+\end{frame}
+
+\subsection{Use of AI Assistance}
+\begin{frame}{Use of Artificial Intelligence Assistance}
+
+\small
+\begin{itemize}
+    \item Some parts of this work were prepared with the assistance of Artificial Intelligence (AI) tools.
+    
+    \item \textbf{Tool used:}
+    \begin{itemize}
+        \item \textbf{ChatGPT} (OpenAI, GPT-4 / GPT-5 family)
+    \end{itemize}
+
+    \item \textbf{Scope of use:}
+    \begin{itemize}
+        \item Code support and debugging
+        \item Documentation and algorithm reformulation
+        \item Bibliography generation
+    \end{itemize}
+
+    \item \textbf{Typical prompts included:}
+    \begin{itemize}
+        \item Argument parsing in Python
+        \item Repository structure documentation
+        \item \texttt{.bib} file generation
+        \item Ghost-cell debugging
+        \item CSV $\rightarrow$ \LaTeX{} $\rightarrow$ PDF automation
+        \item Physical modeling examples (cross-sections, compact support)
+        \item Pertinent commentaries for code
+    \end{itemize}
+
+    \item All AI outputs were verified, adapted, and corrected by the authors, who take full responsibility for the scientific integrity of this work.
+\end{itemize}
+
 \end{frame}
 
 \end{document}

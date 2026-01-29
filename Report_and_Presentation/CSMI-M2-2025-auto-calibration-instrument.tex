@@ -140,13 +140,13 @@ and the effects of the instrumental player \eqref{eq:1e} \eqref{eq:1f} :
 % Système d'équations décrivant un modèle réducteur pour un instrument à anche
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
-  \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
-  \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
-  Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
-  -\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
-  -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
-  \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
-  &= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
+\frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
+\frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
+Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
+-\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
+-v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
+\frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
+&= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
 \end{empheq}
 \end{subequations}
 
@@ -1027,9 +1027,9 @@ Table~\ref{tab:sim_parameters}, with a final simulation time of $T = 0.5\ \mathr
     \label{fig:performance_euler}
 \end{figure}
 
-The performance results indicate that the execution time scales under $N^2$. 
+The performance results indicate that the execution time scales around $N^2$ for large $N$ values. 
 Since the performance study was done in JAX framework, the first run includes
-compilation time. This explains the higher execution time for the smallest $N$ values 
+compilation time. This explains the slightly larger (almost a plateau) time for the smallest $N$ values 
 for the constant cross-section case in Figure~\ref{fig:performance_euler}.
 
 \newpage
@@ -1044,7 +1044,7 @@ for the constant cross-section case in Figure~\ref{fig:performance_euler}.
     \label{fig:performance_rk2}
 \end{figure}
 
-The performance results for the RK2 explicit time integration scheme also show a scaling of execution time under $N^2$ 
+The performance results for the RK2 explicit time integration scheme also show a scaling of execution time around $N^2$  for large $N$ values 
 but superior to the Euler explicit time integration scheme as expected due to the additional computations involved in the RK2 method.
 That also explain the higher execution time in the performance study in Table~\ref{tab:performance-rk2}.
  
@@ -1075,6 +1075,36 @@ and the choice of appropriate loss functions for optimization.
 
 I would like to express my sincere gratitude to my supervisors—Dr. Emmanuel Franck, Dr. Juliette Chabassier, Dr. Laurent Navoret, Dr. Victor
  Michel-Dansac, and Dr. Alexis Thibault—for their invaluable guidance, insightful discussions, and continuous support throughout this project.
+
+
+\newpage
+\chapter{Annexes}
+\section*{Use of Artificial Intelligence Assistance}
+
+Some parts of this work were prepared with the assistance of Artificial Intelligence (AI) tools.  
+The following tools were used, with all outputs systematically verified, revised, and responsibly integrated by the authors:
+
+\begin{itemize}
+    \item \textbf{ChatGPT} (OpenAI, GPT-4 / GPT-5 family) – used to support code development, documentation, and methodological clarification, as well as to assemble an introductory bibliography.
+\end{itemize}
+
+The AI assistance was limited to the following explicit prompts:
+
+\begin{itemize}
+    \item \textit{Create a function to read arguments from the execution command}
+    \item \textit{How to create an organigram of my repository in a Markdown file}
+    \item \textit{How to fill a \texttt{.bib} file}
+    \item \textit{Why my ghost cells are not being properly taken into account}
+    \item \textit{Create a Python script to convert CSV $\rightarrow$ \LaTeX{} $\rightarrow$ PDF}
+    \item \textit{Give examples of cross-section functions for reed instruments}
+    \item \textit{Give an example of a compactly supported function}
+    \item \textit{Improve the formulation of the following algorithm}
+    \item \textit{How to include a sub-table of contents in each section}
+    \item \textit{Improve the commentaries on the following code snippet}
+\end{itemize}
+
+All AI-generated outputs were carefully verified, adapted, and corrected by the authors.  
+The authors take full responsibility for the accuracy, originality, and scientific integrity of this work.
 
 \newpage
 \printbibliography

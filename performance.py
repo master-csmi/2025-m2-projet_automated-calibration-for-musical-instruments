@@ -73,7 +73,7 @@ def main():
     alpha_bc = 0.1
     beta = 0.2
     Z = 1.0
-    T_star = 1.0
+    
 
     A = jnp.array([[0.0, 1.0],
                    [1.0, 0.0]])
@@ -150,13 +150,13 @@ def main():
                     u, phi = time_integrate_euler(
                         u0, x_nodes, S_cells, c, A, smax,
                         dt, nsteps, Mp_inv, Mv_inv,
-                        bc, 0.0, beta, Z,T_star, alpha_bc
+                        bc, 0.0, beta, Z, alpha_bc
                     )
                 else:
                     u, phi = time_integrate_rk2(
                         u0, x_nodes, S_cells, c, A, smax,
                         dt, nsteps, Mp_inv, Mv_inv,
-                        bc, 0.0, beta, Z,T_star, alpha_bc
+                        bc, 0.0, beta, Z, alpha_bc
                     )
 
                 jax.tree_util.tree_map(lambda x: x.block_until_ready(), (u, phi))
@@ -201,7 +201,16 @@ def main():
                 color=colors[i],
                 label=f"{type_S} (slope = {slope:.2f})"
             )
-
+        # reference N^2 curve 
+        Ns_arr = np.array(Ns)
+        if 1000 in Ns_arr:
+            idx1000 = int(np.where(Ns_arr == 1000)[0][0])
+            t_refs = [exec_times[t][idx1000] for t in types if len(exec_times[t]) > idx1000]
+            if t_refs:
+                Tref = np.mean(t_refs)
+                N_line = np.linspace(Ns_arr.min(), Ns_arr.max(), 400)
+                T_line = Tref * (N_line / 1000.0) ** 2
+                plt.plot(N_line, T_line, linestyle="--", color="black", label=r"$N^2$")
 
         plt.xlabel("Number of cells $N$")
         plt.ylabel("Wall time (s)")

@@ -19,8 +19,6 @@ venv/
 presentation.bbl-SAVE-ERROR
 
 dg_bis.py
-dg_ter.py
-dg_quad.py
 dg.py
 test.ipynb
 

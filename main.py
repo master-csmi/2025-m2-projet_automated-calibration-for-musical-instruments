@@ -47,13 +47,14 @@ def main():
     # ------------------------------------------------------------------------------
     Ts = [0.0001, 0.2, 0.5, 0.8]      # Times for solution plots
     Ns = [100, 200, 400, 800]         # Mesh refinements
-    T_conv = 0.5                      # Final time for convergence study
+    T_convs = [0.5,0.8]
+    N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
 
     c = 1.0
     alpha = 0.1
     beta = 0.2
-    Z = 1.0
-    T_star = 1.0 
+    Z = 1.0 #Z_T^*
+    
 
     A = jnp.array([[0.0, 1.0],
                    [1.0, 0.0]])
@@ -152,19 +153,27 @@ def main():
                 u, phi, y, dy = time_integrate_euler(
                     u0, x_nodes, S_cells, c, A, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
+<<<<<<< HEAD
                     bc, phi0, beta, Z, T_star, alpha,
                     y0, dy0, gamma=0.1, epsilon=0.0,
                     kappa=0.2, omega_r=1.0, Qr=1.0,
                     zeta=0.0, l_func=l, F_func=F
+=======
+                    bc, 0.0, beta, Z, alpha
+>>>>>>> 0bea72a3f55d5c06fb96d589d2a96e42c9fd6484
                 )
             else:
                 u, phi, y, dy = time_integrate_rk2(
                     u0, x_nodes, S_cells, c, A, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
+<<<<<<< HEAD
                     bc, phi0, beta, Z, T_star, alpha,
                     y0, dy0, gamma=0.1, epsilon=0.0,
                     kappa=0.2, omega_r=1.0, Qr=1.0,
                     zeta=0., l_func=l, F_func=F
+=======
+                    bc, 0.0, beta, Z, alpha
+>>>>>>> 0bea72a3f55d5c06fb96d589d2a96e42c9fd6484
                 )
             
 
@@ -180,10 +189,14 @@ def main():
             if type_S == "const":
                 p_ex, v_ex = exact_solution_characteristics_reed(
                     x_plot, T, p0, c, L,
+<<<<<<< HEAD
                     alpha, beta, Z, T_star, dt=1e-4,
                     y0=y0, dy0=dy0, gamma=0.1, epsilon=0.01,
                     kappa=0.2, omega_r=1.0, Qr=1.0,
                     zeta=0.1, l_func=l, F_func=F
+=======
+                    alpha, beta, Z, dt=1e-4, method=method
+>>>>>>> 0bea72a3f55d5c06fb96d589d2a96e42c9fd6484
                 )
             else:
                 p_ex = v_ex = None
@@ -228,34 +241,51 @@ def main():
 
     p_errors = []
     v_errors = []
+    for T_conv in T_convs:
+        print(f"\n--- Final time T = {T_conv} ---")
+        p_errors.clear()
+        v_errors.clear()
+        for N in N_convs:
+            print(f"\nConvergence run N = {N}")
 
-    for N in Ns:
-        print(f"\nConvergence run N = {N}")
+            x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
+            xLs, xRs = cell_edges_from_nodes(x_nodes)
+            hs = xRs - xLs
 
-        x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
-        xLs, xRs = cell_edges_from_nodes(x_nodes)
-        hs = xRs - xLs
+            S_nodes = S_of_x(x_nodes, type_S)
+            S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
-        S_nodes = S_of_x(x_nodes, type_S)
-        S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
+            Mp_inv, Mv_inv = jax.vmap(
+                local_mass_inv_system,
+                in_axes=(0, 0, None, None)
+            )(hs, S_cells, c, 1.0)
 
-        Mp_inv, Mv_inv = jax.vmap(
-            local_mass_inv_system,
-            in_axes=(0, 0, None, None)
-        )(hs, S_cells, c, 1.0)
+            u0 = jnp.stack([
+                jnp.stack([
+                    jnp.array([p0(xLs[i]), p0(xRs[i])]),
+                    jnp.array([v0(xLs[i]), v0(xRs[i])])
+                ])
+                for i in range(N)
+            ], axis=0)
 
-        u0 = jnp.stack([
-            jnp.stack([
-                jnp.array([p0(xLs[i]), p0(xRs[i])]),
-                jnp.array([v0(xLs[i]), v0(xRs[i])])
-            ])
-            for i in range(N)
-        ], axis=0)
+            h = xRs[0] - xLs[0]
+            dt = CFL * h / c
+            nsteps = int(jnp.ceil(T_conv / dt))
 
-        h = xRs[0] - xLs[0]
-        dt = CFL * h / c
-        nsteps = int(jnp.ceil(T_conv / dt))
+            if method == "euler":
+                u, phi = time_integrate_euler(
+                    u0, x_nodes, S_cells, c, A, smax,
+                    dt, nsteps, Mp_inv, Mv_inv,
+                    bc, 0.0, beta, Z, alpha
+                )
+            else:
+                u, phi = time_integrate_rk2(
+                    u0, x_nodes, S_cells, c, A, smax,
+                    dt, nsteps, Mp_inv, Mv_inv,
+                    bc, 0.0, beta, Z, alpha
+                )
 
+<<<<<<< HEAD
         if method == "euler":
             u, phi,_,_ = time_integrate_euler(
                 u0, x_nodes, S_cells, c, A, smax,
@@ -273,47 +303,53 @@ def main():
                 gamma=0.1, epsilon=0.00,
                 kappa=0.2, omega_r=1.0, Qr=1.0,
                 zeta=0.0, l_func=l, F_func=F
+=======
+            x_plot = jnp.linspace(0.0, L, 2000)
+            p_num, v_num = reconstruct_system(u, x_nodes, x_plot)
+
+            p_ex, v_ex = exact_solution_characteristics(
+                x_plot, T_conv, p0, c, L,
+                alpha, beta, Z, dt=1e-4, method=method
+>>>>>>> 0bea72a3f55d5c06fb96d589d2a96e42c9fd6484
             )
 
-        x_plot = jnp.linspace(0.0, L, 2000)
-        p_num, v_num = reconstruct_system(u, x_nodes, x_plot)
+            dx = x_plot[1] - x_plot[0]
+            p_errors.append(jnp.sqrt(jnp.sum((p_num - p_ex)**2) * dx))
+            v_errors.append(jnp.sqrt(jnp.sum((v_num - v_ex)**2) * dx))
 
+<<<<<<< HEAD
         p_ex, v_ex = exact_solution_characteristics_reed(
             x_plot, T_conv, p0, c, L,
             alpha, beta, Z, T_star, dt=1e-4,
             y0=y0, dy0=dy0, gamma=0.1, epsilon=0.01,
             kappa=0.2, omega_r=1.0, Qr=1.0,
             zeta=0.1, l_func=l, F_func=F
+=======
+        # --------------------------------------------------------------------------
+        # Convergence plot
+        # --------------------------------------------------------------------------
+        p_slope = jnp.polyfit(jnp.log10(jnp.array(N_convs)),
+                            jnp.log10(jnp.array(p_errors)), 1)[0]
+        v_slope = jnp.polyfit(jnp.log10(jnp.array(N_convs)),
+                            jnp.log10(jnp.array(v_errors)), 1)[0]
+
+        plt.figure(figsize=(6, 5))
+        plt.loglog(N_convs, p_errors, "o-", label=f"L2 error p (slope={p_slope:.2f})")
+        plt.loglog(N_convs, v_errors, "s--", label=f"L2 error v (slope={v_slope:.2f})")
+        plt.xlabel("Number of cells N")
+        plt.ylabel("L2 error")
+        plt.title(f"DG P1 convergence at T = {T_conv}")
+        plt.grid(True, which="both", ls="--")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(output_dir, f"dg_convergence_T{T_conv}_{method}.png"),
+            dpi=150
+>>>>>>> 0bea72a3f55d5c06fb96d589d2a96e42c9fd6484
         )
+        plt.close()
 
-        dx = x_plot[1] - x_plot[0]
-        p_errors.append(jnp.sqrt(jnp.sum((p_num - p_ex)**2) * dx))
-        v_errors.append(jnp.sqrt(jnp.sum((v_num - v_ex)**2) * dx))
-
-    # --------------------------------------------------------------------------
-    # Convergence plot
-    # --------------------------------------------------------------------------
-    p_slope = jnp.polyfit(jnp.log10(jnp.array(Ns)),
-                          jnp.log10(jnp.array(p_errors)), 1)[0]
-    v_slope = jnp.polyfit(jnp.log10(jnp.array(Ns)),
-                          jnp.log10(jnp.array(v_errors)), 1)[0]
-
-    plt.figure(figsize=(6, 5))
-    plt.loglog(Ns, p_errors, "o-", label=f"L2 error p (slope={p_slope:.2f})")
-    plt.loglog(Ns, v_errors, "s--", label=f"L2 error v (slope={v_slope:.2f})")
-    plt.xlabel("Number of cells N")
-    plt.ylabel("L2 error")
-    plt.title("DG P1 convergence at T = 0.5")
-    plt.grid(True, which="both", ls="--")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(
-        os.path.join(output_dir, f"dg_convergence_T0p5_{method}.png"),
-        dpi=150
-    )
-    plt.close()
-
-    print("\nAll computations completed.")
+        print("\nAll computations completed.")
 
 
 if __name__ == "__main__":

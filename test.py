@@ -62,8 +62,8 @@ def test_convergence_rate(method, slope_min, slope_max):
 
         Mp_inv, Mv_inv = jax.vmap(
             local_mass_inv_system,
-            in_axes=(0, 0, None, None)
-        )(hs, S_cells, c, 1.0)
+            in_axes=(0)
+        )(hs)
 
         u0 = jnp.stack([
             jnp.stack([

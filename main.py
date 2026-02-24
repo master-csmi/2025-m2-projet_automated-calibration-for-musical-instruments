@@ -262,19 +262,19 @@ def main():
 
             if method == "euler":
                 u, phi = time_integrate_euler(
-                    u0, x_nodes, S_cells, c, A, smax,
+                    u0, x_nodes, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, alpha
                 )
             else:
                 u, phi = time_integrate_rk2(
-                    u0, x_nodes, S_cells, c, A, smax,
+                    u0, x_nodes, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, alpha
                 )
 
             x_plot = jnp.linspace(0.0, L, 2000)
-            p_num, v_num = reconstruct_system(u, x_nodes, x_plot)
+            p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
 
             p_ex, v_ex = exact_solution_characteristics(
                 x_plot, T_conv, p0, c, L,

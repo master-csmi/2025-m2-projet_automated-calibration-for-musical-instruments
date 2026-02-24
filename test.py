@@ -79,19 +79,19 @@ def test_convergence_rate(method, slope_min, slope_max):
 
         if method == "euler":
             u, _ = time_integrate_euler(
-                u0, x_nodes, S_cells, c, A, smax,
+                u0, x_nodes, c, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, 0.0, beta, Z, alpha
             )
         else:
             u, _ = time_integrate_rk2(
-                u0, x_nodes, S_cells, c, A, smax,
+                u0, x_nodes, c, smax,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, 0.0, beta, Z, alpha
             )
 
         x_plot = jnp.linspace(0.0, L, 3000)
-        p_num, _ = reconstruct_system(u, x_nodes, x_plot)
+        p_num, _ = reconstruct_system(u, x_nodes, x_plot, type_S)
 
         p_ex, _ = exact_solution_characteristics(
             x_plot, T, p0, c, L,

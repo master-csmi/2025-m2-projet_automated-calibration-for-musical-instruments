@@ -120,19 +120,32 @@ def main():
                 # ------------------------------------------------
                 Mp_inv, Mv_inv = jax.vmap(
                     local_mass_inv_system,
-                    in_axes=(0, 0, None, None)
-                )(hs, S_cells, c, 1.0)
+                    in_axes=(0)
+                )(hs)
 
                 # ------------------------------------------------
                 # Initial condition
                 # ------------------------------------------------
+                S_star = 1.0   # même valeur que dans le solver
+
                 u0 = jnp.stack([
                     jnp.stack([
-                        jnp.array([p0(xLs[i]), p0(xRs[i])]),
-                        jnp.array([v0(xLs[i]), v0(xRs[i])])
+
+                        # ---- tilde p ----
+                        jnp.array([
+                            S_cells[i]/(c*S_star) * p0(xLs[i]),
+                            S_cells[i]/(c*S_star) * p0(xRs[i])
+                        ]),
+
+                        # ---- tilde v ----
+                        jnp.array([
+                            c*S_star/S_cells[i] * v0(xLs[i]),
+                            c*S_star/S_cells[i] * v0(xRs[i])
+                        ])
+
                     ])
                     for i in range(N)
-                ])
+                ], axis=0)
 
                 # ------------------------------------------------
                 # Time step
@@ -148,13 +161,13 @@ def main():
 
                 if method == "euler":
                     u, phi = time_integrate_euler(
-                        u0, x_nodes, S_cells, c, A, smax,
+                        u0, x_nodes, c, smax,
                         dt, nsteps, Mp_inv, Mv_inv,
                         bc, 0.0, beta, Z, alpha_bc
                     )
                 else:
                     u, phi = time_integrate_rk2(
-                        u0, x_nodes, S_cells, c, A, smax,
+                        u0, x_nodes, c, smax,
                         dt, nsteps, Mp_inv, Mv_inv,
                         bc, 0.0, beta, Z, alpha_bc
                     )

@@ -57,13 +57,13 @@ def surface_term_system(u_ext, j, c=1.0):
 
 
 
-def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
+def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha, y, dy, gamma, epsilon, kappa, omega_r, Qr, zeta):
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
 
     # add ghost cells according to BC
     if bc.type == "dirichlet":
-        u_ext = apply_bc(u_cells, bc.left, phi, beta, Z, alpha)
+        u_ext, dy_new, ddy_new = apply_bc(u_cells, phi, beta, Z, alpha, y, dy, gamma, epsilon, kappa, omega_r, Qr, zeta)
     elif bc.type == "neumann":
         u_ext = apply_bc_neumann(u_cells)
  
@@ -73,10 +73,20 @@ def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
         lambda j: surface_term_system(u_ext, j, c=c)
     )(jnp.arange(N))
 
+    print("u_ext shape:", u_ext.shape)
+    print("xLs shape:", xLs.shape)
+    print("xRs shape:", xRs.shape)
     # Volume term
+    N = xLs.shape[0]
+
     V_all = jax.vmap(
-        lambda Ue, xL, xR: local_volume_system(Ue, xL, xR)
-    )(u_cells, xLs, xRs)
+        lambda e: local_volume_system(
+            u_cells[e],
+            xLs[e],
+            xRs[e],
+            nq=24
+        )
+    )(jnp.arange(N))
 
     # assemble RHS cell by cell
     def element_rhs(e):

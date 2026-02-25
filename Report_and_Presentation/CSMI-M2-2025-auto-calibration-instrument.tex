@@ -270,29 +270,36 @@ p \\
 v
 \end{pmatrix},
 \end{equation}
+By introducing the transform variables : 
+\begin{equation}
+\mathbf{\tilde{u}} =
+\begin{pmatrix}
+\tilde{p}  \\
+\tilde{v}
+\end{pmatrix}=
+\begin{pmatrix}
+\frac{S(x)}{c S^\ast} p \\
+\frac{c S^\ast}{S(x)} v
+\end{pmatrix},
+\end{equation}
+
 the system can be written in conservative form as
 \begin{equation}
-C(x)\, \partial_t \mathbf{u} + \partial_x \big( A \mathbf{u} \big) = 0,
+\partial_t \mathbf{\tilde{u}} + \partial_x \big( A(x) \mathbf{\tilde{u}} \big) = 0,
 \label{eq:conservative_form}
 \end{equation}
 with
 \begin{equation}
-C(x) =
+A(x) =
 \begin{pmatrix}
-\dfrac{S(x)}{c S^*} & 0 \\
-0 & \dfrac{S^*}{c S(x)}
+0 & \dfrac{S(x)}{c S^*} \\
+\dfrac{S^*}{c S(x)} & 0
 \end{pmatrix},
-\qquad
-A =
-\begin{pmatrix}
-0 & 1 \\
-1 & 0
-\end{pmatrix}.
 \end{equation}
 
 The initial conditions are given by
 \begin{equation}
-p(x,0) = p_0(x), \qquad v(x,0) = v_0(x).
+\tilde{p}(x,0) = \tilde{p_0}(x) = \frac{S(x)}{c S^\ast} p_0(x), \qquad \tilde{v}(x,0) = \tilde{v_0}(x) = \frac{c S^\ast}{S(x)} v_0(x).
 \end{equation}
 
 \subsection{Mesh and DG space}
@@ -306,7 +313,7 @@ K_j = (x_{j-1}, x_j), \quad j = 1,\dots,N.
 
 We seek an approximate solution
 \begin{equation}
-\mathbf{u}_h = (p_h, v_h)^T \in (V_h^k)^2,
+\mathbf{\tilde{u}}_h = (\tilde{p_h}, \tilde{v_h})^T \in (V_h^k)^2,
 \end{equation}
 where
 \begin{equation}
@@ -325,9 +332,9 @@ For each element $K_j$ and for each test function vector
 \end{equation}
 the local weak formulation reads
 \begin{equation}
-\int_{K_j} C(x)\, \partial_t \mathbf{u}_h \cdot \boldsymbol{\Phi}\, dx
+\int_{K_j} C(x)\, \partial_t \mathbf{\tilde{u}}_h \cdot \boldsymbol{\Phi}\, dx
 -
-\int_{K_j} A \mathbf{u}_h \cdot \partial_x \boldsymbol{\Phi}\, dx
+\int_{K_j} A(x) \mathbf{\tilde{u}}_h \cdot \partial_x \boldsymbol{\Phi}\, dx
 +
 \widehat{\mathbf{F}}_{j+\frac12} \cdot \boldsymbol{\Phi}(x_j^-)
 -
@@ -338,12 +345,17 @@ the local weak formulation reads
 
 The physical flux is defined as
 \begin{equation}
-\mathbf{F}(\mathbf{u}) = A \mathbf{u}
+\mathbf{F}(\mathbf{\tilde{u}}) = A(x) \mathbf{\tilde{u}}
+=
+\begin{pmatrix}
+\dfrac{S(x)}{c S^*} \tilde{v} \\
+\dfrac{S^*}{c S(x)} \tilde{p}
+\end{pmatrix}
 =
 \begin{pmatrix}
 v \\
 p
-\end{pmatrix}.
+\end{pmatrix},
 \end{equation}
 
 \subsection{Rusanov flux}
@@ -353,12 +365,12 @@ At each interface $x_{j+\frac12}$, the Rusanov (local Lax--Friedrichs) flux is d
 \widehat{\mathbf{F}} =
 \frac{1}{2}
 \left(
-\mathbf{F}(\mathbf{u}^-) + \mathbf{F}(\mathbf{u}^+)
+\mathbf{F}(\mathbf{\tilde{u}}^-) + \mathbf{F}(\mathbf{\tilde{u}}^+)
 \right)
 -
 \frac{\lambda_{j+\frac12}}{2}
 \left(
-\mathbf{u}^+ - \mathbf{u}^-
+\mathbf{\tilde{u}}^+ - \mathbf{\tilde{u}}^-
 \right),
 \label{eq:rusanov}
 \end{equation}
@@ -369,13 +381,13 @@ At that state of development, the
 \subsection{Explicit flux}
 By denoting
 $$
-\mathbf U^\pm =
+\mathbf{\tilde{U}}^\pm =
 \begin{pmatrix}
-p^\pm\\
-v^\pm
+\tilde{p}^\pm\\
+\tilde{v}^\pm
 \end{pmatrix},
 \qquad
-\mathbf F(\mathbf U)=
+\mathbf F(\mathbf{\tilde{U}})=
 \begin{pmatrix}
 v\\
 p
@@ -415,10 +427,10 @@ the DG formulation of the mixed form of the wave equation reads :
 
 \begin{equation}
 \begin{aligned}
-\int_{K_j} \frac{S(x)}{cS^\ast}\,
-\partial_t p_h \, \phi_p \, dx
+\int_{K_j}
+\partial_t \tilde{p}_h \, \phi_p \, dx
 &-
-\int_{K_j} v_h \, \partial_x \phi_p \, dx \\
+\int_{K_j} \tilde{v}_h \, \partial_x \phi_p \, dx \\
 &+
 \widehat{v}_{j+\frac12}\, \phi_p(x_j^-)
 -
@@ -430,10 +442,10 @@ the DG formulation of the mixed form of the wave equation reads :
 
 \begin{equation}
 \begin{aligned}
-\int_{K_j} \frac{S^\ast}{cS(x)}\,
-\partial_t v_h \, \phi_v \, dx
+\int_{K_j}
+\partial_t \tilde{v}_h \, \phi_v \, dx
 &-
-\int_{K_j} p_h \, \partial_x \phi_v \, dx \\
+\int_{K_j} \tilde{p}_h \, \partial_x \phi_v \, dx \\
 &+
 \widehat{p}_{j+\frac12}\, \phi_v(x_j^-)
 -

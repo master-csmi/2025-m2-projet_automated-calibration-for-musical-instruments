@@ -1,9 +1,7 @@
 import jax.numpy as jnp
 from dataclasses import dataclass
+from utils.util_function import phi_rhs, pressure_func, l
 
-# Right Hand Side of the ODE for phi at right BC
-def phi_rhs(pR, alpha, Z):
-    return -jnp.sqrt(alpha)/ (Z) * pR
 
 @dataclass(frozen=True)
 class BC:
@@ -11,6 +9,7 @@ class BC:
     left: tuple
     right: tuple
 
+#============================Right BC: impedance with ODE for phi===============================
 def apply_bc_right_impedance(u_cells, phi, beta, Z, alpha):
         # values inside the domain at right boundary
         pR = u_cells[-1,0,1]
@@ -36,17 +35,47 @@ def apply_bc_right_impedance(u_cells, phi, beta, Z, alpha):
         ])
         return ghost_R
 
-def apply_bc(u_cells, bc_left, phi, beta, Z, alpha):
-    # u_cells: (N, 2, 2)
+
+def apply_bc_left_reed(
+    u_cells,
+    y, dy,
+    gamma, epsilon,
+    kappa, f_r, Qr, zeta
+):
+    p0 = u_cells[0, 0, 0]
+    omega_r = 2 * jnp.pi * f_r
+
+    # ===== RHS reed =====
+    ddy = omega_r**2 * (
+        epsilon*(gamma - p0)
+        - (y - 1.0)
+        - (1/(Qr*omega_r))*dy
+    )
+
+    dy_rhs = dy   
+
+    v_plus = (
+        zeta * l(y) * pressure_func(gamma - p0)
+        + epsilon * kappa / omega_r * dy
+    )
+
     ghost_L = jnp.stack([
-        jnp.array([bc_left[0], bc_left[0]]),
-        jnp.array([bc_left[1], bc_left[1]])
+        jnp.array([p0, p0]),
+        jnp.array([v_plus, v_plus])
     ])
+
+    return ghost_L, dy_rhs, ddy
+
+
+#============================Apply BCs to extend u_cells with ghost cells===============================
+def apply_bc(u_cells, phi, beta, Z, alpha, y, dy, gamma, epsilon, kappa, f_r, Qr, zeta):
+
+    ghost_L, dy_rhs, ddy_rhs = apply_bc_left_reed(u_cells, y, dy, gamma, epsilon, kappa, f_r, Qr, zeta)
 
     ghost_R = apply_bc_right_impedance(u_cells, phi, beta, Z, alpha)
 
-    return jnp.concatenate([ghost_L[None, ...], u_cells, ghost_R[None, ...]],axis=0) #shape (N+2, 2, 2)
-
+    return jnp.concatenate([ghost_L[None, ...], u_cells, ghost_R[None, ...]], axis=0), dy_rhs, ddy_rhs
+    
 
 # Neumann BCs: du/dx = 0  => ghost cell = adjacent cell
 def apply_bc_neumann(u_cells):
@@ -56,3 +85,6 @@ def apply_bc_neumann(u_cells):
         [ghost_L[None, ...], u_cells, ghost_R[None, ...]],
         axis=0
     )
+
+
+

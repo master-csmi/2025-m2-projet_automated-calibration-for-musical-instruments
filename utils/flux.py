@@ -10,8 +10,8 @@ def flux_conservative(U, S_cell, S_star=1.0, c=1.0):
     U[1] = c*S_star / S_cell * v
     """
     F = jnp.array([
-        S_cell/(c * S_star) * U[1],  # flux for S*p
-        c *S_star/S_cell * U[0]      # flux for S*v
+        S_cell/(c * S_star) * U[1],  #v
+        c *S_star/S_cell * U[0]    #p
     ])
     return F
 

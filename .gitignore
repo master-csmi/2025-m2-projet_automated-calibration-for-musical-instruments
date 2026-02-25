@@ -18,9 +18,8 @@ venv/
 *.mtc*
 presentation.bbl-SAVE-ERROR
 
-dg_bis.py
-dg.py
-test.ipynb
+
+\useless
 
 
 __pycache__/

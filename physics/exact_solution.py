@@ -1,4 +1,6 @@
+import jax
 import jax.numpy as jnp
+from utils.util_function import pressure_func, l
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Analytic / reference solution for constant section
@@ -10,6 +12,7 @@ import jax.numpy as jnp
 def exact_solution_characteristics(
     x, t, p0_fun, c, L,
     alpha, beta, Z,
+    y0, dy0, gamma, epsilon, kappa, f_r, Qr, zeta,
     dt=1e-4,
     method="rk2",   # "euler" or "rk2"
 ):
@@ -22,6 +25,7 @@ def exact_solution_characteristics(
     c1 = jnp.sqrt(alpha) / (2.0 * Z)
     c2 = c1 * b
 
+    omega_r = 2 * jnp.pi * f_r
     # ----------------------------
     # Left-going wave (exact)
     # ----------------------------
@@ -38,6 +42,7 @@ def exact_solution_characteristics(
 
     phi = 0.0
     w_minus_L = []
+    
 
     for wp in w_plus_L:
 
@@ -75,6 +80,30 @@ def exact_solution_characteristics(
     )
 
     # ----------------------------
+    # Left BC (x=0) reed dynamics
+    # ----------------------------
+    y = y0
+    dy = dy0
+    w_plus_reed = []
+    for tn in t_grid:
+        # velocity entering the domain from reed
+        v_plus = zeta * l(y) * pressure_func(gamma - w_plus) + epsilon * kappa / omega_r * dy
+        w_plus_reed.append(v_plus)
+
+        # update reed ODE (Euler integration for simplicity)
+        ddy = (1/omega_r**2) * (-y - (1/(Qr*omega_r))*dy + epsilon*(gamma - v_plus))
+        dy = dy + dt * ddy
+        y = y + dt * dy
+
+    w_plus_reed = jnp.array(w_plus_reed)
+
+    # Incoming right-going wave from left BC
+    t_ref_left = t - x / c
+    w_plus_left = jax.vmap(
+    lambda tref, fp: jnp.interp(tref, t_grid, fp, left=0.0, right=0.0)
+    )(t_ref_left, w_plus_reed.T)
+
+    # ----------------------------
     # Initial right-going wave
     # ----------------------------
     w_minus_init = p0_fun(x + c * t)
@@ -83,11 +112,12 @@ def exact_solution_characteristics(
     # Total right-going wave
     # ----------------------------
     w_minus = w_minus_init + w_minus_ref
+    w_plus_total = w_plus + w_plus_left
 
     # ----------------------------
     # Reconstruction
     # ----------------------------
-    p = 0.5 * (w_plus + w_minus)
-    v = 0.5 * (w_plus - w_minus)
+    p = 0.5 * (w_plus_total + w_minus)
+    v = 0.5 * (w_plus_total - w_minus)
 
     return p, v

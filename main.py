@@ -6,6 +6,7 @@ import os
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import json
 
 from parse_args import parse_args
 
@@ -33,6 +34,36 @@ jax.config.update("jax_enable_x64", True)
 
 def main():
 
+    #------------------------------------------------------------------------------
+    # Read parameters from json file
+    #------------------------------------------------------------------------------
+
+
+    with open("utils/parameters.json", "r") as f:
+        params = json.load(f)
+
+        solver_params = params["solver_params"]
+        left_bc_parameters = params["left_bc_params"]
+        right_bc_parameters = params["right_bc_params"]
+
+        # Extract solver parameters
+        c = solver_params["c"]
+        S_star = solver_params["S_star"]
+
+        # Extract parameters for left BC
+        gamma = left_bc_parameters["gamma"]
+        epsilon = left_bc_parameters["epsilon"]
+        kappa = left_bc_parameters["kappa"]
+        f_r = left_bc_parameters["f_r"]
+        Qr = left_bc_parameters["Qr"]
+        zeta = left_bc_parameters["zeta"]
+
+        # Extract parameters for right BC
+        beta = right_bc_parameters["beta"]
+        Z = right_bc_parameters["Z"] #Z_T
+        alpha = right_bc_parameters["alpha"]
+
+
     # ------------------------------------------------------------------------------
     # Parse command-line arguments
     # ------------------------------------------------------------------------------
@@ -50,10 +81,6 @@ def main():
     T_convs = [0.5,0.8]
     N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
 
-    c = 1.0
-    alpha = 0.1
-    beta = 0.2
-    Z = 1.0 #Z_T^*
     
 
     A = jnp.array([[0.0, 1.0],
@@ -125,7 +152,6 @@ def main():
             # ----------------------------------------------------------------------
             # Initial DG coefficients
             # ----------------------------------------------------------------------
-            S_star = 1.0   # même valeur que dans le solver
 
             u0 = jnp.stack([
                 jnp.stack([
@@ -159,16 +185,18 @@ def main():
 
 
             if method == "euler":
-                u, phi = time_integrate_euler(
+                u, phi, y, dy = time_integrate_euler(
                     u0, x_nodes, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y0=1.0, dy0=0.0, gamma=gamma, epsilon=epsilon, kappa=kappa, f_r=f_r, Qr=Qr, zeta=zeta
                 )
             else:
-                u, phi = time_integrate_rk2(
+                u, phi, y, dy = time_integrate_rk2(
                     u0, x_nodes, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y0=1.0, dy0=0.0,gamma=gamma ,epsilon=epsilon,kappa=kappa,f_r=f_r,Qr=Qr,zeta=zeta
                 )
             
 
@@ -184,7 +212,9 @@ def main():
             if type_S == "const":
                 p_ex, v_ex = exact_solution_characteristics(
                     x_plot, T, p0, c, L,
-                    alpha, beta, Z, dt=1e-4, method=method
+                    alpha, beta, Z, 
+                    y0=1.0, dy0=0.0, gamma=gamma, epsilon=epsilon, kappa=kappa, f_r=f_r, Qr=Qr, zeta=zeta,
+                    dt=1e-4, method=method
                 )
             else:
                 p_ex = v_ex = None
@@ -261,16 +291,18 @@ def main():
             nsteps = int(jnp.ceil(T_conv / dt))
 
             if method == "euler":
-                u, phi = time_integrate_euler(
+                u, phi, y, dy = time_integrate_euler(
                     u0, x_nodes, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y0=1.0, dy0=0.0, gamma=gamma, epsilon=epsilon, kappa=kappa, f_r=f_r, Qr=Qr, zeta=zeta
                 )
             else:
-                u, phi = time_integrate_rk2(
+                u, phi, y, dy = time_integrate_rk2(
                     u0, x_nodes, c, smax,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y0=1.0, dy0=0.0, gamma=gamma, epsilon=epsilon, kappa=kappa, f_r=f_r, Qr=Qr, zeta=zeta
                 )
 
             x_plot = jnp.linspace(0.0, L, 2000)
@@ -278,7 +310,9 @@ def main():
 
             p_ex, v_ex = exact_solution_characteristics(
                 x_plot, T_conv, p0, c, L,
-                alpha, beta, Z, dt=1e-4, method=method
+                alpha, beta, Z,
+                y0=1.0, dy0=0.0, gamma=gamma, epsilon=epsilon, kappa=kappa, f_r=f_r, Qr=Qr, zeta=zeta,
+                dt=1e-4, method=method
             )
 
             dx = x_plot[1] - x_plot[0]

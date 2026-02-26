@@ -73,9 +73,6 @@ def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha, 
         lambda j: surface_term_system(u_ext, j, c=c)
     )(jnp.arange(N))
 
-    print("u_ext shape:", u_ext.shape)
-    print("xLs shape:", xLs.shape)
-    print("xRs shape:", xRs.shape)
     # Volume term
     N = xLs.shape[0]
 

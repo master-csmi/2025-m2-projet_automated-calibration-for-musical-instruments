@@ -182,7 +182,7 @@ def main():
             # ----------------------------------------------------------------------
             # Time integration
             # ----------------------------------------------------------------------
-
+            
 
             if method == "euler":
                 u, phi, y, dy = time_integrate_euler(
@@ -231,6 +231,8 @@ def main():
             if v_ex is not None:
                 plt.plot(x_plot, v_ex, "-", alpha=0.6)
             plt.plot(x_plot, v_num, "--", label=f"T={T}")
+
+            print(f"    Time integration with {method.upper()} (dt={dt:.2e}, nsteps={nsteps})...")
 
         plt.subplot(2, 1, 1)
         plt.legend()

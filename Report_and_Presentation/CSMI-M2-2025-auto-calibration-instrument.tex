@@ -445,7 +445,7 @@ the DG formulation of the mixed form of the wave equation reads :
 All the dependence on the variable cross-sectional area $S(x)$ is contained in the mass matrix C(x). 
 This property ensures a uniform wave speed c and a CFL condition independent of S(x)
 
-\subsection{Boundary conditions}
+\subsection{Right Boundary conditions}
 
 One of the difficulties when simulating wave propagation in a wind instrument is to correctly
 compute the influence of the exterior environment at the open end of the instrument. \cite{thibault}
@@ -526,6 +526,48 @@ the boundary state is reconstructed and used as the exterior state in the numeri
 \\
 Note : In practice, the boundary ODE~\eqref{eq:bc_ode_pde} is discretized in time using the same time
 integration scheme as the DG solver, ensuring a consistent coupling between the PDE and ODE systems. (see Algorithm~\ref{alg:dg_scheme_boundary_ode_rk2}).
+
+\subsection{Left Boundary Condition}
+
+The left boundary condition is given by the coupling with the reed dynamics, described by equations~(1e)--(1f).
+It involves a nonlinear relation between the velocity at the left boundary and the pressure, as well as a second order ODE governing the reed opening $y(t)$.
+The reed opening $y(t)$ is governed by the second-order ODE \eqref{eq:1f}, which can be rewritten as a first-order system for numerical integration:
+\begin{equation}
+\begin{cases}
+\partial_t y = z, \\
+\partial_t z = \omega_r^2 \left( 1 - y \right) - \frac{\omega_r}{Q_r} z + \varepsilon \omega_r^2 (\gamma - p(0,t)).
+\end{cases}
+\end{equation}
+Note : For now, we will use as initial conditions $y(0)=1$ and $\partial_t y(0)=0$, which corresponds to the reed being initially at rest and fully open.
+
+The equation \eqref{eq:1e} can be rearranged to express the velocity at the left boundary as a function of the pressure and the reed opening:
+\begin{equation}    
+v(0,t) = \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,z.
+\end{equation}
+
+As for the right hand side boundary condition, we consider the characteristic variables at the left boundary:
+\begin{equation}
+w^- = p - v,
+\qquad
+w^+ = p + v.
+\end{equation}
+
+The incoming wave $w^-$ is determined by the interior solution, while the outgoing wave $w^+$ is prescribed by the boundary condition.
+From the definition of $w^+$ and the expression for $v(0,t)$, we have:
+\begin{equation}
+\begin{aligned}
+w^+
+&= p + v \\
+&= p + \zeta \ell(y)\,F(\gamma - p) + \varepsilon\frac{\kappa}{\omega_r}\,z.
+\end{aligned}
+\end{equation}
+
+And by replacing $p$ by $\frac{w^+ + w^-}{2}$, we can express the outgoing wave $w^+$ in terms of the incoming wave $w^-$ and the reed dynamics:
+\begin{equation}
+\boxed{
+w^+ = w^- + 2 \zeta \ell(y)\,F\left(\gamma - \frac{w^+ + w^-}{2}\right) + 2 \varepsilon\frac{\kappa}{\omega_r}\,z       
+}
+\end{equation}
 
 \section{Numerical Algorithm: DG Scheme with Boundary ODE}
 
@@ -670,6 +712,25 @@ auxiliary variable $\phi(t)$, governed by the following system (equations \eqref
 \end{align}
 This formulation models the dynamic response of the boundary.
 
+At the left boundary, $x=L$ , the acoustic field interacts with a nonlinear dynamical system
+\begin{align}
+    -v(0,t)
+    + \zeta_\ell(y)\,F(\gamma - p(0,t))
+    + \varepsilon \kappa \omega_r \partial_t y(t)
+    &= 0,
+    \label{eq:bc_left_phys1}
+    \\
+    \frac{1}{\omega_r^2}\partial_t^2 y
+    + \frac{1}{Q_r\omega_r}\partial_t y
+    + y - 1
+    &= \varepsilon(\gamma - p(0,t)).
+    \label{eq:bc_left_phys2}
+\end{align}
+
+The first equation defines a dynamic impedance relation between pressure and velocity,
+while the second governs the evolution of the mechanical variable $y(t)$.
+
+
 \subsubsection{Characteristic variables}
 
 Let's introduce again the Riemann (characteristic) variables
@@ -685,7 +746,7 @@ with inverse relations
 
 \subsubsection{Algebraic boundary condition}
 
-Substituting the characteristic variables into \eqref{eq:bc_pv_phys} yields
+For the righ boundary equations, substituting the characteristic variables into \eqref{eq:bc_pv_phys} yields
 \begin{align}
     -\frac{\beta}{Z_T^\ast}\,\frac{w^+ + w^-}{2}
     + \frac{w^+ - w^-}{2}
@@ -714,6 +775,43 @@ with
     a = \frac{1-\beta/Z_T^\ast}{1+\beta/Z_T^\ast},
     \qquad
     b = \frac{2\sqrt{\alpha}}{1+\beta/Z_T^\ast}.
+\end{equation}
+For the left boudary, from \eqref{eq:bc_left_phys1}, the boundary velocity reads
+\begin{equation}
+    v(0,t)
+    =
+    \zeta \ell(y)F(\gamma-p(0,t))
+    + \frac{\varepsilon\kappa}{\omega_r} \partial_t y.
+\end{equation}
+
+The incoming characteristic is therefore
+\begin{equation}
+    w^+(0,t)=p(0,t)+v(0,t),
+\end{equation}
+which gives
+\begin{equation}
+\boxed{
+    w^+(0,t)
+    =
+    p(0,t)
+    + \zeta \ell(y)F(\gamma-p(0,t))
+    + \frac{\varepsilon\kappa}{\omega_r} \dot y(t).
+}
+\label{eq:wplus_left}
+\end{equation}
+
+Introducing $z=\dot y$, equation \eqref{eq:bc_left_phys2}
+can be rewritten as the first-order system
+\begin{equation}
+    \begin{cases}
+     \dot y &= z, \\
+    \dot z &=
+    \omega_r^2\left[
+        \varepsilon(\gamma-p(0,t))
+        -\frac{z}{Q_r\omega_r}
+        -(y-1)
+    \right].   
+    \end{cases}
 \end{equation}
 
 \subsubsection{Dynamic equation for the auxiliary variable}

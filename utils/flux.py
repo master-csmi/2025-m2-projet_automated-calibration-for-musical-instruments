@@ -15,10 +15,10 @@ def flux_conservative(U, S_cell, S_star=1.0, c=1.0):
     ])
     return F
 
-def rusanov_flux(U_L, U_R, c=1.0):
+def rusanov_flux(U_L, U_R, S_L, S_R, S_star=1.0, c=1.0):
 
-    F_L = jnp.array([U_L[1], U_L[0]])
-    F_R = jnp.array([U_R[1], U_R[0]])
+    F_L = flux_conservative(U_L, S_L, S_star, c)
+    F_R = flux_conservative(U_R, S_R, S_star, c)
 
     smax = c
 

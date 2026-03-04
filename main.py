@@ -6,6 +6,7 @@ import os
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import json
 
 from parse_args import parse_args
 
@@ -33,6 +34,33 @@ jax.config.update("jax_enable_x64", True)
 
 def main():
 
+    #------------------------------------------------------------------------------
+    # Read parameters from json file
+    #------------------------------------------------------------------------------
+    with open("utils/parameters.json", "r") as f:
+        params = json.load(f)
+
+        solver_params = params["solver_params"]
+        left_bc_parameters = params["left_bc_params"]
+        right_bc_parameters = params["right_bc_params"]
+
+        # Extract solver parameters
+        c = solver_params["c"]
+        S_star = solver_params["S_star"]
+
+        # Extract parameters for left BC
+        gamma = left_bc_parameters["gamma"]
+        epsilon = left_bc_parameters["epsilon"]
+        kappa = left_bc_parameters["kappa"]
+        f_r = left_bc_parameters["f_r"]
+        Qr = left_bc_parameters["Qr"]
+        zeta = left_bc_parameters["zeta"]
+
+        # Extract parameters for right BC
+        beta = right_bc_parameters["beta"]
+        Z = right_bc_parameters["Z"] #Z_T
+        alpha = right_bc_parameters["alpha"]
+
     # ------------------------------------------------------------------------------
     # Parse command-line arguments
     # ------------------------------------------------------------------------------
@@ -49,11 +77,6 @@ def main():
     Ns = [100, 200, 400, 800]         # Mesh refinements
     T_convs = [0.5,0.8]
     N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
-
-    c = 1.0
-    alpha = 0.1
-    beta = 0.2
-    Z = 1.0 #Z_T^*
     
 
     A = jnp.array([[0.0, 1.0],
@@ -63,7 +86,7 @@ def main():
     print("smax =", smax)
 
     # Dirichlet BC at left + impedance BC at right
-    bc = BC(type="dirichlet", left=(0.0, 0.0), right=(0.0, 0.0))
+    bc = BC(type="dirichlet")
 
     # Initial conditions
     def p0(x): return init_func(x, L, phi0=1.0)
@@ -100,7 +123,7 @@ def main():
 
         for T in Ts:
             print(f"  T = {T}")
-
+            
             # ----------------------------------------------------------------------
             # Mesh
             # ----------------------------------------------------------------------
@@ -125,7 +148,6 @@ def main():
             # ----------------------------------------------------------------------
             # Initial DG coefficients
             # ----------------------------------------------------------------------
-            S_star = 1.0   # même valeur que dans le solver
 
             u0 = jnp.stack([
                 jnp.stack([
@@ -152,26 +174,31 @@ def main():
             h = xRs[0] - xLs[0]
             dt = CFL * h / c
             nsteps = int(jnp.ceil(T / dt))
-
+            print(f"  Time step dt = {dt:.4e}, nsteps = {nsteps}")
             # ----------------------------------------------------------------------
             # Time integration
             # ----------------------------------------------------------------------
 
 
             if method == "euler":
-                u, phi = time_integrate_euler(
-                    u0, x_nodes, c, smax,
+                u, phi, y, z = time_integrate_euler(
+                    u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    S_cells=S_cells, S_star=S_star
+
                 )
             else:
-                u, phi = time_integrate_rk2(
-                    u0, x_nodes, c, smax,
+                u, phi, y, z = time_integrate_rk2(
+                    u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    S_cells=S_cells, S_star=S_star
                 )
             
-
+            print("Before solve, u min/max:", u.min(), u.max())
             # ----------------------------------------------------------------------
             # Reconstruction
             # ----------------------------------------------------------------------
@@ -261,16 +288,20 @@ def main():
             nsteps = int(jnp.ceil(T_conv / dt))
 
             if method == "euler":
-                u, phi = time_integrate_euler(
-                    u0, x_nodes, c, smax,
+                u, phi, y, z = time_integrate_euler(
+                    u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    S_cells=S_cells, S_star=S_star
                 )
             else:
-                u, phi = time_integrate_rk2(
-                    u0, x_nodes, c, smax,
+                u, phi, y, z = time_integrate_rk2(
+                    u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                    bc, 0.0, beta, Z, alpha,
+                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    S_cells=S_cells, S_star=S_star
                 )
 
             x_plot = jnp.linspace(0.0, L, 2000)

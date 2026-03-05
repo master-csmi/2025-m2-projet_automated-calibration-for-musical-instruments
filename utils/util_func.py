@@ -8,3 +8,6 @@ def F_p(p1, p2):
 def l(y):
     return y
 
+def compute_v_bc_left(y, y_t, p_in, zeta, gamma, eps, kappa, omega_r):
+
+    return zeta * l(y) * F_p(gamma - p_in) + eps * kappa * omega_r *  y_t

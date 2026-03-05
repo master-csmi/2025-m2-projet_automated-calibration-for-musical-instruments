@@ -33,52 +33,99 @@ def local_volume_system(u_cell, xL, xR, nq=24):
     return jnp.stack([V0, V1], axis=1)  
 
 
-def surface_term_system(u_ext, j, c=1.0):
+def surface_term_system(u_ext, S_ext, j, S_star=1.0, c=1.0):
+
     jp = j + 1
 
-    # Left interface
-    UL_left  = u_ext[jp-1, :, 1]
-    UR_left  = u_ext[jp,   :, 0]
+    # ---- LEFT INTERFACE ----
+    UL_left = u_ext[jp-1, :, 1]
+    UR_left = u_ext[jp,   :, 0]
 
+    S_L_left = S_ext[jp-1]
+    S_R_left = S_ext[jp]
 
-    # Right interface
+    # ---- RIGHT INTERFACE ----
     UL_right = u_ext[jp,   :, 1]
     UR_right = u_ext[jp+1, :, 0]
 
+    S_L_right = S_ext[jp]
+    S_R_right = S_ext[jp+1]
 
-    # Flux Rusanov conservatif
-    f_left  = rusanov_flux(UL_left, UR_left, c)
-    f_right = rusanov_flux(UL_right, UR_right, c)
+    # ---- Rusanov coherent with variable section ----
+    f_left = rusanov_flux(
+        UL_left, UR_left,
+        S_L_left, S_R_left,
+        S_star=S_star, c=c
+    )
+
+    f_right = rusanov_flux(
+        UL_right, UR_right,
+        S_L_right, S_R_right,
+        S_star=S_star, c=c
+    )
 
     S_term = jnp.zeros((2,2))
     S_term = S_term.at[:,0].set(-f_left)
     S_term = S_term.at[:,1].set( f_right)
+
     return S_term
 
 
 
-def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
+def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv,
+                  bc, phi, beta, Z, alpha,
+                  v_bc, S_cells, S_star):
+
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_cells.shape[0]
 
-    # add ghost cells according to BC
+    # ----------------------------
+    # 1) Add ghost cells
+    # ----------------------------
     if bc.type == "dirichlet":
-        u_ext = apply_bc(u_cells, bc.left, phi, beta, Z, alpha)
+        u_ext = apply_bc(u_cells, phi, beta, Z, alpha,
+                         v_bc, S_cells, c, S_star)
+
+        # IMPORTANT: extend S the same way
+        S_ext = jnp.concatenate([
+            S_cells[:1],   # ghost left
+            S_cells,
+            S_cells[-1:]   # ghost right
+        ])
+
     elif bc.type == "neumann":
         u_ext = apply_bc_neumann(u_cells)
- 
 
-    # Surface term (fluxes)
+        # Same logic for S
+        S_ext = jnp.concatenate([
+            S_cells[:1],
+            S_cells,
+            S_cells[-1:]
+        ])
+
+    # ----------------------------
+    # 2) Surface term
+    # ----------------------------
     S_all = jax.vmap(
-        lambda j: surface_term_system(u_ext, j, c=c)
+        lambda j: surface_term_system(
+            u_ext,
+            S_ext,        # <-- HERE was the bug
+            j,
+            S_star,
+            c=c
+        )
     )(jnp.arange(N))
 
-    # Volume term
+    # ----------------------------
+    # 3) Volume term
+    # ----------------------------
     V_all = jax.vmap(
         lambda Ue, xL, xR: local_volume_system(Ue, xL, xR)
     )(u_cells, xLs, xRs)
 
-    # assemble RHS cell by cell
+    # ----------------------------
+    # 4) Assemble RHS
+    # ----------------------------
     def element_rhs(e):
         Vi = V_all[e]
         Si = S_all[e]
@@ -87,4 +134,5 @@ def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
         return jnp.stack([rhs_p, rhs_v], axis=0)
 
     RHS = jax.vmap(element_rhs)(jnp.arange(N))
+
     return RHS

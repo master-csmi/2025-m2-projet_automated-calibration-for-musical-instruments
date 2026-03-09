@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import pytest
+import json
 
 from dg_solver.mesh import create_uniform_nodes_with_ghosts, cell_edges_from_nodes
 from dg_solver.mass_matrix import local_mass_inv_system
@@ -24,16 +25,39 @@ def test_convergence_rate(method, slope_min, slope_max):
     # ------------------------------------------------------------------
     # Parameters
     # ------------------------------------------------------------------
+
+    #------------------------------------------------------------------------------
+    # Read parameters from json file
+    #------------------------------------------------------------------------------
+    with open("utils/parameters.json", "r") as f:
+        params = json.load(f)
+
+        solver_params = params["solver_params"]
+        left_bc_parameters = params["left_bc_params"]
+        right_bc_parameters = params["right_bc_params"]
+
+        # Extract solver parameters
+        c = solver_params["c"]
+        S_star = solver_params["S_star"]
+
+        # Extract parameters for left BC
+        gamma = left_bc_parameters["gamma"]
+        epsilon = left_bc_parameters["epsilon"]
+        kappa = left_bc_parameters["kappa"]
+        f_r = left_bc_parameters["f_r"]
+        Qr = left_bc_parameters["Qr"]
+        zeta = left_bc_parameters["zeta"]
+
+        # Extract parameters for right BC
+        beta = right_bc_parameters["beta"]
+        Z = right_bc_parameters["Z"] #Z_T
+        alpha = right_bc_parameters["alpha"]
+
     L = 2.0
     T = 0.5
     CFL = 0.05
     Ns = [100, 200, 400, 800]
     type_S = "const"
-
-    c = 1.0
-    alpha = 0.1
-    beta = 0.2
-    Z = 1.0
     
 
     A = jnp.array([[0.0, 1.0],
@@ -41,7 +65,7 @@ def test_convergence_rate(method, slope_min, slope_max):
 
     smax = c * jnp.max(jnp.abs(jnp.linalg.eigvals(A)))
 
-    bc = BC(type="dirichlet", left=(0.0, 0.0), right=(0.0, 0.0))
+    bc = BC(type="dirichlet", left=(0.0, 0.0))
 
     def p0(x): return init_func(x, L, phi0=1.0)
     def v0(x): return 0.0
@@ -76,18 +100,21 @@ def test_convergence_rate(method, slope_min, slope_max):
         h = xRs[0] - xLs[0]
         dt = CFL * h / c
         nsteps = int(jnp.ceil(T / dt))
+        
 
         if method == "euler":
-            u, _ = time_integrate_euler(
-                u0, x_nodes, c, smax,
+            u, _, _ = time_integrate_euler(
+                u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, Z, alpha
+                bc, 0.0, beta, Z, alpha,
+                snapshot_steps=[nsteps]
             )
         else:
-            u, _ = time_integrate_rk2(
-                u0, x_nodes, c, smax,
+            u, _, _ = time_integrate_rk2(
+                u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, Z, alpha
+                bc, 0.0, beta, Z, alpha,
+                snapshot_steps=[nsteps]
             )
 
         x_plot = jnp.linspace(0.0, L, 3000)

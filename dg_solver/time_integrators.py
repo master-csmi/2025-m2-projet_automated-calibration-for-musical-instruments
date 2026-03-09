@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
 from jax import lax
-from bc.bc import phi_rhs
 from dg_solver.rhs import dg_rhs_system
+from utils.util_func import phi_rhs, compute_v_bc_left
 
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                           RK2 step
@@ -12,7 +12,7 @@ from dg_solver.rhs import dg_rhs_system
 
 @jax.jit(static_argnames=("bc",))
 def rk2_step_system(
-    u_cells, x_nodes, c, smax, dt,
+    u_cells, x_nodes, c, dt,
     Mp_inv, Mv_inv, bc,
     phi, beta, Z, alpha
 ):
@@ -62,7 +62,7 @@ def euler_step_phi(u_cells, phi, dt, Z, alpha):
 
 # Euler step for system
 @jax.jit(static_argnames=("bc",))
-def euler_step_system(u_cells, x_nodes, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
+def euler_step_system(u_cells, x_nodes, c, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
     # First phi
     phi_new = euler_step_phi(u_cells, phi, dt, Z, alpha)
     # Then RHS
@@ -74,21 +74,82 @@ def euler_step_system(u_cells, x_nodes, c, smax, dt, Mp_inv, Mv_inv, bc, phi, be
 # ------------------------------------------------------------------------------------------------------------------------------
 # First integrate 
 # RK2 time integration
-def time_integrate_rk2(u0, x_nodes, c, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, alpha):
-    def step(carry, _):
-        u, phi = carry
-        u_next, phi_next = rk2_step_system(u, x_nodes, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha)
-        return (u_next, phi_next), None
-    (u_final, phi_final), _ = lax.scan(step, (u0, phi0), None, length=nsteps)
-    return u_final, phi_final
+# RK2 time integration
+def time_integrate_rk2(
+    u0, x_nodes, c, dt, nsteps,
+    Mp_inv, Mv_inv, bc,
+    phi0, beta, Z, alpha,
+    snapshot_steps
+):
+
+    snapshot_steps = jnp.array(snapshot_steps)
+    nsnaps = snapshot_steps.shape[0]
+
+    # stockage snapshots
+    u_snaps = jnp.zeros((nsnaps,) + u0.shape)
+
+    def step(carry, n):
+
+        u, phi, snaps = carry
+
+        u_next, phi_next = rk2_step_system(
+            u, x_nodes, c, dt,
+            Mp_inv, Mv_inv, bc,
+            phi, beta, Z, alpha
+        )
+
+        # vérifier si snapshot
+        mask = snapshot_steps == n
+
+        snaps = snaps + mask[:, None, None, None] * u_next
+
+        return (u_next, phi_next, snaps), None
+
+
+    (u_final, phi_final, snaps), _ = lax.scan(
+        step,
+        (u0, phi0, u_snaps),
+        jnp.arange(nsteps)
+    )
+
+    return u_final, phi_final, snaps
+
 
 # Euler time integration
-def time_integrate_euler(u0, x_nodes, c, smax, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, alpha):
-    def step_sys(carry, _):
-        u, phi = carry
-        u_next,phi_next = euler_step_system(u, x_nodes, c, smax, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha)
-        return (u_next, phi_next), None
-    
-    (u_final, phi_final), _ = lax.scan(step_sys, (u0, phi0), None, length=nsteps)
+def time_integrate_euler(
+    u0, x_nodes, c, dt, nsteps,
+    Mp_inv, Mv_inv, bc,
+    phi0, beta, Z, alpha,
+    snapshot_steps
+):
 
-    return u_final, phi_final
+    snapshot_steps = jnp.array(snapshot_steps)
+    nsnaps = snapshot_steps.shape[0]
+
+    # stockage snapshots
+    u_snaps = jnp.zeros((nsnaps,) + u0.shape)
+
+    def step(carry, n):
+
+        u, phi, snaps = carry
+
+        u_next, phi_next = euler_step_system(
+            u, x_nodes, c, dt,
+            Mp_inv, Mv_inv, bc,
+            phi, beta, Z, alpha
+        )
+
+        # vérifier si snapshot
+        mask = snapshot_steps == n
+
+        snaps = snaps + mask[:, None, None, None] * u_next
+
+        return (u_next, phi_next, snaps), None
+
+    (u_final, phi_final, snaps), _ = lax.scan(
+        step,
+        (u0, phi0, u_snaps),
+        jnp.arange(nsteps)
+    )
+
+    return u_final, phi_final, snaps

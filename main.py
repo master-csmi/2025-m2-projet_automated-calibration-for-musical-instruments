@@ -43,10 +43,15 @@ def main():
         solver_params = params["solver_params"]
         left_bc_parameters = params["left_bc_params"]
         right_bc_parameters = params["right_bc_params"]
+        initial_conditions = params["init_cond_reed"]
 
         # Extract solver parameters
         c = solver_params["c"]
         S_star = solver_params["S_star"]
+
+        # Extract initial conditions for the reed
+        y0 = initial_conditions["y0"]
+        y_dot0 = initial_conditions["y_dot0"]
 
         # Extract parameters for left BC
         gamma = left_bc_parameters["gamma"]
@@ -73,7 +78,7 @@ def main():
     # ------------------------------------------------------------------------------
     # Simulation parameters
     # ------------------------------------------------------------------------------
-    Ts = [0.0001, 0.2, 0.5, 0.8]      # Times for solution plots
+    Ts = [0.0001, 0.2, 0.5, 0.8,1.0,1.5,2.0]      # Times for solution plots
     Ns = [100, 200, 400, 800]         # Mesh refinements
     T_convs = [0.5,0.8]
     N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
@@ -185,7 +190,7 @@ def main():
                     u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, alpha,
-                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
                     S_cells=S_cells, S_star=S_star
 
                 )
@@ -194,7 +199,7 @@ def main():
                     u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, alpha,
-                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
                     S_cells=S_cells, S_star=S_star
                 )
             
@@ -211,7 +216,9 @@ def main():
             if type_S == "const":
                 p_ex, v_ex = exact_solution_characteristics(
                     x_plot, T, p0, c, L,
-                    alpha, beta, Z, dt=1e-4, method=method
+                    alpha, beta, Z, dt=1e-4, method=method,
+                    y=y0, y_dot=y_dot0,
+                    gamma=gamma, omega_r=f_r*2*jnp.pi, Q_r=Qr, zeta=zeta, kappa=kappa, epsilon=epsilon
                 )
             else:
                 p_ex = v_ex = None
@@ -221,12 +228,12 @@ def main():
             # ----------------------------------------------------------------------
             plt.subplot(2, 1, 1)
             if p_ex is not None:
-                plt.plot(x_plot, p_ex, "-", alpha=0.6)
+                plt.plot(x_plot, p_ex, "-", alpha=0.6, label=f"Exact at T={T}")
             plt.plot(x_plot, p_num, "--", label=f"T={T}")
 
             plt.subplot(2, 1, 2)
             if v_ex is not None:
-                plt.plot(x_plot, v_ex, "-", alpha=0.6)
+                plt.plot(x_plot, v_ex, "-", alpha=0.6, label=f"Exact at T={T}")
             plt.plot(x_plot, v_num, "--", label=f"T={T}")
 
         plt.subplot(2, 1, 1)
@@ -292,7 +299,7 @@ def main():
                     u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, alpha,
-                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
                     S_cells=S_cells, S_star=S_star
                 )
             else:
@@ -300,7 +307,7 @@ def main():
                     u0, x_nodes, c,
                     dt, nsteps, Mp_inv, Mv_inv,
                     bc, 0.0, beta, Z, alpha,
-                    y=1.0, z=0.0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                    y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
                     S_cells=S_cells, S_star=S_star
                 )
 
@@ -309,7 +316,9 @@ def main():
 
             p_ex, v_ex = exact_solution_characteristics(
                 x_plot, T_conv, p0, c, L,
-                alpha, beta, Z, dt=1e-4, method=method
+                alpha, beta, Z, dt=1e-4, method=method,
+                y=y0, y_dot=y_dot0,
+                gamma=gamma, omega_r=f_r*2*jnp.pi, Q_r=Qr, zeta=zeta, kappa=kappa, epsilon=epsilon
             )
 
             dx = x_plot[1] - x_plot[0]

@@ -4,8 +4,8 @@
         "S_star": 1.0
     },
     "left_bc_params": {
-        "gamma": 1.0,
-        "epsilon": 0.1,
+        "gamma": 0.001,
+        "epsilon": -1,
         "kappa": 0.1,
         "f_r": 1000.0,
         "Qr": 10,
@@ -15,5 +15,9 @@
         "beta": 0.2,
         "Z": 1.0,
         "alpha": 0.1    
+    },
+    "init_cond_reed":{
+        "y0": 1.0,
+        "y_dot0": 0.0
     }
 }

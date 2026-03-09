@@ -78,11 +78,12 @@ def main():
     # ------------------------------------------------------------------------------
     # Simulation parameters
     # ------------------------------------------------------------------------------
-    Ts = [0.0001, 0.2, 0.5, 0.8,1.0,1.5,2.0]      # Times for solution plots
+    Ts = [0.0001, 0.2, 0.5, 0.8]      # Times for solution plots
     Ns = [100, 200, 400, 800]         # Mesh refinements
     T_convs = [0.5,0.8]
-    N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
-    
+    N_convs = [100, 200, 400, 800,1000,1500,2000]   # Mesh refinements for convergence study
+    T_max = max(Ts)
+
 
     A = jnp.array([[0.0, 1.0],
                    [1.0, 0.0]])
@@ -126,89 +127,103 @@ def main():
         plt.subplot(2, 1, 2)
         plt.title(f"Velocity $v$ (N={N})")
 
-        for T in Ts:
-            print(f"  T = {T}")
-            
-            # ----------------------------------------------------------------------
-            # Mesh
-            # ----------------------------------------------------------------------
-            x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
-            xLs, xRs = cell_edges_from_nodes(x_nodes)
-            hs = xRs - xLs
+        
+        # ----------------------------------------------------------------------
+        # Mesh
+        # ----------------------------------------------------------------------
+        x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
+        xLs, xRs = cell_edges_from_nodes(x_nodes)
+        hs = xRs - xLs
 
-            # ----------------------------------------------------------------------
-            # Cross-section
-            # ----------------------------------------------------------------------
-            S_nodes = S_of_x(x_nodes, type_S)
-            S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
+        # ----------------------------------------------------------------------
+        # Cross-section
+        # ----------------------------------------------------------------------
+        S_nodes = S_of_x(x_nodes, type_S)
+        S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
-            # ----------------------------------------------------------------------
-            # Inverse mass matrices
-            # ----------------------------------------------------------------------
-            Mp_inv, Mv_inv = jax.vmap(
-                local_mass_inv_system,
-                in_axes=(0)
-            )(hs)
+        # ----------------------------------------------------------------------
+        # Inverse mass matrices
+        # ----------------------------------------------------------------------
+        Mp_inv, Mv_inv = jax.vmap(
+            local_mass_inv_system,
+            in_axes=(0)
+        )(hs)
 
-            # ----------------------------------------------------------------------
-            # Initial DG coefficients
-            # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        # Initial DG coefficients
+        # ----------------------------------------------------------------------
 
-            u0 = jnp.stack([
-                jnp.stack([
+        u0 = jnp.stack([
+            jnp.stack([
 
-                    # ---- tilde p ----
-                    jnp.array([
-                        S_cells[i]/(c*S_star) * p0(xLs[i]),
-                        S_cells[i]/(c*S_star) * p0(xRs[i])
-                    ]),
+                # ---- tilde p ----
+                jnp.array([
+                    S_cells[i]/(c*S_star) * p0(xLs[i]),
+                    S_cells[i]/(c*S_star) * p0(xRs[i])
+                ]),
 
-                    # ---- tilde v ----
-                    jnp.array([
-                        c*S_star/S_cells[i] * v0(xLs[i]),
-                        c*S_star/S_cells[i] * v0(xRs[i])
-                    ])
-
+                # ---- tilde v ----
+                jnp.array([
+                    c*S_star/S_cells[i] * v0(xLs[i]),
+                    c*S_star/S_cells[i] * v0(xRs[i])
                 ])
-                for i in range(N)
-            ], axis=0)
 
-            # ----------------------------------------------------------------------
-            # Time step
-            # ----------------------------------------------------------------------
-            h = xRs[0] - xLs[0]
-            dt = CFL * h / c
-            nsteps = int(jnp.ceil(T / dt))
-            print(f"  Time step dt = {dt:.4e}, nsteps = {nsteps}")
-            # ----------------------------------------------------------------------
-            # Time integration
-            # ----------------------------------------------------------------------
+            ])
+            for i in range(N)
+        ], axis=0)
 
 
-            if method == "euler":
-                u, phi, y, z = time_integrate_euler(
-                    u0, x_nodes, c,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha,
-                    y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
-                    S_cells=S_cells, S_star=S_star
+        # ----------------------------------------------------------------------
+        # Time step
+        # ----------------------------------------------------------------------
+        h = xRs[0] - xLs[0]
+        dt = CFL * h / c
+        nsteps = int(jnp.ceil(T_max / dt)) # Number of time steps to reach T_max
+        print(f"  Time step dt = {dt:.4e}, nsteps = {nsteps}")
 
-                )
-            else:
-                u, phi, y, z = time_integrate_rk2(
-                    u0, x_nodes, c,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha,
-                    y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
-                    S_cells=S_cells, S_star=S_star
-                )
+        # To store snapshots for plot
+        snapshot_steps = [int(jnp.ceil(T / dt)) for T in Ts]
+        print(f"  Snapshot steps: {snapshot_steps}")
+        snapshots = {}
+        # ----------------------------------------------------------------------
+        # Time integration
+        # ----------------------------------------------------------------------
+
+
+        if method == "euler":
+            u, phi, y, z = time_integrate_euler(
+                u0, x_nodes, c,
+                dt, nsteps, Mp_inv, Mv_inv,
+                bc, 0.0, beta, Z, alpha,
+                y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                S_cells=S_cells, S_star=S_star
+
+            )
+        else:
+            u, phi, y, z, u_snaps = time_integrate_rk2(
+                u0, x_nodes, c,
+                dt, nsteps, Mp_inv, Mv_inv,
+                bc, 0.0, beta, Z, alpha,
+                y=y0, z=y_dot0, gamma=gamma, eps=epsilon, kappa=kappa, omega_r=f_r*2*jnp.pi, zeta=zeta, Q_r=Qr,
+                S_cells=S_cells, S_star=S_star,
+                snapshot_steps=snapshot_steps
+            )
             
-            print("Before solve, u min/max:", u.min(), u.max())
-            # ----------------------------------------------------------------------
-            # Reconstruction
-            # ----------------------------------------------------------------------
-            x_plot = jnp.linspace(0.0, L, 2000)
-            p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
+        print("Before solve, u min/max:", u_snaps.min(), u_snaps.max())
+        # ----------------------------------------------------------------------
+        # Reconstruction
+        # ----------------------------------------------------------------------
+        x_plot = jnp.linspace(0.0, L, 2000)
+        p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
+
+
+        for i, T in enumerate(Ts):
+
+            u_T = u_snaps[i]
+            print(f"At T={T}, u min/max:", u_T.min(), u_T.max())
+            p_num, v_num = reconstruct_system(
+                u_T, x_nodes, x_plot, type_S, c, S_star
+            )
 
             # ----------------------------------------------------------------------
             # Exact solution (only for constant section)
@@ -216,10 +231,18 @@ def main():
             if type_S == "const":
                 p_ex, v_ex = exact_solution_characteristics(
                     x_plot, T, p0, c, L,
-                    alpha, beta, Z, dt=1e-4, method=method,
+                    alpha, beta, Z,
+                    dt=1e-4,
+                    method=method,
                     y=y0, y_dot=y_dot0,
-                    gamma=gamma, omega_r=f_r*2*jnp.pi, Q_r=Qr, zeta=zeta, kappa=kappa, epsilon=epsilon
+                    gamma=gamma,
+                    omega_r=f_r*2*jnp.pi,
+                    Q_r=Qr,
+                    zeta=zeta,
+                    kappa=kappa,
+                    epsilon=epsilon
                 )
+            
             else:
                 p_ex = v_ex = None
 

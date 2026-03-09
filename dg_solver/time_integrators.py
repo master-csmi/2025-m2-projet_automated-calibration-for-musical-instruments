@@ -105,13 +105,50 @@ def euler_step_system(u_cells, x_nodes, c, dt, Mp_inv, Mv_inv, bc, phi, beta, Z,
 # ------------------------------------------------------------------------------------------------------------------------------
 # First integrate 
 # RK2 time integration
-def time_integrate_rk2(u0, x_nodes, c, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, alpha, y, z, gamma, eps, kappa, omega_r, zeta, Q_r, S_cells, S_star):
-    def step(carry, _):
-        u, phi, y, z = carry
-        u_next, phi_next, y_next, z_next = rk2_step_system(u, x_nodes, c, dt, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha, y, z, gamma, eps, kappa, omega_r, zeta, Q_r, S_cells, S_star)
-        return (u_next, phi_next,y_next,z_next), None
-    (u_final, phi_final,y_final,z_final), _ = lax.scan(step, (u0, phi0,y,z), None, length=nsteps)
-    return u_final, phi_final, y_final, z_final
+def time_integrate_rk2(
+    u0, x_nodes, c, dt, nsteps,
+    Mp_inv, Mv_inv, bc,
+    phi0, beta, Z, alpha,
+    y, z, gamma, eps, kappa, omega_r, zeta, Q_r,
+    S_cells, S_star,
+    snapshot_steps
+):
+
+    snapshot_steps = jnp.array(snapshot_steps)
+    nsnaps = snapshot_steps.shape[0]
+
+    # stockage snapshots
+    u_snaps = jnp.zeros((nsnaps,) + u0.shape)
+
+    def step(carry, n):
+
+        u, phi, y, z, snaps = carry
+
+        u_next, phi_next, y_next, z_next = rk2_step_system(
+            u, x_nodes, c, dt,
+            Mp_inv, Mv_inv, bc,
+            phi, beta, Z, alpha,
+            y, z, gamma, eps, kappa,
+            Q_r, omega_r, zeta,
+            S_cells, S_star
+        )
+
+        # vérifier si snapshot
+        mask = snapshot_steps == n
+
+        snaps = snaps + mask[:, None, None, None] * u_next
+
+        return (u_next, phi_next, y_next, z_next, snaps), None
+
+
+    (u_final, phi_final, y_final, z_final, snaps), _ = lax.scan(
+        step,
+        (u0, phi0, y, z, u_snaps),
+        jnp.arange(nsteps)
+    )
+
+    return u_final, phi_final, y_final, z_final, snaps
+
 # Euler time integration
 def time_integrate_euler(u0, x_nodes, c, dt, nsteps, Mp_inv, Mv_inv, bc, phi0, beta, Z, alpha, y, z, gamma, eps, kappa, omega_r, zeta, Q_r, S_cells, S_star):
     def step_sys(carry, _):

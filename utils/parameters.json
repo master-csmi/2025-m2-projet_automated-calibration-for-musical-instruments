@@ -4,7 +4,7 @@
         "S_star": 1.0
     },
     "left_bc_params": {
-        "gamma": 0.001,
+        "gamma": 1.0,
         "epsilon": -1,
         "kappa": 0.1,
         "f_r": 1000.0,

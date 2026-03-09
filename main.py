@@ -6,6 +6,7 @@ import os
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import json
 
 from parse_args import parse_args
 
@@ -33,6 +34,33 @@ jax.config.update("jax_enable_x64", True)
 
 def main():
 
+     #------------------------------------------------------------------------------
+    # Read parameters from json file
+    #------------------------------------------------------------------------------
+    with open("utils/parameters.json", "r") as f:
+        params = json.load(f)
+
+        solver_params = params["solver_params"]
+        left_bc_parameters = params["left_bc_params"]
+        right_bc_parameters = params["right_bc_params"]
+
+        # Extract solver parameters
+        c = solver_params["c"]
+        S_star = solver_params["S_star"]
+
+        # Extract parameters for left BC
+        gamma = left_bc_parameters["gamma"]
+        epsilon = left_bc_parameters["epsilon"]
+        kappa = left_bc_parameters["kappa"]
+        f_r = left_bc_parameters["f_r"]
+        Qr = left_bc_parameters["Qr"]
+        zeta = left_bc_parameters["zeta"]
+
+        # Extract parameters for right BC
+        beta = right_bc_parameters["beta"]
+        Z = right_bc_parameters["Z"] #Z_T
+        alpha = right_bc_parameters["alpha"]
+
     # ------------------------------------------------------------------------------
     # Parse command-line arguments
     # ------------------------------------------------------------------------------
@@ -46,14 +74,10 @@ def main():
     # Simulation parameters
     # ------------------------------------------------------------------------------
     Ts = [0.0001, 0.2, 0.5, 0.8]      # Times for solution plots
+    T_max = max(Ts)
     Ns = [100, 200, 400, 800]         # Mesh refinements
     T_convs = [0.5,0.8]
-    N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
-
-    c = 1.0
-    alpha = 0.1
-    beta = 0.2
-    Z = 1.0 #Z_T^*
+    N_convs = [100, 200, 400, 800,1000,1500,2000]    # Mesh refinements for convergence study
     
 
     A = jnp.array([[0.0, 1.0],
@@ -98,96 +122,118 @@ def main():
         plt.subplot(2, 1, 2)
         plt.title(f"Velocity $v$ (N={N})")
 
-        for T in Ts:
-            print(f"  T = {T}")
 
-            # ----------------------------------------------------------------------
-            # Mesh
-            # ----------------------------------------------------------------------
-            x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
-            xLs, xRs = cell_edges_from_nodes(x_nodes)
-            hs = xRs - xLs
+        # ----------------------------------------------------------------------
+        # Mesh
+        # ----------------------------------------------------------------------
+        x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
+        xLs, xRs = cell_edges_from_nodes(x_nodes)
+        hs = xRs - xLs
 
-            # ----------------------------------------------------------------------
-            # Cross-section
-            # ----------------------------------------------------------------------
-            S_nodes = S_of_x(x_nodes, type_S)
-            S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
+        # ----------------------------------------------------------------------
+        # Cross-section
+        # ----------------------------------------------------------------------
+        S_nodes = S_of_x(x_nodes, type_S)
+        S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
-            # ----------------------------------------------------------------------
-            # Inverse mass matrices
-            # ----------------------------------------------------------------------
-            Mp_inv, Mv_inv = jax.vmap(
-                local_mass_inv_system,
-                in_axes=(0)
-            )(hs)
+        # ----------------------------------------------------------------------
+        # Inverse mass matrices
+        # ----------------------------------------------------------------------
+        Mp_inv, Mv_inv = jax.vmap(
+            local_mass_inv_system,
+            in_axes=(0)
+        )(hs)
 
-            # ----------------------------------------------------------------------
-            # Initial DG coefficients
-            # ----------------------------------------------------------------------
-            S_star = 1.0   # même valeur que dans le solver
+        # ----------------------------------------------------------------------
+        # Initial DG coefficients
+        # ----------------------------------------------------------------------
+        S_star = 1.0   # même valeur que dans le solver
 
-            u0 = jnp.stack([
-                jnp.stack([
+        u0 = jnp.stack([
+            jnp.stack([
 
-                    # ---- tilde p ----
-                    jnp.array([
-                        S_cells[i]/(c*S_star) * p0(xLs[i]),
-                        S_cells[i]/(c*S_star) * p0(xRs[i])
-                    ]),
+                # ---- tilde p ----
+                jnp.array([
+                    S_cells[i]/(c*S_star) * p0(xLs[i]),
+                    S_cells[i]/(c*S_star) * p0(xRs[i])
+                ]),
 
-                    # ---- tilde v ----
-                    jnp.array([
-                        c*S_star/S_cells[i] * v0(xLs[i]),
-                        c*S_star/S_cells[i] * v0(xRs[i])
-                    ])
-
+                # ---- tilde v ----
+                jnp.array([
+                    c*S_star/S_cells[i] * v0(xLs[i]),
+                    c*S_star/S_cells[i] * v0(xRs[i])
                 ])
-                for i in range(N)
-            ], axis=0)
 
-            # ----------------------------------------------------------------------
-            # Time step
-            # ----------------------------------------------------------------------
-            h = xRs[0] - xLs[0]
-            dt = CFL * h / c
-            nsteps = int(jnp.ceil(T / dt))
+            ])
+            for i in range(N)
+        ], axis=0)
 
-            # ----------------------------------------------------------------------
-            # Time integration
-            # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        # Time step
+        # ----------------------------------------------------------------------
+        h = xRs[0] - xLs[0]
+        dt = CFL * h / c
+        nsteps = int(jnp.ceil(T_max/ dt))
 
+        snapshot_steps = [int(jnp.ceil(T / dt)) for T in Ts]
+        snapshots = {}
+
+        # ----------------------------------------------------------------------
+        # Time integration
+        # ----------------------------------------------------------------------
+
+
+        for n in range(nsteps):
 
             if method == "euler":
-                u, phi = time_integrate_euler(
-                    u0, x_nodes, c, smax,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                u, phi, y, z = time_integrate_euler(
+                    u, x_nodes, c,
+                    dt, 1, Mp_inv, Mv_inv,
+                    bc, 0.0, beta, Z, alpha,
+                    y=y, z=z, gamma=gamma, eps=epsilon,
+                    kappa=kappa, omega_r=f_r*2*jnp.pi,
+                    zeta=zeta, Q_r=Qr,
+                    S_cells=S_cells, S_star=S_star
                 )
-            else:
-                u, phi = time_integrate_rk2(
-                    u0, x_nodes, c, smax,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
-                )
-            
 
-            # ----------------------------------------------------------------------
-            # Reconstruction
-            # ----------------------------------------------------------------------
-            x_plot = jnp.linspace(0.0, L, 2000)
-            p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
-
-            # ----------------------------------------------------------------------
-            # Exact solution (only for constant section)
-            # ----------------------------------------------------------------------
-            if type_S == "const":
-                p_ex, v_ex = exact_solution_characteristics(
-                    x_plot, T, p0, c, L,
-                    alpha, beta, Z, dt=1e-4, method=method
-                )
             else:
-                p_ex = v_ex = None
+                u, phi, y, z = time_integrate_rk2(
+                    u, x_nodes, c,
+                    dt, 1, Mp_inv, Mv_inv,
+                    bc, 0.0, beta, Z, alpha,
+                    y=y, z=z, gamma=gamma, eps=epsilon,
+                    kappa=kappa, omega_r=f_r*2*jnp.pi,
+                    zeta=zeta, Q_r=Qr,
+                    S_cells=S_cells, S_star=S_star
+                )
+
+        if n in snapshot_steps:
+
+            T_snap = snapshot_steps[n]
+
+            p_num, v_num = reconstruct_system(
+                u, x_nodes, x_plot, type_S, c, S_star
+            )
+
+            snapshots[T_snap] = (p_num, v_num)
+        
+
+        # ----------------------------------------------------------------------
+        # Reconstruction
+        # ----------------------------------------------------------------------
+        x_plot = jnp.linspace(0.0, L, 2000)
+        p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
+
+        # ----------------------------------------------------------------------
+        # Exact solution (only for constant section)
+        # ----------------------------------------------------------------------
+        if type_S == "const":
+            p_ex, v_ex = exact_solution_characteristics(
+                x_plot, T, p0, c, L,
+                alpha, beta, Z, dt=1e-4, method=method
+            )
+        else:
+            p_ex = v_ex = None
 
             # ----------------------------------------------------------------------
             # Plots

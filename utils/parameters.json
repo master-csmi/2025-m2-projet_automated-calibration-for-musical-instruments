@@ -1,7 +1,9 @@
 {   
     "solver_params": {
         "c": 1.0,
-        "S_star": 1.0
+        "S_star": 1.0,
+        "phi0": 0.0,
+        "T_max": 10.0
     },
     "left_bc_params": {
         "gamma": 1.0,

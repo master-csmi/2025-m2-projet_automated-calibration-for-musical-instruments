@@ -16,4 +16,6 @@ def parse_args():
                         help="Length of the domain")
     parser.add_argument("--type_S", type=str, default="const",
                         help="Type of the section profile: 'const', 'exp', 'cone', 'bump'") 
+    parser.add_argument("--Th_study", type=str, default="without",
+                        help="Theoretical study for p and v (Convergence included): 'with', 'without'") 
     return parser.parse_args()

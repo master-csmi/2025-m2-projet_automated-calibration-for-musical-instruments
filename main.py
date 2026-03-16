@@ -6,6 +6,7 @@ import os
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import json
 
 from parse_args import parse_args
 
@@ -33,12 +34,41 @@ jax.config.update("jax_enable_x64", True)
 
 def main():
 
+    #------------------------------------------------------------------------------
+    # Read parameters from json file
+    #------------------------------------------------------------------------------
+    with open("utils/parameters.json", "r") as f:
+        params = json.load(f)
+
+        solver_params = params["solver_params"]
+        left_bc_parameters = params["left_bc_params"]
+        right_bc_parameters = params["right_bc_params"]
+
+        # Extract solver parameters
+        c = solver_params["c"]
+        phi0 = solver_params["phi0"]
+        S_star = solver_params["S_star"]
+
+        # Extract parameters for left BC
+        gamma = left_bc_parameters["gamma"]
+        epsilon = left_bc_parameters["epsilon"]
+        kappa = left_bc_parameters["kappa"]
+        f_r = left_bc_parameters["f_r"]
+        Qr = left_bc_parameters["Qr"]
+        zeta = left_bc_parameters["zeta"]
+
+        # Extract parameters for right BC
+        beta = right_bc_parameters["beta"]
+        Z = right_bc_parameters["Z"] #Z_T
+        alpha = right_bc_parameters["alpha"]
+
     # ------------------------------------------------------------------------------
     # Parse command-line arguments
     # ------------------------------------------------------------------------------
     args = parse_args()
     method = args.method
     type_S = args.type_S
+    study = args.Th_study
     CFL = args.CFL
     L = args.L
 
@@ -46,14 +76,10 @@ def main():
     # Simulation parameters
     # ------------------------------------------------------------------------------
     Ts = [0.0001, 0.2, 0.5, 0.8]      # Times for solution plots
+    T_max = max(Ts)
     Ns = [100, 200, 400, 800]         # Mesh refinements
     T_convs = [0.5,0.8]
-    N_convs = [100, 200, 400, 800,1000,1500,2000]    # Final time for convergence study last is for solution near right boundary
-
-    c = 1.0
-    alpha = 0.1
-    beta = 0.2
-    Z = 1.0 #Z_T^*
+    N_convs = [100, 200, 400, 800,1000,1500,2000]    # Mesh refinements for convergence study
     
 
     A = jnp.array([[0.0, 1.0],
@@ -63,7 +89,7 @@ def main():
     print("smax =", smax)
 
     # Dirichlet BC at left + impedance BC at right
-    bc = BC(type="dirichlet", left=(0.0, 0.0), right=(0.0, 0.0))
+    bc = BC(type="dirichlet", left=(0.0, 0.0))
 
     # Initial conditions
     def p0(x): return init_func(x, L, phi0=1.0)
@@ -98,217 +124,295 @@ def main():
         plt.subplot(2, 1, 2)
         plt.title(f"Velocity $v$ (N={N})")
 
-        for T in Ts:
-            print(f"  T = {T}")
 
-            # ----------------------------------------------------------------------
-            # Mesh
-            # ----------------------------------------------------------------------
-            x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
-            xLs, xRs = cell_edges_from_nodes(x_nodes)
-            hs = xRs - xLs
+        # ----------------------------------------------------------------------
+        # Mesh
+        # ----------------------------------------------------------------------
+        x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
+        xLs, xRs = cell_edges_from_nodes(x_nodes)
+        hs = xRs - xLs
 
-            # ----------------------------------------------------------------------
-            # Cross-section
-            # ----------------------------------------------------------------------
-            S_nodes = S_of_x(x_nodes, type_S)
-            S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
+        # ----------------------------------------------------------------------
+        # Cross-section
+        # ----------------------------------------------------------------------
+        S_nodes = S_of_x(x_nodes, type_S)
+        S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
-            # ----------------------------------------------------------------------
-            # Inverse mass matrices
-            # ----------------------------------------------------------------------
-            Mp_inv, Mv_inv = jax.vmap(
-                local_mass_inv_system,
-                in_axes=(0)
-            )(hs)
+        # ----------------------------------------------------------------------
+        # Inverse mass matrices
+        # ----------------------------------------------------------------------
+        Mp_inv, Mv_inv = jax.vmap(
+            local_mass_inv_system,
+            in_axes=(0)
+        )(hs)
 
-            # ----------------------------------------------------------------------
-            # Initial DG coefficients
-            # ----------------------------------------------------------------------
-            S_star = 1.0   # même valeur que dans le solver
+        # ----------------------------------------------------------------------
+        # Initial DG coefficients
+        # ----------------------------------------------------------------------
+        S_star = 1.0   # même valeur que dans le solver
 
-            u0 = jnp.stack([
-                jnp.stack([
+        u0 = jnp.stack([
+            jnp.stack([
 
-                    # ---- tilde p ----
-                    jnp.array([
-                        S_cells[i]/(c*S_star) * p0(xLs[i]),
-                        S_cells[i]/(c*S_star) * p0(xRs[i])
-                    ]),
+                # ---- tilde p ----
+                jnp.array([
+                    S_cells[i]/(c*S_star) * p0(xLs[i]),
+                    S_cells[i]/(c*S_star) * p0(xRs[i])
+                ]),
 
-                    # ---- tilde v ----
-                    jnp.array([
-                        c*S_star/S_cells[i] * v0(xLs[i]),
-                        c*S_star/S_cells[i] * v0(xRs[i])
-                    ])
-
+                # ---- tilde v ----
+                jnp.array([
+                    c*S_star/S_cells[i] * v0(xLs[i]),
+                    c*S_star/S_cells[i] * v0(xRs[i])
                 ])
-                for i in range(N)
-            ], axis=0)
 
-            # ----------------------------------------------------------------------
-            # Time step
-            # ----------------------------------------------------------------------
-            h = xRs[0] - xLs[0]
-            dt = CFL * h / c
-            nsteps = int(jnp.ceil(T / dt))
+            ])
+            for i in range(N)
+        ], axis=0)
 
-            # ----------------------------------------------------------------------
-            # Time integration
-            # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        # Time step
+        # ----------------------------------------------------------------------
+        h = xRs[0] - xLs[0]
+        dt = CFL * h / c
+        nsteps = int(jnp.ceil(T_max/ dt))
+
+        # To store snapshots for plot
+        snapshot_steps = [int(jnp.ceil(T / dt))-1 for T in Ts]
+        print(f"  Snapshot steps: {snapshot_steps}")
+        snapshots = {}
+
+        # ----------------------------------------------------------------------
+        # Time integration
+        # ----------------------------------------------------------------------
 
 
-            if method == "euler":
-                u, phi = time_integrate_euler(
-                    u0, x_nodes, c, smax,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
-                )
-            else:
-                u, phi = time_integrate_rk2(
-                    u0, x_nodes, c, smax,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
-                )
-            
+        if method == "euler":
+            u, phi,u_snaps = time_integrate_euler(
+                u0, x_nodes, c,
+                dt, nsteps, Mp_inv, Mv_inv,
+                bc, phi0, beta, Z, alpha,
+                snapshot_steps=snapshot_steps
 
-            # ----------------------------------------------------------------------
-            # Reconstruction
-            # ----------------------------------------------------------------------
-            x_plot = jnp.linspace(0.0, L, 2000)
-            p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
+            )
+        else:
+            u, phi, u_snaps = time_integrate_rk2(
+                u0, x_nodes, c,
+                dt, nsteps, Mp_inv, Mv_inv,
+                bc, phi0, beta, Z, alpha,
+                snapshot_steps=snapshot_steps
+            )
 
+        print("Before solve, u min/max:", u_snaps.min(), u_snaps.max())
+        
+
+        # ----------------------------------------------------------------------
+        # Reconstruction
+        # ----------------------------------------------------------------------
+        x_plot = jnp.linspace(0.0, L, 2000)
+        p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
+        print("p_num.shape , v_num.shape:", p_num.shape, v_num.shape)
+
+        if study == "with":
             # ----------------------------------------------------------------------
             # Exact solution (only for constant section)
             # ----------------------------------------------------------------------
-            if type_S == "const":
-                p_ex, v_ex = exact_solution_characteristics(
-                    x_plot, T, p0, c, L,
-                    alpha, beta, Z, dt=1e-4, method=method
-                )
-            else:
-                p_ex = v_ex = None
+            for i, T in enumerate(Ts):
 
-            # ----------------------------------------------------------------------
-            # Plots
-            # ----------------------------------------------------------------------
+                u_T = u_snaps[i]
+                print(f"At T={T}, u min/max:", u_T.min(), u_T.max())
+                p_num, v_num = reconstruct_system(
+                    u_T, x_nodes, x_plot, type_S, c, S_star
+                )
+
+                # ----------------------------------------------------------------------
+                # Exact solution (only for constant section)
+                # ----------------------------------------------------------------------
+                if type_S == "const":
+                    p_ex, v_ex = exact_solution_characteristics(
+                        x_plot, T, p0, c, L,
+                        alpha, beta, Z,
+                        dt=1e-4,
+                        method=method
+                    )
+                
+                else:
+                    p_ex = v_ex = None
+
+                # ----------------------------------------------------------------------
+                # Plots
+                # ----------------------------------------------------------------------
+                # ----------------------------------------------------------------------
+                # Plots
+                # ----------------------------------------------------------------------
+                plt.subplot(2, 1, 1)
+                if p_ex is not None:
+                    plt.plot(x_plot, p_ex, "-", alpha=0.6, label=f"Exact at T={T}")
+                plt.plot(x_plot, p_num, "--", label=f"T={T}")
+
+                plt.subplot(2, 1, 2)
+                if v_ex is not None:
+                    plt.plot(x_plot, v_ex, "-", alpha=0.6, label=f"Exact at T={T}")
+                plt.plot(x_plot, v_num, "--", label=f"T={T}")
+
             plt.subplot(2, 1, 1)
-            if p_ex is not None:
-                plt.plot(x_plot, p_ex, "-", alpha=0.6)
-            plt.plot(x_plot, p_num, "--", label=f"T={T}")
+            plt.legend()
+            plt.grid(True)
 
             plt.subplot(2, 1, 2)
-            if v_ex is not None:
-                plt.plot(x_plot, v_ex, "-", alpha=0.6)
-            plt.plot(x_plot, v_num, "--", label=f"T={T}")
+            plt.legend()
+            plt.grid(True)
 
-        plt.subplot(2, 1, 1)
-        plt.legend()
-        plt.grid(True)
-
-        plt.subplot(2, 1, 2)
-        plt.legend()
-        plt.grid(True)
-
-        plt.tight_layout()
-        plt.savefig(
-            os.path.join(output_dir, f"dg_solution_{type_S}_N{N}.png"),
-            dpi=150
-        )
-        plt.close()
+            plt.tight_layout()
+            plt.savefig(
+                os.path.join(output_dir, f"dg_solution_{type_S}_N{N}.png"),
+                dpi=150
+            )
+            plt.close()
 
 
     # ==============================================================================
     # 2) CONVERGENCE STUDY
     # ==============================================================================
-    if type_S != "const":
-        print("\nConvergence study skipped (no exact solution available).")
-        return
+    if study == "with":
+        if type_S != "const":
+            print("\nConvergence study skipped (no exact solution available).")
+            return
 
-    print("\n=== Convergence study ===")
+        print("\n=== Convergence study ===")
 
-    p_errors = []
-    v_errors = []
-    for T_conv in T_convs:
-        print(f"\n--- Final time T = {T_conv} ---")
-        p_errors.clear()
-        v_errors.clear()
-        for N in N_convs:
-            print(f"\nConvergence run N = {N}")
+        T_max_conv = max(T_convs)
 
-            x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
-            xLs, xRs = cell_edges_from_nodes(x_nodes)
-            hs = xRs - xLs
+        for T_conv in T_convs:
 
-            S_nodes = S_of_x(x_nodes, type_S)
-            S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
+            print(f"\n--- Final time T = {T_conv} ---")
 
-            Mp_inv, Mv_inv = jax.vmap(
-                local_mass_inv_system,
-                in_axes=(0)
-            )(hs)
+            p_errors = []
+            v_errors = []
 
-            u0 = jnp.stack([
-                jnp.stack([
-                    jnp.array([p0(xLs[i]), p0(xRs[i])]),
-                    jnp.array([v0(xLs[i]), v0(xRs[i])])
-                ])
-                for i in range(N)
-            ], axis=0)
+            for N in N_convs:
 
-            h = xRs[0] - xLs[0]
-            dt = CFL * h / c
-            nsteps = int(jnp.ceil(T_conv / dt))
+                print(f"\nConvergence run N = {N}")
 
-            if method == "euler":
-                u, phi = time_integrate_euler(
-                    u0, x_nodes, c, smax,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+                # ----------------------------------------------------------------------
+                # Mesh
+                # ----------------------------------------------------------------------
+                x_nodes, _ = create_uniform_nodes_with_ghosts(N, 0.0, L)
+                xLs, xRs = cell_edges_from_nodes(x_nodes)
+                hs = xRs - xLs
+
+                # ----------------------------------------------------------------------
+                # Cross-section
+                # ----------------------------------------------------------------------
+                S_nodes = S_of_x(x_nodes, type_S)
+                S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
+
+                # ----------------------------------------------------------------------
+                # Mass matrices
+                # ----------------------------------------------------------------------
+                Mp_inv, Mv_inv = jax.vmap(
+                    local_mass_inv_system,
+                    in_axes=(0)
+                )(hs)
+
+                # ----------------------------------------------------------------------
+                # Initial condition
+                # ----------------------------------------------------------------------
+                u0 = jnp.stack([
+                    jnp.stack([
+                        jnp.array([
+                            S_cells[i]/(c*S_star) * p0(xLs[i]),
+                            S_cells[i]/(c*S_star) * p0(xRs[i])
+                        ]),
+                        jnp.array([
+                            c*S_star/S_cells[i] * v0(xLs[i]),
+                            c*S_star/S_cells[i] * v0(xRs[i])
+                        ])
+                    ])
+                    for i in range(N)
+                ], axis=0)
+
+                # ----------------------------------------------------------------------
+                # Time step
+                # ----------------------------------------------------------------------
+                h = xRs[0] - xLs[0]
+                dt = CFL * h / c
+                nsteps = int(jnp.ceil(T_max_conv / dt))
+
+                snapshot_steps = [int(jnp.ceil(T / dt))-1 for T in T_convs]
+
+                # ----------------------------------------------------------------------
+                # Time integration
+                # ----------------------------------------------------------------------
+                if method == "euler":
+                    u, phi, u_snaps = time_integrate_euler(
+                        u0, x_nodes, c,
+                        dt, nsteps, Mp_inv, Mv_inv,
+                        bc, phi0, beta, Z, alpha,
+                        snapshot_steps=snapshot_steps
+                    )
+                else:
+                    u, phi, u_snaps = time_integrate_rk2(
+                    u0, x_nodes, c,
+                    dt, nsteps,
+                    Mp_inv, Mv_inv,
+                    bc, phi0, beta, Z, alpha,
+                    snapshot_steps=snapshot_steps
                 )
-            else:
-                u, phi = time_integrate_rk2(
-                    u0, x_nodes, c, smax,
-                    dt, nsteps, Mp_inv, Mv_inv,
-                    bc, 0.0, beta, Z, alpha
+
+                # ----------------------------------------------------------------------
+                # Reconstruction grid
+                # ----------------------------------------------------------------------
+                x_plot = jnp.linspace(0.0, L, 2000)
+
+                i = T_convs.index(T_conv)
+
+                u_T = u_snaps[i]
+
+                p_num, v_num = reconstruct_system(
+                    u_T, x_nodes, x_plot, type_S, c, S_star
                 )
 
-            x_plot = jnp.linspace(0.0, L, 2000)
-            p_num, v_num = reconstruct_system(u, x_nodes, x_plot, type_S, c, S_star)
+                p_ex, v_ex = exact_solution_characteristics(
+                    x_plot, T_conv, p0, c, L,
+                    alpha, beta, Z,
+                    dt=1e-4,
+                    method=method
+                )
 
-            p_ex, v_ex = exact_solution_characteristics(
-                x_plot, T_conv, p0, c, L,
-                alpha, beta, Z, dt=1e-4, method=method
+                dx = x_plot[1] - x_plot[0]
+
+                p_errors.append(jnp.sqrt(jnp.sum((p_num - p_ex)**2) * dx))
+                v_errors.append(jnp.sqrt(jnp.sum((v_num - v_ex)**2) * dx))
+                print(f"  L2 error p: {p_errors[-1]:.4e}, L2 error v: {v_errors[-1]:.4e}")
+
+            # --------------------------------------------------------------------------
+            # Convergence plot
+            # --------------------------------------------------------------------------
+            p_slope = jnp.polyfit(jnp.log10(jnp.array(N_convs)),
+                                jnp.log10(jnp.array(p_errors)), 1)[0]
+            v_slope = jnp.polyfit(jnp.log10(jnp.array(N_convs)),
+                                jnp.log10(jnp.array(v_errors)), 1)[0]
+
+            plt.figure(figsize=(6, 5))
+            plt.loglog(N_convs, p_errors, "o-", label=f"L2 error p (slope={p_slope:.2f})")
+            plt.loglog(N_convs, v_errors, "s--", label=f"L2 error v (slope={v_slope:.2f})")
+            plt.xlabel("Number of cells N")
+            plt.ylabel("L2 error")
+            plt.title(f"DG P1 convergence at T = {T_conv}")
+            plt.grid(True, which="both", ls="--")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(
+                os.path.join(output_dir, f"dg_convergence_T{T_conv}_{method}.png"),
+                dpi=150
             )
+            plt.close()
 
-            dx = x_plot[1] - x_plot[0]
-            p_errors.append(jnp.sqrt(jnp.sum((p_num - p_ex)**2) * dx))
-            v_errors.append(jnp.sqrt(jnp.sum((v_num - v_ex)**2) * dx))
+        print("\n Theoretical Study : Done")
+        
 
-        # --------------------------------------------------------------------------
-        # Convergence plot
-        # --------------------------------------------------------------------------
-        p_slope = jnp.polyfit(jnp.log10(jnp.array(N_convs)),
-                            jnp.log10(jnp.array(p_errors)), 1)[0]
-        v_slope = jnp.polyfit(jnp.log10(jnp.array(N_convs)),
-                            jnp.log10(jnp.array(v_errors)), 1)[0]
-
-        plt.figure(figsize=(6, 5))
-        plt.loglog(N_convs, p_errors, "o-", label=f"L2 error p (slope={p_slope:.2f})")
-        plt.loglog(N_convs, v_errors, "s--", label=f"L2 error v (slope={v_slope:.2f})")
-        plt.xlabel("Number of cells N")
-        plt.ylabel("L2 error")
-        plt.title(f"DG P1 convergence at T = {T_conv}")
-        plt.grid(True, which="both", ls="--")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(
-            os.path.join(output_dir, f"dg_convergence_T{T_conv}_{method}.png"),
-            dpi=150
-        )
-        plt.close()
-
-        print("\nAll computations completed.")
+    print("\nAll computations completed.")
 
 
 if __name__ == "__main__":

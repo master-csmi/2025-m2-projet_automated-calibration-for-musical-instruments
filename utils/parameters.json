@@ -16,7 +16,7 @@
     "right_bc_params": {
         "beta": 0.2,
         "Z": 1.0,
-        "alpha": 0.1    
+        "alpha": 200    
     },
     "init_cond_reed":{
         "y0": 1.0,

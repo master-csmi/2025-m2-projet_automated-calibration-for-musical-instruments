@@ -161,7 +161,7 @@ def main():
     nsteps = int(jnp.ceil(T_max/ dt))
 
     # To store snapshots for plot
-    snapshot_steps = jnp.array([int(i * nsteps / 100) for i in range(1, 101)])
+    snapshot_steps = jnp.array([int(i * nsteps / 300) for i in range(1, 301)])
     print(f"  Snapshot steps: {snapshot_steps}")
     snapshots = {}
 

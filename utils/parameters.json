@@ -3,7 +3,7 @@
         "c": 1.0,
         "S_star": 1.0,
         "phi0": 0.0,
-        "T_max": 15.0
+        "T_max": 5.0
     },
     "left_bc_params": {
         "gamma": 0.0,
@@ -15,8 +15,8 @@
     },
     "right_bc_params": {
         "beta": 0.2,
-        "Z": 1.0,
-        "alpha": 200    
+        "Z":1.2 ,
+        "alpha": 2   
     },
     "init_cond_reed":{
         "y0": 1.0,

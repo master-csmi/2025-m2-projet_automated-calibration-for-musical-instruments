@@ -3,23 +3,23 @@
         "c": 1.0,
         "S_star": 1.0,
         "phi0": 0.0,
-        "T_max": 5.0
+        "T_max": 15.0
     },
     "left_bc_params": {
-        "gamma": 0.0,
+        "gamma": 1.0,
         "epsilon": -1,
         "kappa": 0.3,
-        "f_r": 1000.0,
-        "Qr": 5.0,
-        "zeta": 0.5
+        "f_r": 100.0,
+        "Qr": 2.0,
+        "zeta": 0.7
     },
     "right_bc_params": {
-        "beta": 0.2,
+        "beta": 1.0,
         "Z":1.2 ,
-        "alpha": 2   
+        "alpha": 100.0  
     },
     "init_cond_reed":{
-        "y0": 1.0,
+        "y0": -1.0,
         "y_dot0": 0.0
     }
 }

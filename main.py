@@ -24,7 +24,7 @@ from bc.bc import BC
 
 # Utilities
 from utils.S_profiles import S_of_x
-from utils.init_func import init_func
+from utils.init_func import init_func, init_func_const
 
 # Exact solution (only valid for constant section)
 from physics.exact_solution import exact_solution_characteristics
@@ -43,6 +43,7 @@ def main():
         solver_params = params["solver_params"]
         left_bc_parameters = params["left_bc_params"]
         right_bc_parameters = params["right_bc_params"]
+        initial_conditions_reed = params["init_cond_reed"]
 
         # Extract solver parameters
         c = solver_params["c"]
@@ -56,6 +57,10 @@ def main():
         f_r = left_bc_parameters["f_r"]
         Qr = left_bc_parameters["Qr"]
         zeta = left_bc_parameters["zeta"]
+
+        # Extract initial conditions for reed
+        y0 = initial_conditions_reed["y0"]
+        z0 = initial_conditions_reed["y_dot0"]
 
         # Extract parameters for right BC
         beta = right_bc_parameters["beta"]
@@ -75,7 +80,7 @@ def main():
     # ------------------------------------------------------------------------------
     # Simulation parameters
     # ------------------------------------------------------------------------------
-    Ts = [0.0001, 0.2, 0.5, 0.8,1.0,1.2,1.8]      # Times for solution plots
+    Ts = [0.0001, 0.2, 0.5, 0.8, 1.0,1.2,1.8,2.5,4.6]      # Times for solution plots
     T_max = max(Ts)
     Ns = [100, 200, 400, 800]         # Mesh refinements
     T_convs = [0.5,0.8]
@@ -89,10 +94,11 @@ def main():
     print("smax =", smax)
 
     # Dirichlet BC at left + impedance BC at right
-    bc = BC(type="dirichlet", left=(0.0, 0.0))
+    bc = BC(type="dirichlet")
 
     # Initial conditions
-    def p0(x): return init_func(x, L, phi0=1.0)
+    #def p0(x): return init_func(x, L, phi0=1.0)
+    def p0(x): return init_func_const(x, L)
     def v0(x): return 0.0
 
     
@@ -188,22 +194,28 @@ def main():
 
 
         if method == "euler":
-            u, phi,u_snaps = time_integrate_euler(
+            u, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_euler(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0, beta, Z, alpha,
+                y0, z0,
+                epsilon, kappa, gamma, f_r, Qr, zeta,
+                S_cells=S_cells, S_star=S_star,
                 snapshot_steps=snapshot_steps
 
             )
         else:
-            u, phi, u_snaps = time_integrate_rk2(
+            u, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_rk2(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0, beta, Z, alpha,
+                y0, z0,
+                epsilon, kappa, gamma, f_r, Qr, zeta,
+                S_cells=S_cells, S_star=S_star,
                 snapshot_steps=snapshot_steps
             )
 
-        print("Before solve, u min/max:", u_snaps.min(), u_snaps.max())
+        print("Before solve, u min/max:", u_tilde_snaps.min(), u_tilde_snaps.max())
         
 
         # ----------------------------------------------------------------------
@@ -219,7 +231,7 @@ def main():
             # ----------------------------------------------------------------------
             for i, T in enumerate(Ts):
 
-                u_T = u_snaps[i]
+                u_T = u_tilde_snaps[i]
                 print(f"At T={T}, u min/max:", u_T.min(), u_T.max())
                 p_num, v_num = reconstruct_system(
                     u_T, x_nodes, x_plot, type_S, c, S_star
@@ -345,18 +357,24 @@ def main():
                 # Time integration
                 # ----------------------------------------------------------------------
                 if method == "euler":
-                    u, phi, u_snaps = time_integrate_euler(
+                    u, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_euler(
                         u0, x_nodes, c,
                         dt, nsteps, Mp_inv, Mv_inv,
                         bc, phi0, beta, Z, alpha,
+                        y0, z0,
+                        epsilon, kappa, gamma, f_r, Qr, zeta,
+                        S_cells=S_cells, S_star=S_star,
                         snapshot_steps=snapshot_steps
                     )
                 else:
-                    u, phi, u_snaps = time_integrate_rk2(
+                    u, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_rk2(
                     u0, x_nodes, c,
                     dt, nsteps,
                     Mp_inv, Mv_inv,
                     bc, phi0, beta, Z, alpha,
+                    y0, z0,
+                    epsilon, kappa, gamma, f_r, Qr, zeta,
+                    S_cells=S_cells, S_star=S_star,
                     snapshot_steps=snapshot_steps
                 )
 
@@ -367,7 +385,7 @@ def main():
 
                 i = T_convs.index(T_conv)
 
-                u_T = u_snaps[i]
+                u_T = u_tilde_snaps[i]
 
                 p_num, v_num = reconstruct_system(
                     u_T, x_nodes, x_plot, type_S, c, S_star

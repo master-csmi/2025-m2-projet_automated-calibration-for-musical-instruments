@@ -24,7 +24,7 @@ from bc.bc import BC
 
 # Utilities
 from utils.S_profiles import S_of_x
-from utils.init_func import init_func
+from utils.init_func import init_func, init_func_const
 
 # Exact solution (only valid for constant section)
 from physics.exact_solution import exact_solution_characteristics
@@ -43,11 +43,13 @@ def main():
         solver_params = params["solver_params"]
         left_bc_parameters = params["left_bc_params"]
         right_bc_parameters = params["right_bc_params"]
+        initial_conditions_reed = params["init_cond_reed"]
 
         # Extract solver parameters
         c = solver_params["c"]
         S_star = solver_params["S_star"]
         T_max = solver_params["T_max"]
+        phi0 = solver_params["phi0"]
 
         # Extract parameters for left BC
         gamma = left_bc_parameters["gamma"]
@@ -56,6 +58,10 @@ def main():
         f_r = left_bc_parameters["f_r"]
         Qr = left_bc_parameters["Qr"]
         zeta = left_bc_parameters["zeta"]
+
+        # Extract initial conditions for reed
+        y0 = initial_conditions_reed["y0"]
+        z0 = initial_conditions_reed["y_dot0"]
 
         # Extract parameters for right BC
         beta = right_bc_parameters["beta"]
@@ -83,10 +89,11 @@ def main():
     print("smax =", smax)
 
     # Dirichlet BC at left + impedance BC at right
-    bc = BC(type="dirichlet", left=(0.0, 0.0))
+    bc = BC(type="dirichlet")
 
     # Initial conditions
-    def p0(x): return init_func(x, L, phi0=1.0)
+    #def p0(x): return init_func(x, L, phi0=1.0)
+    def p0(x): return init_func_const(x, L)
     def v0(x): return 0.0
 
     
@@ -132,7 +139,6 @@ def main():
     # ----------------------------------------------------------------------
     # Initial DG coefficients
     # ----------------------------------------------------------------------
-    S_star = 1.0   # même valeur que dans le solver
 
     u0 = jnp.stack([
         jnp.stack([
@@ -161,7 +167,7 @@ def main():
     nsteps = int(jnp.ceil(T_max/ dt))
 
     # To store snapshots for plot
-    snapshot_steps = jnp.array([int(i * nsteps / 300) for i in range(1, 301)])
+    snapshot_steps = jnp.array([int(i * nsteps / 500) for i in range(1, 501)])
     print(f"  Snapshot steps: {snapshot_steps}")
     snapshots = {}
 
@@ -171,22 +177,28 @@ def main():
 
 
     if method == "euler":
-        u, phi,u_snaps = time_integrate_euler(
+        u_tilde, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_euler(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
-            bc, 0.0, beta, Z, alpha,
+            bc, phi0, beta, Z, alpha,
+            y0, z0,
+            epsilon, kappa, gamma, f_r, Qr, zeta,
+            S_cells=S_cells, S_star=S_star,
             snapshot_steps=snapshot_steps
 
         )
     else:
-        u, phi, u_snaps = time_integrate_rk2(
+        u_tilde, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_rk2(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
-            bc, 0.0, beta, Z, alpha,
+            bc, phi0, beta, Z, alpha,
+            y0, z0,
+            epsilon, kappa, gamma, f_r, Qr, zeta,
+            S_cells=S_cells, S_star=S_star,
             snapshot_steps=snapshot_steps
         )
 
-    print("Before solve, u min/max:", u_snaps.min(), u_snaps.max())
+    print("Before solve, u min/max:", u_tilde_snaps.min(), u_tilde_snaps.max())
     
 
     # ----------------------------------------------------------------------
@@ -196,7 +208,7 @@ def main():
     p_bell=[]
     for i, T in enumerate(snapshot_steps * dt):
 
-        u_T = u_snaps[i]
+        u_T = u_tilde_snaps[i]
         print(f"At T={T}, u min/max:", u_T.min(), u_T.max())
         p_num, v_num = reconstruct_system(
             u_T, x_nodes, x_plot, type_S, c, S_star
@@ -214,6 +226,21 @@ def main():
     plt.tight_layout()
     plt.savefig(
         os.path.join(output_dir, f"pressure_at_bell_{method}_{type_S}.png"),
+        dpi=150
+    )
+    plt.close()
+
+    print("y_snaps shape:", y_snaps.shape)
+    # plot y 
+    plt.figure(figsize=(8, 5))
+    plt.plot(snapshot_steps * dt, y_snaps, label="Reed displacement y(t)")
+    plt.xlabel("Time")
+    plt.ylabel("Reed displacement y")
+    plt.title(f"Reed displacement over time (method={method})")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(output_dir, f"reed_displacement_{method}.png"),
         dpi=150
     )
     plt.close()

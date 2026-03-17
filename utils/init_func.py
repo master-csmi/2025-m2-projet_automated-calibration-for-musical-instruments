@@ -16,3 +16,6 @@ def init_func(x, L, phi0=1.0):
     bump = (phi0 / 4.0) * jnp.exp(1.0 - 1.0 / denom)
 
     return jnp.where(inside, bump, 0.0)
+
+def init_func_const(x, L):
+    return jnp.ones_like(x)

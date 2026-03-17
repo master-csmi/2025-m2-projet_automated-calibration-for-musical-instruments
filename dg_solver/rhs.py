@@ -57,28 +57,58 @@ def surface_term_system(u_ext, j, c=1.0):
 
 
 
-def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
+def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
+                  bc, phi, beta, Z, alpha,
+                  v_bc, S_cells, S_star):
+
     xLs, xRs = cell_edges_from_nodes(x_nodes)
-    N = u_cells.shape[0]
+    N = u_tilde_cells.shape[0]
 
-    # add ghost cells according to BC
+    # ----------------------------
+    # 1) Add ghost cells
+    # ----------------------------
     if bc.type == "dirichlet":
-        u_ext = apply_bc(u_cells, bc.left, phi, beta, Z, alpha)
-    elif bc.type == "neumann":
-        u_ext = apply_bc_neumann(u_cells)
- 
+        u_tilde_ext = apply_bc(u_tilde_cells, phi, beta, Z, alpha,
+                         v_bc, S_cells, c, S_star)
 
-    # Surface term (fluxes)
+        # IMPORTANT: extend S the same way
+        S_ext = jnp.concatenate([
+            S_cells[:1],   # ghost left
+            S_cells,
+            S_cells[-1:]   # ghost right
+        ])
+
+    elif bc.type == "neumann":
+        u_tilde_ext = apply_bc_neumann(u_tilde_cells)
+
+        # Same logic for S
+        S_ext = jnp.concatenate([
+            S_cells[:1],
+            S_cells,
+            S_cells[-1:]
+        ])
+
+    # ----------------------------
+    # 2) Surface term
+    # ----------------------------
     S_all = jax.vmap(
-        lambda j: surface_term_system(u_ext, j, c=c)
+        lambda j: surface_term_system(
+            u_tilde_ext,  
+            j,
+            c=c
+        )
     )(jnp.arange(N))
 
-    # Volume term
+    # ----------------------------
+    # 3) Volume term
+    # ----------------------------
     V_all = jax.vmap(
         lambda Ue, xL, xR: local_volume_system(Ue, xL, xR)
-    )(u_cells, xLs, xRs)
+    )(u_tilde_cells, xLs, xRs)
 
-    # assemble RHS cell by cell
+    # ----------------------------
+    # 4) Assemble RHS
+    # ----------------------------
     def element_rhs(e):
         Vi = V_all[e]
         Si = S_all[e]
@@ -87,4 +117,5 @@ def dg_rhs_system(u_cells, x_nodes, c, Mp_inv, Mv_inv, bc, phi, beta, Z, alpha):
         return jnp.stack([rhs_p, rhs_v], axis=0)
 
     RHS = jax.vmap(element_rhs)(jnp.arange(N))
+
     return RHS

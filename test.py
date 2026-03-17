@@ -35,10 +35,16 @@ def test_convergence_rate(method, slope_min, slope_max):
         solver_params = params["solver_params"]
         left_bc_parameters = params["left_bc_params"]
         right_bc_parameters = params["right_bc_params"]
+        initial_conditions_reed = params["init_cond_reed"]
 
         # Extract solver parameters
         c = solver_params["c"]
+        phi0 = solver_params["phi0"]
         S_star = solver_params["S_star"]
+
+        # Extract initial conditions for reed
+        y0 = initial_conditions_reed["y0"]
+        z0 = initial_conditions_reed["y_dot0"]
 
         # Extract parameters for left BC
         gamma = left_bc_parameters["gamma"]
@@ -65,7 +71,7 @@ def test_convergence_rate(method, slope_min, slope_max):
 
     smax = c * jnp.max(jnp.abs(jnp.linalg.eigvals(A)))
 
-    bc = BC(type="dirichlet", left=(0.0, 0.0))
+    bc = BC(type="dirichlet")
 
     def p0(x): return init_func(x, L, phi0=1.0)
     def v0(x): return 0.0
@@ -103,17 +109,21 @@ def test_convergence_rate(method, slope_min, slope_max):
         
 
         if method == "euler":
-            u, _, _ = time_integrate_euler(
+            u, _, _, _, _,_ = time_integrate_euler(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, Z, alpha,
+                bc, phi0, beta, Z, alpha,
+                y0, z0, gamma, epsilon, kappa, omega_r=f_r*2*jnp.pi, Q_r=Qr, zeta=zeta,
+                S_cells=S_cells, S_star=S_star,
                 snapshot_steps=[nsteps]
             )
         else:
-            u, _, _ = time_integrate_rk2(
+            u, _, _, _, _,_ = time_integrate_rk2(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
-                bc, 0.0, beta, Z, alpha,
+                bc, phi0, beta, Z, alpha,
+                y0, z0, gamma, epsilon, kappa, omega_r=f_r*2*jnp.pi, Q_r=Qr, zeta=zeta,
+                S_cells=S_cells, S_star=S_star,
                 snapshot_steps=[nsteps]
             )
 

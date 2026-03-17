@@ -15,7 +15,7 @@ def rk2_step_system(
     u_cells, x_nodes, c, dt,
     Mp_inv, Mv_inv, bc,
     phi, beta, Z, alpha,
-    y, z, gamma, eps, kappa, Q_r, omega_r, zeta,
+    y, z, gamma, eps, kappa, Q_r, omega_r, zeta,opening,
     S_cells, S_star
 ):
     # pressures at boundaries
@@ -27,7 +27,7 @@ def rk2_step_system(
     # -------------------
     k1_phi = phi_rhs(pR, alpha, Z)
     dy1, dz1 = reed_rhs(y, z, pL, eps, gamma, omega_r, Q_r)
-    v_bc_1 = compute_v_bc_left(y, z, pL, zeta, gamma, eps, kappa, omega_r)
+    v_bc_1 = compute_v_bc_left(y, z, pL, zeta, gamma, eps, kappa, omega_r, opening)
 
     k1_u = dg_rhs_system(
         u_cells, x_nodes, c,
@@ -53,7 +53,7 @@ def rk2_step_system(
     # -------------------
     k2_phi = phi_rhs(pR_mid, alpha, Z)
     dy2, dz2 = reed_rhs(y_mid, z_mid, pL_mid, eps, gamma, omega_r, Q_r)
-    v_bc_2 = compute_v_bc_left(y_mid, z_mid, pL_mid, zeta, gamma, eps, kappa, omega_r)
+    v_bc_2 = compute_v_bc_left(y_mid, z_mid, pL_mid, zeta, gamma, eps, kappa, omega_r, opening)
 
     k2_u = dg_rhs_system(
         u_mid, x_nodes, c,
@@ -83,7 +83,7 @@ def euler_step_system(
     u_cells, x_nodes, c, dt,
     Mp_inv, Mv_inv, bc,
     phi, beta, Z, alpha,
-    y, z, gamma, eps, kappa, omega_r, zeta, Q_r,
+    y, z, gamma, eps, kappa, omega_r, zeta, Q_r,opening,
     S_cells, S_star
 ):
     pR = u_cells[-1, 0, 1]
@@ -99,7 +99,7 @@ def euler_step_system(
     z_new = z + dt * dz
 
     # compute boundary velocity
-    v_bc = compute_v_bc_left(y_new, z_new, pL, zeta, gamma, eps, kappa, omega_r)
+    v_bc = compute_v_bc_left(y_new, z_new, pL, zeta, gamma, eps, kappa, omega_r,opening)
 
     # PDE RHS
     k_u = dg_rhs_system(
@@ -121,12 +121,14 @@ def euler_step_system(
 def time_integrate_rk2(
     u0, x_nodes, c, dt, nsteps,
     Mp_inv, Mv_inv, bc,
-    phi0, beta, Z, alpha,
+    phi0, 
     y0, z0,
-    eps, kappa, gamma, omega_r, Q_r, zeta,
+    data,
     S_cells, S_star,
     snapshot_steps
 ):
+    beta, Z, alpha, eps, kappa, gamma, omega_r, Q_r, zeta = data.beta, data.Z, data.alpha, data.eps, data.kappa, data.gamma, data.omega_r, data.Q_r, data.zeta
+    opening = data.l
     snapshot_steps = jnp.array(snapshot_steps)
     nsnaps = snapshot_steps.shape[0]
     y_snaps = jnp.zeros((nsnaps,))
@@ -138,7 +140,7 @@ def time_integrate_rk2(
             u, x_nodes, c, dt,
             Mp_inv, Mv_inv, bc,
             phi, beta, Z, alpha,
-            y, z, gamma, eps, kappa, Q_r, omega_r, zeta,
+            y, z, gamma, eps, kappa, Q_r, omega_r, zeta,opening,
             S_cells, S_star
         )
         mask = snapshot_steps == n  # shape (nsnaps,)
@@ -158,12 +160,14 @@ def time_integrate_rk2(
 def time_integrate_euler(
     u0, x_nodes, c, dt, nsteps,
     Mp_inv, Mv_inv, bc,
-    phi0, beta, Z, alpha,
+    phi0,
     y0, z0,
-    eps, kappa, gamma, omega_r, Q_r, zeta,
+    data,
     S_cells, S_star,
     snapshot_steps
-):
+):  
+    beta, Z, alpha, eps, kappa, gamma, omega_r, Q_r, zeta = data.beta, data.Z, data.alpha, data.eps, data.kappa, data.gamma, data.omega_r, data.Q_r, data.zeta
+    opening = data.l
     snapshot_steps = jnp.array(snapshot_steps)
     nsnaps = snapshot_steps.shape[0]
     y_snaps = jnp.zeros((nsnaps,))
@@ -175,7 +179,7 @@ def time_integrate_euler(
             u, x_nodes, c, dt,
             Mp_inv, Mv_inv, bc,
             phi, beta, Z, alpha,
-            y, z, gamma, eps, kappa, omega_r, zeta, Q_r,
+            y, z, gamma, eps, kappa, omega_r, zeta, Q_r,opening,
             S_cells, S_star
         )
         mask = snapshot_steps == n

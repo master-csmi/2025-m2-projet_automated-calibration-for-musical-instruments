@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import equinox as eqx
 
 # ------------------------------------------------------------------------------------------------------------------------------
 #                                                          Fucntion of the instrument section S(x)
@@ -50,3 +51,10 @@ def S_of_x(x, type_S="const", **kwargs):
 
     else:
         raise ValueError(f"Unknown type '{type_S}' for S(x)")
+    
+class SProfile(eqx.Module):
+    type_S: str
+    params: dict
+
+    def __call__(self, x):
+        return S_of_x(x, self.type_S, **self.params)

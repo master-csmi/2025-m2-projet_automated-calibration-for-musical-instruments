@@ -1,4 +1,12 @@
 import jax.numpy as jnp
+import equinox as eqx
+
+# Reed opening function (trainable)
+class ReedOpening(eqx.Module):
+    a: float
+
+    def __call__(self, y):
+        return jnp.maximum(0.0, y) * self.a
 
 # Right Hand Side of the ODE for phi at right BC
 def phi_rhs(pR, alpha, Z):
@@ -19,9 +27,8 @@ def reed_rhs(y, z, p_in, eps, gamma, omega_r, Q_r):
 def pressure_func(delta_p):
      return jnp.sqrt(jnp.abs(delta_p))*jnp.sign(delta_p)
 
-def l(y):
-    return jnp.maximum(y, 0.0) 
 
-def compute_v_bc_left(y, y_t, p_in, zeta, gamma, eps, kappa, omega_r):
+def compute_v_bc_left(y, y_t, p_in, zeta, gamma, eps, kappa, omega_r,l):
 
     return zeta * l(y) * pressure_func(gamma - p_in) + eps * kappa / omega_r *  y_t
+

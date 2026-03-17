@@ -21,5 +21,16 @@
     "init_cond_reed":{
         "y0": -1.0,
         "y_dot0": 0.0
+    },
+    "trainable": {
+        "gamma": true,
+        "epsilon": false,
+        "kappa": false,
+        "f_r": true,
+        "Qr": false,
+        "zeta": false,
+        "beta": false,
+        "Z": false,
+        "alpha": false
     }
 }

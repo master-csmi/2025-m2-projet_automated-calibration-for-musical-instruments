@@ -23,14 +23,35 @@ from dg_solver.reconstruction import reconstruct_system
 from bc.bc import BC
 
 # Utilities
-from utils.S_profiles import S_of_x
+from utils.util_func import ReedOpening
+from utils.S_profiles import SProfile
 from utils.init_func import init_func, init_func_const
 
 # Exact solution (only valid for constant section)
 from physics.exact_solution import exact_solution_characteristics
 
+from utils.diff import PhysicalData
+
 jax.config.update("jax_enable_x64", True)
 
+def build_physical_data(params, type_S):
+
+    left = params["left_bc_params"]
+    right = params["right_bc_params"]
+    train = params["trainable"]
+
+    return PhysicalData(
+        eps_data   = (left["epsilon"], train["epsilon"]),
+        eta_data   = (left["zeta"], train["zeta"]),
+        kappa_data = (left["kappa"], train["kappa"]),
+        Zt_data    = (right["Z"], False),
+        wr_data    = (2*jnp.pi*left["f_r"], train["wr"]),
+        gamma_data = (left["gamma"], train["gamma"]),
+        Qr_data    = (left["Qr"], train["Qr"]),
+
+        l = ReedOpening(a=1.0),
+        section=SProfile(type_S=type_S)
+    )
 
 def main():
 
@@ -41,8 +62,6 @@ def main():
         params = json.load(f)
 
         solver_params = params["solver_params"]
-        left_bc_parameters = params["left_bc_params"]
-        right_bc_parameters = params["right_bc_params"]
         initial_conditions_reed = params["init_cond_reed"]
 
         # Extract solver parameters
@@ -51,22 +70,9 @@ def main():
         T_max = solver_params["T_max"]
         phi0 = solver_params["phi0"]
 
-        # Extract parameters for left BC
-        gamma = left_bc_parameters["gamma"]
-        epsilon = left_bc_parameters["epsilon"]
-        kappa = left_bc_parameters["kappa"]
-        f_r = left_bc_parameters["f_r"]
-        Qr = left_bc_parameters["Qr"]
-        zeta = left_bc_parameters["zeta"]
-
         # Extract initial conditions for reed
         y0 = initial_conditions_reed["y0"]
         z0 = initial_conditions_reed["y_dot0"]
-
-        # Extract parameters for right BC
-        beta = right_bc_parameters["beta"]
-        Z = right_bc_parameters["Z"] #Z_T
-        alpha = right_bc_parameters["alpha"]
 
     # ------------------------------------------------------------------------------
     # Parse command-line arguments
@@ -76,6 +82,8 @@ def main():
     type_S = args.type_S
     CFL = args.CFL
     L = args.L
+
+    data = build_physical_data(params, type_S)
 
     # ------------------------------------------------------------------------------
     # Simulation parameters
@@ -125,7 +133,7 @@ def main():
     # ----------------------------------------------------------------------
     # Cross-section
     # ----------------------------------------------------------------------
-    S_nodes = S_of_x(x_nodes, type_S)
+    S_nodes = data.section(x_nodes)
     S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
     # ----------------------------------------------------------------------
@@ -180,9 +188,9 @@ def main():
         u_tilde, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_euler(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
-            bc, phi0, beta, Z, alpha,
+            bc, phi0,
             y0, z0,
-            epsilon, kappa, gamma, f_r, Qr, zeta,
+            data,
             S_cells=S_cells, S_star=S_star,
             snapshot_steps=snapshot_steps
 
@@ -191,9 +199,9 @@ def main():
         u_tilde, phi, y, y_dot, y_snaps, u_tilde_snaps = time_integrate_rk2(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
-            bc, phi0, beta, Z, alpha,
+            bc, phi0, 
             y0, z0,
-            epsilon, kappa, gamma, f_r, Qr, zeta,
+            data,
             S_cells=S_cells, S_star=S_star,
             snapshot_steps=snapshot_steps
         )

@@ -1,0 +1,21 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{surface\PYGZus{}term\PYGZus{}system}\PYG{p}{(}\PYG{n}{u\PYGZus{}ext}\PYG{p}{,} \PYG{n}{S\PYGZus{}ext}\PYG{p}{,} \PYG{n}{j}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{):}
+    \PYG{n}{jp} \PYG{o}{=} \PYG{n}{j} \PYG{o}{+} \PYG{l+m+mi}{1}
+
+    \PYG{c+c1}{\PYGZsh{} Interface gauche : moyenne de S}
+    \PYG{n}{S\PYGZus{}left}  \PYG{o}{=} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{p}{(}\PYG{n}{S\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{o}{+} \PYG{n}{S\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{p}{])}
+    \PYG{n}{S\PYGZus{}right} \PYG{o}{=} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{p}{(}\PYG{n}{S\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{p}{]}   \PYG{o}{+} \PYG{n}{S\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{o}{+}\PYG{l+m+mi}{1}\PYG{p}{])}
+
+    \PYG{n}{UL\PYGZus{}left}  \PYG{o}{=} \PYG{n}{u\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{p}{:,} \PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{UR\PYGZus{}left}  \PYG{o}{=} \PYG{n}{u\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{p}{,}   \PYG{p}{:,} \PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{UL\PYGZus{}right} \PYG{o}{=} \PYG{n}{u\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{p}{,}   \PYG{p}{:,} \PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{UR\PYGZus{}right} \PYG{o}{=} \PYG{n}{u\PYGZus{}ext}\PYG{p}{[}\PYG{n}{jp}\PYG{o}{+}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{p}{:,} \PYG{l+m+mi}{0}\PYG{p}{]}
+
+    \PYG{n}{f\PYGZus{}left}  \PYG{o}{=} \PYG{n}{rusanov\PYGZus{}flux}\PYG{p}{(}\PYG{n}{UL\PYGZus{}left}\PYG{p}{,}  \PYG{n}{UR\PYGZus{}left}\PYG{p}{,}  \PYG{n}{S\PYGZus{}left}\PYG{p}{,}  \PYG{n}{c}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{)}
+    \PYG{n}{f\PYGZus{}right} \PYG{o}{=} \PYG{n}{rusanov\PYGZus{}flux}\PYG{p}{(}\PYG{n}{UL\PYGZus{}right}\PYG{p}{,} \PYG{n}{UR\PYGZus{}right}\PYG{p}{,} \PYG{n}{S\PYGZus{}right}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{)}
+
+    \PYG{n}{S\PYGZus{}term} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{zeros}\PYG{p}{((}\PYG{l+m+mi}{2}\PYG{p}{,} \PYG{l+m+mi}{2}\PYG{p}{))}
+    \PYG{n}{S\PYGZus{}term} \PYG{o}{=} \PYG{n}{S\PYGZus{}term}\PYG{o}{.}\PYG{n}{at}\PYG{p}{[:,} \PYG{l+m+mi}{0}\PYG{p}{]}\PYG{o}{.}\PYG{n}{set}\PYG{p}{(}\PYG{o}{\PYGZhy{}}\PYG{n}{f\PYGZus{}left}\PYG{p}{)}
+    \PYG{n}{S\PYGZus{}term} \PYG{o}{=} \PYG{n}{S\PYGZus{}term}\PYG{o}{.}\PYG{n}{at}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{]}\PYG{o}{.}\PYG{n}{set}\PYG{p}{(} \PYG{n}{f\PYGZus{}right}\PYG{p}{)}
+    \PYG{k}{return} \PYG{n}{S\PYGZus{}term}
+\end{Verbatim}

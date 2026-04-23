@@ -1,0 +1,103 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+
+\PYG{n+nd}{@jax}\PYG{o}{.}\PYG{n}{jit}\PYG{p}{(}\PYG{n}{static\PYGZus{}argnames}\PYG{o}{=}\PYG{p}{(}\PYG{l+s+s2}{\PYGZdq{}bc\PYGZdq{}}\PYG{p}{,))}
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{rk2\PYGZus{}step\PYGZus{}system}\PYG{p}{(}
+    \PYG{n}{u\PYGZus{}cells}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{dt}\PYG{p}{,}
+    \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{,} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{,} \PYG{n}{bc}\PYG{p}{,}
+    \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+    \PYG{n}{y}\PYG{p}{,} \PYG{n}{z}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,} \PYG{n}{Q\PYGZus{}r}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{zeta}\PYG{p}{,} \PYG{n}{opening}\PYG{p}{,}
+    \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}
+\PYG{p}{):}
+    \PYG{n}{S\PYGZus{}L} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{pL}  \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}L}\PYG{p}{)}  \PYG{o}{*} \PYG{n}{u\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{S\PYGZus{}R} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{pR}  \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}R}\PYG{p}{)}  \PYG{o}{*} \PYG{n}{u\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}
+
+
+    \PYG{c+c1}{\PYGZsh{} stage 1 tout au temps n}
+
+    \PYG{n}{k1\PYGZus{}phi} \PYG{o}{=} \PYG{n}{phi\PYGZus{}rhs}\PYG{p}{(}\PYG{n}{pR}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{)}
+    \PYG{n}{v\PYGZus{}bc\PYGZus{}1} \PYG{o}{=} \PYG{n}{compute\PYGZus{}v\PYGZus{}bc\PYGZus{}left}\PYG{p}{(}\PYG{n}{y}\PYG{p}{,} \PYG{n}{z}\PYG{p}{,} \PYG{n}{pL}\PYG{p}{,} \PYG{n}{zeta}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{opening}\PYG{p}{)}
+
+    \PYG{n}{k1\PYGZus{}u} \PYG{o}{=} \PYG{n}{dg\PYGZus{}rhs\PYGZus{}system}\PYG{p}{(}
+        \PYG{n}{u\PYGZus{}cells}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,}
+        \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{,} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{,} \PYG{n}{bc}\PYG{p}{,}
+        \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+        \PYG{n}{v\PYGZus{}bc\PYGZus{}1}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}
+    \PYG{p}{)}
+
+
+    \PYG{c+c1}{\PYGZsh{} midpoint temps n + dt/2}
+
+    \PYG{n}{u\PYGZus{}mid}   \PYG{o}{=} \PYG{n}{u\PYGZus{}cells} \PYG{o}{+} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{n}{dt} \PYG{o}{*} \PYG{n}{k1\PYGZus{}u}
+    \PYG{n}{phi\PYGZus{}mid} \PYG{o}{=} \PYG{n}{phi}     \PYG{o}{+} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{n}{dt} \PYG{o}{*} \PYG{n}{k1\PYGZus{}phi}
+
+    \PYG{n}{pL\PYGZus{}mid} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{])}  \PYG{o}{*} \PYG{n}{u\PYGZus{}mid}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{pR\PYGZus{}mid} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{])} \PYG{o}{*} \PYG{n}{u\PYGZus{}mid}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}
+
+
+    \PYG{c+c1}{\PYGZsh{} anche}
+
+    \PYG{n}{y\PYGZus{}new}\PYG{p}{,} \PYG{n}{z\PYGZus{}new} \PYG{o}{=} \PYG{n}{reed\PYGZus{}step\PYGZus{}crank\PYGZus{}nicolson}\PYG{p}{(}
+        \PYG{n}{y}\PYG{p}{,} \PYG{n}{z}\PYG{p}{,} \PYG{n}{pL\PYGZus{}mid}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{Q\PYGZus{}r}\PYG{p}{,} \PYG{n}{dt}
+    \PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} stage 2 avec pL\PYGZus{}mid}
+
+    \PYG{n}{k2\PYGZus{}phi} \PYG{o}{=} \PYG{n}{phi\PYGZus{}rhs}\PYG{p}{(}\PYG{n}{pR\PYGZus{}mid}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{)}
+    \PYG{n}{v\PYGZus{}bc\PYGZus{}2} \PYG{o}{=} \PYG{n}{compute\PYGZus{}v\PYGZus{}bc\PYGZus{}left}\PYG{p}{(}
+        \PYG{n}{y\PYGZus{}new}\PYG{p}{,} \PYG{n}{z\PYGZus{}new}\PYG{p}{,} \PYG{n}{pL\PYGZus{}mid}\PYG{p}{,} \PYG{n}{zeta}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{opening}
+    \PYG{p}{)}
+
+    \PYG{n}{k2\PYGZus{}u} \PYG{o}{=} \PYG{n}{dg\PYGZus{}rhs\PYGZus{}system}\PYG{p}{(}
+        \PYG{n}{u\PYGZus{}mid}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,}
+        \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{,} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{,} \PYG{n}{bc}\PYG{p}{,}
+        \PYG{n}{phi\PYGZus{}mid}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+        \PYG{n}{v\PYGZus{}bc\PYGZus{}2}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}
+    \PYG{p}{)}
+
+
+    \PYG{c+c1}{\PYGZsh{} update final}
+
+    \PYG{n}{u\PYGZus{}new}   \PYG{o}{=} \PYG{n}{u\PYGZus{}cells} \PYG{o}{+} \PYG{n}{dt} \PYG{o}{*} \PYG{n}{k2\PYGZus{}u}
+    \PYG{n}{phi\PYGZus{}new} \PYG{o}{=} \PYG{n}{phi}     \PYG{o}{+} \PYG{n}{dt} \PYG{o}{*} \PYG{n}{k2\PYGZus{}phi}
+
+    \PYG{k}{return} \PYG{n}{u\PYGZus{}new}\PYG{p}{,} \PYG{n}{phi\PYGZus{}new}\PYG{p}{,} \PYG{n}{y\PYGZus{}new}\PYG{p}{,} \PYG{n}{z\PYGZus{}new}
+
+
+\PYG{n+nd}{@jax}\PYG{o}{.}\PYG{n}{jit}\PYG{p}{(}\PYG{n}{static\PYGZus{}argnames}\PYG{o}{=}\PYG{p}{(}\PYG{l+s+s2}{\PYGZdq{}bc\PYGZdq{}}\PYG{p}{,))}
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{euler\PYGZus{}step\PYGZus{}system}\PYG{p}{(}
+    \PYG{n}{u\PYGZus{}cells}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{dt}\PYG{p}{,}
+    \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{,} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{,} \PYG{n}{bc}\PYG{p}{,}
+    \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+    \PYG{n}{y}\PYG{p}{,} \PYG{n}{z}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{zeta}\PYG{p}{,} \PYG{n}{Q\PYGZus{}r}\PYG{p}{,}\PYG{n}{opening}\PYG{p}{,}
+    \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}
+\PYG{p}{):}
+    \PYG{n}{S\PYGZus{}L} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{pL} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}L}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}   \PYG{c+c1}{\PYGZsh{} tilde\PYGZus{}p → p physique}
+
+    \PYG{n}{S\PYGZus{}R} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{pR} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}R}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}  \PYG{c+c1}{\PYGZsh{} tilde\PYGZus{}p → p physique}
+
+    \PYG{c+c1}{\PYGZsh{} update phi}
+    \PYG{n}{k\PYGZus{}phi} \PYG{o}{=} \PYG{n}{phi\PYGZus{}rhs}\PYG{p}{(}\PYG{n}{pR}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{)}
+    \PYG{n}{phi\PYGZus{}new} \PYG{o}{=} \PYG{n}{phi} \PYG{o}{+} \PYG{n}{dt} \PYG{o}{*} \PYG{n}{k\PYGZus{}phi}
+
+    \PYG{c+c1}{\PYGZsh{} update reed}
+    \PYG{n}{y\PYGZus{}new}\PYG{p}{,} \PYG{n}{z\PYGZus{}new} \PYG{o}{=} \PYG{n}{reed\PYGZus{}step\PYGZus{}implicit\PYGZus{}euler}\PYG{p}{(}\PYG{n}{y}\PYG{p}{,} \PYG{n}{z}\PYG{p}{,} \PYG{n}{pL}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{Q\PYGZus{}r}\PYG{p}{,} \PYG{n}{dt}\PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} compute boundary velocity}
+    \PYG{n}{v\PYGZus{}bc} \PYG{o}{=} \PYG{n}{compute\PYGZus{}v\PYGZus{}bc\PYGZus{}left}\PYG{p}{(}\PYG{n}{y\PYGZus{}new}\PYG{p}{,} \PYG{n}{z\PYGZus{}new}\PYG{p}{,} \PYG{n}{pL}\PYG{p}{,} \PYG{n}{zeta}\PYG{p}{,} \PYG{n}{gamma}\PYG{p}{,} \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,} \PYG{n}{omega\PYGZus{}r}\PYG{p}{,}\PYG{n}{opening}\PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} PDE RHS}
+    \PYG{n}{k\PYGZus{}u} \PYG{o}{=} \PYG{n}{dg\PYGZus{}rhs\PYGZus{}system}\PYG{p}{(}
+        \PYG{n}{u\PYGZus{}cells}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,}
+        \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{,} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{,} \PYG{n}{bc}\PYG{p}{,}
+        \PYG{n}{phi\PYGZus{}new}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+        \PYG{n}{v\PYGZus{}bc}\PYG{p}{,}
+        \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}
+    \PYG{p}{)}
+    \PYG{n}{u\PYGZus{}new} \PYG{o}{=} \PYG{n}{u\PYGZus{}cells} \PYG{o}{+} \PYG{n}{dt} \PYG{o}{*} \PYG{n}{k\PYGZus{}u}
+
+    \PYG{k}{return} \PYG{n}{u\PYGZus{}new}\PYG{p}{,} \PYG{n}{phi\PYGZus{}new}\PYG{p}{,} \PYG{n}{y\PYGZus{}new}\PYG{p}{,} \PYG{n}{z\PYGZus{}new}
+\end{Verbatim}

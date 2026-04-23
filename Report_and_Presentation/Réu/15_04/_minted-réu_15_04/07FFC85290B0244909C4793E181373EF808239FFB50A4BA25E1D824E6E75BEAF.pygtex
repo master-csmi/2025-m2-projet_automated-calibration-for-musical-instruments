@@ -1,0 +1,35 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{reconstruct\PYGZus{}system}\PYG{p}{(}\PYG{n}{u\PYGZus{}cells}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{x\PYGZus{}plot}\PYG{p}{,}
+                       \PYG{n}{type\PYGZus{}S}\PYG{p}{,}
+                       \PYG{n}{c}\PYG{o}{=}\PYG{l+m+mf}{1.0}\PYG{p}{,}
+                       \PYG{n}{S\PYGZus{}star}\PYG{o}{=}\PYG{l+m+mf}{1.0}\PYG{p}{):}
+
+    \PYG{n}{xLs}\PYG{p}{,} \PYG{n}{xRs} \PYG{o}{=} \PYG{n}{cell\PYGZus{}edges\PYGZus{}from\PYGZus{}nodes}\PYG{p}{(}\PYG{n}{x\PYGZus{}nodes}\PYG{p}{)}
+    \PYG{n}{h} \PYG{o}{=} \PYG{n}{xRs}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{\PYGZhy{}} \PYG{n}{xLs}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{Ncells} \PYG{o}{=} \PYG{n}{u\PYGZus{}cells}\PYG{o}{.}\PYG{n}{shape}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+
+    \PYG{n}{idx} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{clip}\PYG{p}{(}\PYG{n}{jnp}\PYG{o}{.}\PYG{n}{floor}\PYG{p}{((}\PYG{n}{x\PYGZus{}plot} \PYG{o}{\PYGZhy{}} \PYG{n}{xLs}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{])} \PYG{o}{/} \PYG{n}{h}\PYG{p}{)}\PYG{o}{.}\PYG{n}{astype}\PYG{p}{(}\PYG{n+nb}{int}\PYG{p}{),} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{n}{Ncells}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{)} \PYG{c+c1}{\PYGZsh{}suggestion Claude}
+
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{eval\PYGZus{}point}\PYG{p}{(}\PYG{n}{x}\PYG{p}{,} \PYG{n}{j}\PYG{p}{):}
+        \PYG{n}{xL} \PYG{o}{=} \PYG{n}{xLs}\PYG{p}{[}\PYG{n}{j}\PYG{p}{]}
+        \PYG{n}{xR} \PYG{o}{=} \PYG{n}{xRs}\PYG{p}{[}\PYG{n}{j}\PYG{p}{]}
+
+        \PYG{n}{ph} \PYG{o}{=} \PYG{n}{phi\PYGZus{}at}\PYG{p}{(}\PYG{n}{x}\PYG{p}{,} \PYG{n}{xL}\PYG{p}{,} \PYG{n}{xR}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} conservative variables}
+        \PYG{n}{pt} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{dot}\PYG{p}{(}\PYG{n}{ph}\PYG{p}{,} \PYG{n}{u\PYGZus{}cells}\PYG{p}{[}\PYG{n}{j}\PYG{p}{,}\PYG{l+m+mi}{0}\PYG{p}{])}  \PYG{c+c1}{\PYGZsh{} tilde p}
+        \PYG{n}{vt} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{dot}\PYG{p}{(}\PYG{n}{ph}\PYG{p}{,} \PYG{n}{u\PYGZus{}cells}\PYG{p}{[}\PYG{n}{j}\PYG{p}{,}\PYG{l+m+mi}{1}\PYG{p}{])}  \PYG{c+c1}{\PYGZsh{} tilde v}
+
+        \PYG{c+c1}{\PYGZsh{} section at point}
+        \PYG{n}{Sx} \PYG{o}{=} \PYG{n}{S\PYGZus{}of\PYGZus{}x}\PYG{p}{(}\PYG{n}{x}\PYG{p}{,} \PYG{n}{type\PYGZus{}S}\PYG{p}{)} \PYG{c+c1}{\PYGZsh{} peut être un probleme pour la dérivation (à checker)}
+
+        \PYG{c+c1}{\PYGZsh{} back to physical variables}
+        \PYG{n}{p} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c}\PYG{o}{*}\PYG{n}{S\PYGZus{}star}\PYG{o}{/}\PYG{n}{Sx}\PYG{p}{)} \PYG{o}{*} \PYG{n}{pt}
+        \PYG{n}{v} \PYG{o}{=} \PYG{p}{(}\PYG{n}{Sx}\PYG{o}{/}\PYG{p}{(}\PYG{n}{c}\PYG{o}{*}\PYG{n}{S\PYGZus{}star}\PYG{p}{))} \PYG{o}{*} \PYG{n}{vt}
+
+        \PYG{k}{return} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{stack}\PYG{p}{([}\PYG{n}{p}\PYG{p}{,} \PYG{n}{v}\PYG{p}{])}
+
+    \PYG{n}{UV} \PYG{o}{=} \PYG{n}{jax}\PYG{o}{.}\PYG{n}{vmap}\PYG{p}{(}\PYG{n}{eval\PYGZus{}point}\PYG{p}{)(}\PYG{n}{x\PYGZus{}plot}\PYG{p}{,} \PYG{n}{idx}\PYG{p}{)}
+
+    \PYG{k}{return} \PYG{n}{UV}\PYG{p}{[:,}\PYG{l+m+mi}{0}\PYG{p}{],} \PYG{n}{UV}\PYG{p}{[:,}\PYG{l+m+mi}{1}\PYG{p}{]}
+\end{Verbatim}

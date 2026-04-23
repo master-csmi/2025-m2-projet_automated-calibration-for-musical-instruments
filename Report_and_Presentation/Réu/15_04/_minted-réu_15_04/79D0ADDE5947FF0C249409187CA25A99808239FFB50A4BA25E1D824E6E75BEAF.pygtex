@@ -1,0 +1,63 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{dg\PYGZus{}rhs\PYGZus{}system}\PYG{p}{(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{x\PYGZus{}nodes}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{,} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{,}
+                  \PYG{n}{bc}\PYG{p}{,} \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+                  \PYG{n}{v\PYGZus{}bc}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{):}
+
+    \PYG{n}{xLs}\PYG{p}{,} \PYG{n}{xRs} \PYG{o}{=} \PYG{n}{cell\PYGZus{}edges\PYGZus{}from\PYGZus{}nodes}\PYG{p}{(}\PYG{n}{x\PYGZus{}nodes}\PYG{p}{)}
+    \PYG{n}{N} \PYG{o}{=} \PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{o}{.}\PYG{n}{shape}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+
+
+    \PYG{c+c1}{\PYGZsh{} Add ghost cells}
+    \PYG{k}{if} \PYG{n}{bc}\PYG{o}{.}\PYG{n}{type} \PYG{o}{==} \PYG{l+s+s2}{\PYGZdq{}dirichlet\PYGZdq{}}\PYG{p}{:}
+        \PYG{n}{u\PYGZus{}tilde\PYGZus{}ext} \PYG{o}{=} \PYG{n}{apply\PYGZus{}bc}\PYG{p}{(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+                         \PYG{n}{v\PYGZus{}bc}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} extend S}
+        \PYG{n}{S\PYGZus{}ext} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{concatenate}\PYG{p}{([}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{[:}\PYG{l+m+mi}{1}\PYG{p}{],}   \PYG{c+c1}{\PYGZsh{} ghost left}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{,}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{:]}   \PYG{c+c1}{\PYGZsh{} ghost right}
+        \PYG{p}{])}
+
+    \PYG{k}{elif} \PYG{n}{bc}\PYG{o}{.}\PYG{n}{type} \PYG{o}{==} \PYG{l+s+s2}{\PYGZdq{}neumann\PYGZdq{}}\PYG{p}{:}
+        \PYG{n}{u\PYGZus{}tilde\PYGZus{}ext} \PYG{o}{=} \PYG{n}{apply\PYGZus{}bc\PYGZus{}neumann}\PYG{p}{(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} Same logic for S}
+        \PYG{n}{S\PYGZus{}ext} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{concatenate}\PYG{p}{([}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{[:}\PYG{l+m+mi}{1}\PYG{p}{],}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{,}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{:]}
+        \PYG{p}{])}
+
+
+    \PYG{c+c1}{\PYGZsh{} Surface term}
+    \PYG{n}{S\PYGZus{}all} \PYG{o}{=} \PYG{n}{jax}\PYG{o}{.}\PYG{n}{vmap}\PYG{p}{(}
+        \PYG{k}{lambda} \PYG{n}{j}\PYG{p}{:} \PYG{n}{surface\PYGZus{}term\PYGZus{}system}\PYG{p}{(}
+            \PYG{n}{u\PYGZus{}tilde\PYGZus{}ext}\PYG{p}{,}
+            \PYG{n}{S\PYGZus{}ext}\PYG{p}{,}
+            \PYG{n}{j}\PYG{p}{,}
+            \PYG{n}{c}\PYG{o}{=}\PYG{n}{c}\PYG{p}{,}
+            \PYG{n}{S\PYGZus{}star}\PYG{o}{=}\PYG{n}{S\PYGZus{}star}
+        \PYG{p}{)}
+    \PYG{p}{)(}\PYG{n}{jnp}\PYG{o}{.}\PYG{n}{arange}\PYG{p}{(}\PYG{n}{N}\PYG{p}{))}
+
+
+    \PYG{c+c1}{\PYGZsh{} Volume term}
+    \PYG{n}{V\PYGZus{}all} \PYG{o}{=} \PYG{n}{jax}\PYG{o}{.}\PYG{n}{vmap}\PYG{p}{(}
+        \PYG{k}{lambda} \PYG{n}{Ue}\PYG{p}{,} \PYG{n}{xL}\PYG{p}{,} \PYG{n}{xR}\PYG{p}{:} \PYG{n}{local\PYGZus{}volume\PYGZus{}system}\PYG{p}{(}\PYG{n}{Ue}\PYG{p}{,} \PYG{n}{xL}\PYG{p}{,} \PYG{n}{xR}\PYG{p}{)}
+    \PYG{p}{)(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{xLs}\PYG{p}{,} \PYG{n}{xRs}\PYG{p}{)}
+
+
+    \PYG{c+c1}{\PYGZsh{} Assemble RHS}
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{element\PYGZus{}rhs}\PYG{p}{(}\PYG{n}{e}\PYG{p}{):}
+        \PYG{n}{Vi} \PYG{o}{=} \PYG{n}{V\PYGZus{}all}\PYG{p}{[}\PYG{n}{e}\PYG{p}{]}
+        \PYG{n}{Si} \PYG{o}{=} \PYG{n}{S\PYGZus{}all}\PYG{p}{[}\PYG{n}{e}\PYG{p}{]}
+        \PYG{n}{rhs\PYGZus{}p} \PYG{o}{=} \PYG{n}{Mp\PYGZus{}inv}\PYG{p}{[}\PYG{n}{e}\PYG{p}{]} \PYG{o}{@} \PYG{p}{(}\PYG{n}{Vi}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{\PYGZhy{}} \PYG{n}{Si}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{])}
+        \PYG{n}{rhs\PYGZus{}v} \PYG{o}{=} \PYG{n}{Mv\PYGZus{}inv}\PYG{p}{[}\PYG{n}{e}\PYG{p}{]} \PYG{o}{@} \PYG{p}{(}\PYG{n}{Vi}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{o}{\PYGZhy{}} \PYG{n}{Si}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{])}
+        \PYG{k}{return} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{stack}\PYG{p}{([}\PYG{n}{rhs\PYGZus{}p}\PYG{p}{,} \PYG{n}{rhs\PYGZus{}v}\PYG{p}{],} \PYG{n}{axis}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)}
+
+    \PYG{n}{RHS} \PYG{o}{=} \PYG{n}{jax}\PYG{o}{.}\PYG{n}{vmap}\PYG{p}{(}\PYG{n}{element\PYGZus{}rhs}\PYG{p}{)(}\PYG{n}{jnp}\PYG{o}{.}\PYG{n}{arange}\PYG{p}{(}\PYG{n}{N}\PYG{p}{))}
+
+    \PYG{k}{return} \PYG{n}{RHS}
+
+\end{Verbatim}

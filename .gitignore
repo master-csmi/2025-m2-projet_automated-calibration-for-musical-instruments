@@ -26,3 +26,6 @@ useless/
 __pycache__/
 
 prompt.md
+
+# Python package metadata
+*.egg-info/

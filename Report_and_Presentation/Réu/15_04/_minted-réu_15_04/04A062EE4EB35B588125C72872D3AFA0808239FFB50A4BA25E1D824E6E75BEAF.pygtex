@@ -1,0 +1,99 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k+kn}{import}\PYG{+w}{ }\PYG{n+nn}{jax}
+\PYG{k+kn}{import}\PYG{+w}{ }\PYG{n+nn}{jax.numpy}\PYG{+w}{ }\PYG{k}{as}\PYG{+w}{ }\PYG{n+nn}{jnp}
+\PYG{k+kn}{from}\PYG{+w}{ }\PYG{n+nn}{utils.util\PYGZus{}func}\PYG{+w}{ }\PYG{k+kn}{import} \PYG{n}{pressure\PYGZus{}func} \PYG{k}{as} \PYG{n}{F\PYGZus{}func}
+
+
+\PYG{n+nd}{@jax}\PYG{o}{.}\PYG{n}{jit}
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{compute\PYGZus{}total\PYGZus{}residual}\PYG{p}{(}
+    \PYG{n}{u\PYGZus{}snaps}\PYG{p}{,}
+    \PYG{n}{y\PYGZus{}snaps}\PYG{p}{,}
+    \PYG{n}{z\PYGZus{}snaps}\PYG{p}{,}
+    \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{,}
+    \PYG{n}{gamma\PYGZus{}snaps}\PYG{p}{,}
+    \PYG{n}{S\PYGZus{}cells}\PYG{p}{,}
+    \PYG{n}{S\PYGZus{}star}\PYG{p}{,}
+    \PYG{n}{c}\PYG{p}{,}
+    \PYG{n}{dt\PYGZus{}snap}\PYG{p}{,}
+    \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+    \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,}
+    \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{Q\PYGZus{}r}\PYG{p}{,}
+    \PYG{n}{zeta}\PYG{p}{,}
+    \PYG{n}{l}
+\PYG{p}{):}
+
+\PYG{+w}{    }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{    Compute the residuals of the PDE and BCs for all time steps.}
+\PYG{l+s+sd}{    \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+
+    \PYG{c+c1}{\PYGZsh{} extraction des variables d\PYGZsq{}état et de leurs voisins temporels}
+
+    \PYG{n}{u}     \PYG{o}{=} \PYG{n}{u\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{y}     \PYG{o}{=} \PYG{n}{y\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{z}     \PYG{o}{=} \PYG{n}{z\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{c+c1}{\PYGZsh{}dy/dt}
+    \PYG{n}{phi}   \PYG{o}{=} \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{gamma} \PYG{o}{=} \PYG{n}{gamma\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+
+    \PYG{n}{y\PYGZus{}prev}   \PYG{o}{=} \PYG{n}{y\PYGZus{}snaps}\PYG{p}{[:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{]}
+    \PYG{n}{y\PYGZus{}next}   \PYG{o}{=} \PYG{n}{y\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{2}\PYG{p}{:]}
+    \PYG{n}{phi\PYGZus{}prev} \PYG{o}{=} \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{[:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{]}
+    \PYG{n}{phi\PYGZus{}next} \PYG{o}{=} \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{2}\PYG{p}{:]}
+
+    \PYG{c+c1}{\PYGZsh{} conversions tilde vers physique}
+
+    \PYG{n}{S\PYGZus{}L} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+    \PYG{n}{S\PYGZus{}R} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+
+    \PYG{n}{pL} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}L}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}   \PYG{c+c1}{\PYGZsh{} shape (nsnaps\PYGZhy{}2,)}
+    \PYG{n}{vL} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}L}   \PYG{o}{/} \PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}
+
+    \PYG{n}{pR} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}R}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}
+    \PYG{n}{vR} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}R}   \PYG{o}{/} \PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}
+
+
+
+    \PYG{c+c1}{\PYGZsh{}\PYGZsh{}\PYGZsh{}\PYGZsh{} ODE anche \PYGZhy{} équation (1f)}
+
+    \PYG{c+c1}{\PYGZsh{} Calcul des dérivées temporelles (second ordre pour y, premier ordre pour phi)}
+    \PYG{n}{y\PYGZus{}tt}  \PYG{o}{=} \PYG{p}{(}\PYG{n}{y\PYGZus{}next} \PYG{o}{\PYGZhy{}} \PYG{l+m+mi}{2}\PYG{o}{*}\PYG{n}{y} \PYG{o}{+} \PYG{n}{y\PYGZus{}prev}\PYG{p}{)} \PYG{o}{/} \PYG{n}{dt\PYGZus{}snap}\PYG{o}{**}\PYG{l+m+mi}{2}
+    \PYG{n}{phi\PYGZus{}t} \PYG{o}{=} \PYG{p}{(}\PYG{n}{phi\PYGZus{}next} \PYG{o}{\PYGZhy{}} \PYG{n}{phi\PYGZus{}prev}\PYG{p}{)} \PYG{o}{/} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{dt\PYGZus{}snap}\PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{} Calcul du résidu de l\PYGZsq{}ODE}
+    \PYG{n}{res\PYGZus{}ode} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+        \PYG{n}{y\PYGZus{}tt} \PYG{o}{/} \PYG{n}{omega\PYGZus{}r}\PYG{o}{**}\PYG{l+m+mi}{2}
+        \PYG{o}{+} \PYG{n}{z} \PYG{o}{/} \PYG{p}{(}\PYG{n}{Q\PYGZus{}r} \PYG{o}{*} \PYG{n}{omega\PYGZus{}r}\PYG{p}{)}
+        \PYG{o}{+} \PYG{n}{y} \PYG{o}{\PYGZhy{}} \PYG{l+m+mf}{1.0}
+        \PYG{o}{\PYGZhy{}} \PYG{n}{eps} \PYG{o}{*} \PYG{p}{(}\PYG{n}{gamma} \PYG{o}{\PYGZhy{}} \PYG{n}{pL}\PYG{p}{)}
+    \PYG{p}{)}
+
+
+    \PYG{c+c1}{\PYGZsh{}\PYGZsh{}\PYGZsh{}\PYGZsh{} BC gauche \PYGZhy{} équation (1e)}
+
+
+    \PYG{n}{res\PYGZus{}bcL} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+        \PYG{o}{\PYGZhy{}} \PYG{n}{vL}
+        \PYG{o}{+} \PYG{n}{zeta} \PYG{o}{*} \PYG{n}{l}\PYG{p}{(}\PYG{n}{y}\PYG{p}{)} \PYG{o}{*} \PYG{n}{F\PYGZus{}func}\PYG{p}{(}\PYG{n}{gamma} \PYG{o}{\PYGZhy{}} \PYG{n}{pL}\PYG{p}{)}
+        \PYG{o}{+} \PYG{n}{eps} \PYG{o}{*} \PYG{p}{(}\PYG{n}{kappa} \PYG{o}{/} \PYG{n}{omega\PYGZus{}r}\PYG{p}{)} \PYG{o}{*} \PYG{n}{z}
+    \PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{}\PYGZsh{}\PYGZsh{}\PYGZsh{} BC droite \PYGZhy{} équation (1d)}
+
+    \PYG{n}{res\PYGZus{}bcR} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+        \PYG{o}{\PYGZhy{}} \PYG{p}{(}\PYG{n}{beta} \PYG{o}{/} \PYG{n}{Z}\PYG{p}{)} \PYG{o}{*} \PYG{n}{pR}
+        \PYG{o}{+} \PYG{n}{vR}
+        \PYG{o}{+} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{sqrt}\PYG{p}{(}\PYG{n}{alpha}\PYG{p}{)} \PYG{o}{*} \PYG{n}{phi}
+    \PYG{p}{)}
+
+    \PYG{c+c1}{\PYGZsh{}\PYGZsh{}\PYGZsh{}\PYGZsh{} ODE phi \PYGZhy{} équation (1c)}
+
+    \PYG{n}{res\PYGZus{}phi} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+        \PYG{n}{Z} \PYG{o}{*} \PYG{n}{phi\PYGZus{}t} \PYG{o}{+} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{sqrt}\PYG{p}{(}\PYG{n}{alpha}\PYG{p}{)} \PYG{o}{*} \PYG{n}{pR}
+    \PYG{p}{)}
+
+    \PYG{k}{return} \PYG{p}{\PYGZob{}}
+        \PYG{l+s+s2}{\PYGZdq{}ode\PYGZdq{}}     \PYG{p}{:} \PYG{n}{res\PYGZus{}ode}\PYG{p}{,}
+        \PYG{l+s+s2}{\PYGZdq{}bc\PYGZus{}left\PYGZdq{}} \PYG{p}{:} \PYG{n}{res\PYGZus{}bcL}\PYG{p}{,}
+        \PYG{l+s+s2}{\PYGZdq{}bc\PYGZus{}right\PYGZdq{}}\PYG{p}{:} \PYG{n}{res\PYGZus{}bcR}\PYG{p}{,}
+        \PYG{l+s+s2}{\PYGZdq{}phi\PYGZdq{}}     \PYG{p}{:} \PYG{n}{res\PYGZus{}phi}\PYG{p}{,}
+    \PYG{p}{\PYGZcb{}}
+\end{Verbatim}

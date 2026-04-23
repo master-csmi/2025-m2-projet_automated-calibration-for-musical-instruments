@@ -1,0 +1,9 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{apply\PYGZus{}bc}\PYG{p}{(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,} \PYG{n}{v\PYGZus{}bc}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{):}
+    \PYG{c+c1}{\PYGZsh{} u\PYGZus{}tilde\PYGZus{}cells: (N, 2, 2)}
+    \PYG{n}{ghost\PYGZus{}L} \PYG{o}{=} \PYG{n}{apply\PYGZus{}bc\PYGZus{}left\PYGZus{}dynamic}\PYG{p}{(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{v\PYGZus{}bc}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{c}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{)}
+
+    \PYG{n}{ghost\PYGZus{}R} \PYG{o}{=} \PYG{n}{apply\PYGZus{}bc\PYGZus{}right\PYGZus{}impedance}\PYG{p}{(}\PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{phi}\PYG{p}{,} \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,} \PYG{n}{S\PYGZus{}cells}\PYG{p}{,} \PYG{n}{S\PYGZus{}star}\PYG{p}{,} \PYG{n}{c}\PYG{p}{)}
+
+    \PYG{k}{return} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{concatenate}\PYG{p}{([}\PYG{n}{ghost\PYGZus{}L}\PYG{p}{[}\PYG{k+kc}{None}\PYG{p}{,} \PYG{o}{...}\PYG{p}{],} \PYG{n}{u\PYGZus{}tilde\PYGZus{}cells}\PYG{p}{,} \PYG{n}{ghost\PYGZus{}R}\PYG{p}{[}\PYG{k+kc}{None}\PYG{p}{,} \PYG{o}{...}\PYG{p}{]],}\PYG{n}{axis}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)} \PYG{c+c1}{\PYGZsh{}shape (N+2, 2, 2)}
+\end{Verbatim}

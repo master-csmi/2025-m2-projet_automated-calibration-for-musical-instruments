@@ -270,30 +270,60 @@ p \\
 v
 \end{pmatrix},
 \end{equation}
+By introducing the transform variables : 
+\begin{equation}
+\mathbf{\tilde{u}} =
+\begin{pmatrix}
+\tilde{p}  \\
+\tilde{v}
+\end{pmatrix}=
+\begin{pmatrix}
+\frac{S(x)}{c S^\ast} p \\
+\frac{c S^\ast}{S(x)} v
+\end{pmatrix},
+\end{equation}
+
 the system can be written in conservative form as
 \begin{equation}
-C(x)\, \partial_t \mathbf{u} + \partial_x \big( A \mathbf{u} \big) = 0,
+\partial_t \mathbf{\tilde{u}} + \partial_x \big( A(x) \mathbf{\tilde{u}} \big) = 0,
 \label{eq:conservative_form}
 \end{equation}
 with
 \begin{equation}
-C(x) =
+A(x) =
 \begin{pmatrix}
-\dfrac{S(x)}{c S^*} & 0 \\
-0 & \dfrac{S^*}{c S(x)}
+0 & \dfrac{S(x)}{c S^*} \\
+\dfrac{S^*}{c S(x)} & 0
 \end{pmatrix},
-\qquad
-A =
-\begin{pmatrix}
-0 & 1 \\
-1 & 0
-\end{pmatrix}.
 \end{equation}
 
 The initial conditions are given by
 \begin{equation}
-p(x,0) = p_0(x), \qquad v(x,0) = v_0(x).
+\tilde{p}(x,0) = \tilde{p_0}(x) = \frac{S(x)}{c S^\ast} p_0(x), \qquad \tilde{v}(x,0) = \tilde{v_0}(x) = \frac{c S^\ast}{S(x)} v_0(x).
 \end{equation}
+
+\subsection{Change of Variables for Uniform Mass Matrices}
+
+To avoid variable mass matrices while preserving the conservative structure,
+we introduce the following change of variables:
+\begin{equation}
+    \tilde{p} = \frac{S(x)}{cS^\ast}\, p, \qquad
+    \tilde{v} = \frac{cS^\ast}{S(x)}\, v.
+\end{equation}
+Under this transformation, the system~\eqref{eq:conservative_form} becomes
+\begin{equation}
+    \partial_t \tilde{p} + \partial_x\!\left(\frac{S(x)}{cS^\ast}\tilde{v}\right) = 0,
+    \qquad
+    \partial_t \tilde{v} + \partial_x\!\left(\frac{cS^\ast}{S(x)}\tilde{p}\right) = 0.
+\end{equation}
+The time-derivative coefficients are now unity, so the local mass matrices reduce to
+the standard P1 mass matrix
+\begin{equation}
+    M = \frac{h}{6}\begin{pmatrix}2&1\\1&2\end{pmatrix},
+\end{equation}
+independent of $S(x)$. This ensures a uniform CFL condition and simplifies the
+inversion of the mass matrix. The wave speed $c$ remains the unique characteristic
+speed, independently of the cross-section profile.
 
 \subsection{Mesh and DG space}
 
@@ -325,9 +355,9 @@ For each element $K_j$ and for each test function vector
 \end{equation}
 the local weak formulation reads
 \begin{equation}
-\int_{K_j} C(x)\, \partial_t \mathbf{u}_h \cdot \boldsymbol{\Phi}\, dx
+\int_{K_j} C(x)\, \partial_t \mathbf{\tilde{u}}_h \cdot \boldsymbol{\Phi}\, dx
 -
-\int_{K_j} A \mathbf{u}_h \cdot \partial_x \boldsymbol{\Phi}\, dx
+\int_{K_j} A(x) \mathbf{\tilde{u}}_h \cdot \partial_x \boldsymbol{\Phi}\, dx
 +
 \widehat{\mathbf{F}}_{j+\frac12} \cdot \boldsymbol{\Phi}(x_j^-)
 -
@@ -338,32 +368,41 @@ the local weak formulation reads
 
 The physical flux is defined as
 \begin{equation}
-\mathbf{F}(\mathbf{u}) = A \mathbf{u}
+\mathbf{F}(\mathbf{\tilde{u}}) = A(x) \mathbf{\tilde{u}}
+=
+\begin{pmatrix}
+\dfrac{S(x)}{c S^*} \tilde{v} \\
+\dfrac{S^*}{c S(x)} \tilde{p}
+\end{pmatrix}
 =
 \begin{pmatrix}
 v \\
 p
-\end{pmatrix}.
+\end{pmatrix},
 \end{equation}
 
-\subsection{Rusanov flux}
+\subsection{Rusanov Flux for Variable Cross-Section}
 
-At each interface $x_{j+\frac12}$, the Rusanov (local Lax--Friedrichs) flux is defined by
+In the $(\tilde p, \tilde v)$ variables, the numerical flux at interface
+$x_{j+\frac12}$ with local section $S_{j+\frac12}=\frac12(S_j+S_{j+1})$ reads
 \begin{equation}
-\widehat{\mathbf{F}} =
-\frac{1}{2}
-\left(
-\mathbf{F}(\mathbf{u}^-) + \mathbf{F}(\mathbf{u}^+)
-\right)
--
-\frac{\lambda_{j+\frac12}}{2}
-\left(
-\mathbf{u}^+ - \mathbf{u}^-
-\right),
-\label{eq:rusanov}
+    \widehat{\mathbf{F}} =
+    \frac{1}{2}\bigl(\mathbf{F}^- + \mathbf{F}^+\bigr)
+    - \frac{1}{2}\bigl(\mathbf{U}^+ - \mathbf{U}^-\bigr),
+    \label{eq:rusanov_tilde}
 \end{equation}
-where $\lambda_{j+\frac12}$ denotes the maximum characteristic speed at the interface.
-At that state of development, the 
+with
+\begin{equation}
+    \mathbf{F}(\mathbf{U}) =
+    \begin{pmatrix}
+        \alpha_{j+\frac12}\,\tilde{v}\\[4pt]
+        \tilde{p}/\alpha_{j+\frac12}
+    \end{pmatrix},
+    \qquad
+    \alpha_{j+\frac12} = \frac{S_{j+\frac12}}{cS^\ast}.
+\end{equation}
+The maximum characteristic speed is $\lambda = 1$ in these scaled variables,
+independently of $S(x)$.
 
 
 \subsection{Explicit flux}
@@ -447,13 +486,14 @@ This property ensures a uniform wave speed c and a CFL condition independent of 
 
 \subsection{Boundary conditions}
 
+\subsubsection{Right Boundary Condition — Radiation Impedance}
 One of the difficulties when simulating wave propagation in a wind instrument is to correctly
 compute the influence of the exterior environment at the open end of the instrument. \cite{thibault}
 To do so, we use a condition of radiation impedance. 
 On the right-hand boundary ($x = L$), the acoustic field is coupled to a boundary dynamical system.
 The boundary conditions are derived from equations~(1c)--(1d).
 
-The boundary model reads:
+The Right boundary model reads:
 \begin{equation}
 \begin{cases}
 Z^\ast_T\,\partial_t \phi(t)
@@ -526,6 +566,39 @@ the boundary state is reconstructed and used as the exterior state in the numeri
 \\
 Note : In practice, the boundary ODE~\eqref{eq:bc_ode_pde} is discretized in time using the same time
 integration scheme as the DG solver, ensuring a consistent coupling between the PDE and ODE systems. (see Algorithm~\ref{alg:dg_scheme_boundary_ode_rk2}).
+
+\subsection{Left Boundary Condition — Reed Dynamics}
+
+At the left boundary $x=0$, the acoustic field is driven by the reed. \\
+It is modeled by the nonlinear boundary condition given by the coupled equations~\eqref{eq:1e}--\eqref{eq:1f}.
+It's motion is approached as an oscillator driven by the pressure difference between the player's mouth and the interior of the instrument. ($\gamma - p(0,t)$). \\
+\begin{equation}
+    \begin{cases}
+    -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y = 0,
+    \\[0.4em]
+    \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 = \varepsilon(\gamma - p(0,t)).
+    \end{cases}
+\end{equation}
+The outgoing characteristic is
+\begin{equation}
+    w^- = p(0,t) - v(0,t),
+\end{equation}
+and the incoming characteristic is determined by imposing $v(0,t) = v_{bc}(t)$,
+where $v_{bc}$ is given by equation~\eqref{eq:1e}:
+\begin{equation}
+    v_{bc}(t) = \zeta\,\ell(y)\,F\!\bigl(\gamma - p(0,t)\bigr)
+    + \varepsilon\,\frac{\kappa}{\omega_r}\,\dot{y}(t).
+\end{equation}
+This yields
+\begin{equation}
+    w^+ = w^- + 2\,v_{bc}(t),
+\end{equation}
+from which the ghost state is reconstructed as
+\begin{equation}
+    p_{ext} = \tfrac{1}{2}(w^+ + w^-) = p(0,t) - v(0,t) + v_{bc}(t),
+    \qquad
+    v_{ext} = \tfrac{1}{2}(w^+ - w^-) = v_{bc}(t).
+\end{equation}
 
 \section{Numerical Algorithm: DG Scheme with Boundary ODE}
 

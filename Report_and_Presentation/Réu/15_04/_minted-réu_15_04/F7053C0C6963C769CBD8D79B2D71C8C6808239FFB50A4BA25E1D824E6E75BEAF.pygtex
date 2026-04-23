@@ -1,0 +1,141 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+    \PYG{n+nd}{@jax}\PYG{o}{.}\PYG{n}{jit}
+    \PYG{k}{def}\PYG{+w}{ }\PYG{n+nf}{compute\PYGZus{}total\PYGZus{}residual}\PYG{p}{(}
+        \PYG{n}{u\PYGZus{}snaps}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (nsnaps, N, 2, 2)}
+        \PYG{n}{y\PYGZus{}snaps}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (nsnaps,)}
+        \PYG{n}{z\PYGZus{}snaps}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (nsnaps,)  ∂\PYGZus{}t y stocké directement}
+        \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{,}    \PYG{c+c1}{\PYGZsh{} (nsnaps,)}
+        \PYG{n}{gamma\PYGZus{}snaps}\PYG{p}{,}  \PYG{c+c1}{\PYGZsh{} (nsnaps,)}
+        \PYG{n}{S\PYGZus{}cells}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (N,)}
+        \PYG{n}{S\PYGZus{}star}\PYG{p}{,}
+        \PYG{n}{c}\PYG{p}{,}
+        \PYG{n}{dt\PYGZus{}snap}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} pas de temps entre snapshots}
+        \PYG{n}{h}\PYG{p}{,}            \PYG{c+c1}{\PYGZsh{} taille d\PYGZsq{}une cellule}
+        \PYG{n}{beta}\PYG{p}{,} \PYG{n}{Z}\PYG{p}{,} \PYG{n}{alpha}\PYG{p}{,}
+        \PYG{n}{eps}\PYG{p}{,} \PYG{n}{kappa}\PYG{p}{,}
+        \PYG{n}{omega\PYGZus{}r}\PYG{p}{,} \PYG{n}{Q\PYGZus{}r}\PYG{p}{,}
+        \PYG{n}{zeta}\PYG{p}{,}
+        \PYG{n}{l}
+    \PYG{p}{):}
+\PYG{+w}{        }\PYG{l+s+sd}{\PYGZdq{}\PYGZdq{}\PYGZdq{}}
+\PYG{l+s+sd}{        Calcule les résidus des équations (1a)\PYGZhy{}(1f) sur tous les snapshots.}
+\PYG{l+s+sd}{        \PYGZdq{}\PYGZdq{}\PYGZdq{}}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Variables centrales (on évite les bords temporels)}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{u}     \PYG{o}{=} \PYG{n}{u\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}     \PYG{c+c1}{\PYGZsh{} (M, N, 2, 2)  M = nsnaps\PYGZhy{}2}
+        \PYG{n}{y}     \PYG{o}{=} \PYG{n}{y\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}     \PYG{c+c1}{\PYGZsh{} (M,)}
+        \PYG{n}{z}     \PYG{o}{=} \PYG{n}{z\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}     \PYG{c+c1}{\PYGZsh{} (M,)}
+        \PYG{n}{phi}   \PYG{o}{=} \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}   \PYG{c+c1}{\PYGZsh{} (M,)}
+        \PYG{n}{gamma} \PYG{o}{=} \PYG{n}{gamma\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{c+c1}{\PYGZsh{} (M,)}
+
+        \PYG{n}{y\PYGZus{}prev}   \PYG{o}{=} \PYG{n}{y\PYGZus{}snaps}\PYG{p}{[:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{]}
+        \PYG{n}{y\PYGZus{}next}   \PYG{o}{=} \PYG{n}{y\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{2}\PYG{p}{:]}
+        \PYG{n}{phi\PYGZus{}prev} \PYG{o}{=} \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{[:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{]}
+        \PYG{n}{phi\PYGZus{}next} \PYG{o}{=} \PYG{n}{phi\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{2}\PYG{p}{:]}
+        \PYG{n}{u\PYGZus{}prev}   \PYG{o}{=} \PYG{n}{u\PYGZus{}snaps}\PYG{p}{[:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{]}
+        \PYG{n}{u\PYGZus{}next}   \PYG{o}{=} \PYG{n}{u\PYGZus{}snaps}\PYG{p}{[}\PYG{l+m+mi}{2}\PYG{p}{:]}
+
+        \PYG{n}{S\PYGZus{}L} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{0}\PYG{p}{]}
+        \PYG{n}{S\PYGZus{}R} \PYG{o}{=} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Conversions tilde vers physique aux bords}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{pL} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}L}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{0}\PYG{p}{,}  \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}
+        \PYG{n}{vL} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}L}   \PYG{o}{/} \PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{0}\PYG{p}{,}  \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]}
+        \PYG{n}{pR} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}R}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}
+        \PYG{n}{vR} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}R}   \PYG{o}{/} \PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{u}\PYG{p}{[:,} \PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{]}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Dérivées temporelles}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} d\PYGZus{}tt y par différences centrées sur snapshots}
+        \PYG{n}{y\PYGZus{}tt}  \PYG{o}{=} \PYG{p}{(}\PYG{n}{y\PYGZus{}next} \PYG{o}{\PYGZhy{}} \PYG{l+m+mi}{2}\PYG{o}{*}\PYG{n}{y} \PYG{o}{+} \PYG{n}{y\PYGZus{}prev}\PYG{p}{)} \PYG{o}{/} \PYG{n}{dt\PYGZus{}snap}\PYG{o}{**}\PYG{l+m+mi}{2}
+
+        \PYG{c+c1}{\PYGZsh{} d\PYGZus{}t phi par différences centrées}
+        \PYG{n}{phi\PYGZus{}t} \PYG{o}{=} \PYG{p}{(}\PYG{n}{phi\PYGZus{}next} \PYG{o}{\PYGZhy{}} \PYG{n}{phi\PYGZus{}prev}\PYG{p}{)} \PYG{o}{/} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{dt\PYGZus{}snap}\PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} d\PYGZus{}t u par différences centrées (variables tilde)}
+        \PYG{n}{dt\PYGZus{}u} \PYG{o}{=} \PYG{p}{(}\PYG{n}{u\PYGZus{}next} \PYG{o}{\PYGZhy{}} \PYG{n}{u\PYGZus{}prev}\PYG{p}{)} \PYG{o}{/} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{dt\PYGZus{}snap}\PYG{p}{)}   \PYG{c+c1}{\PYGZsh{} (M, N, 2, 2)}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Résidu PDE \PYGZhy{} équations (1a)\PYGZhy{}(1b) en variables tilde}
+        \PYG{c+c1}{\PYGZsh{} d\PYGZus{}t p\PYGZus{}tilde + d\PYGZus{}x(cS/S* v\PYGZus{}tilde) = 0}
+        \PYG{c+c1}{\PYGZsh{} d\PYGZus{}t v\PYGZus{}tilde + d\PYGZus{}x(cS*/S p\PYGZus{}tilde) = 0}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Flux aux interfaces intérieures (différences centrées en espace)}
+        \PYG{c+c1}{\PYGZsh{} valeur droite de cellule j = u[:,j,:,1], valeur gauche de cellule j+1 = u[:,j+1,:,0]}
+        \PYG{c+c1}{\PYGZsh{} interface j+1/2 : moyenne des deux}
+
+        \PYG{c+c1}{\PYGZsh{} Valeur de p\PYGZus{}tilde et v\PYGZus{}tilde au centre de chaque cellule intérieure}
+        \PYG{n}{pt\PYGZus{}center} \PYG{o}{=} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{p}{(}\PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{+} \PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{])}  \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}2)}
+        \PYG{n}{vt\PYGZus{}center} \PYG{o}{=} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{p}{(}\PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{+} \PYG{n}{u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{])}  \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}2)}
+
+        \PYG{c+c1}{\PYGZsh{} Flux physiques : F\PYGZus{}p = cS/S* * v\PYGZus{}tilde}
+        \PYG{c+c1}{\PYGZsh{}                  F\PYGZus{}v = cS*/S * p\PYGZus{}tilde}
+        \PYG{n}{flux\PYGZus{}p} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{o}{/} \PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{vt\PYGZus{}center}    \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}2)}
+        \PYG{n}{flux\PYGZus{}v} \PYG{o}{=} \PYG{p}{(}\PYG{n}{c} \PYG{o}{*} \PYG{n}{S\PYGZus{}star} \PYG{o}{/} \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{])} \PYG{o}{*} \PYG{n}{pt\PYGZus{}center}    \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}2)}
+
+        \PYG{c+c1}{\PYGZsh{} Dérivée spatiale par différences centrées (cellule j\PYGZhy{}1 à j+1)}
+        \PYG{c+c1}{\PYGZsh{} on perd les cellules aux bords donc N\PYGZhy{}4 cellules intérieures}
+        \PYG{n}{dx\PYGZus{}flux\PYGZus{}p} \PYG{o}{=} \PYG{p}{(}\PYG{n}{flux\PYGZus{}p}\PYG{p}{[:,} \PYG{l+m+mi}{2}\PYG{p}{:]} \PYG{o}{\PYGZhy{}} \PYG{n}{flux\PYGZus{}p}\PYG{p}{[:,} \PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{])} \PYG{o}{/} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{h}\PYG{p}{)}   \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}4)}
+        \PYG{n}{dx\PYGZus{}flux\PYGZus{}v} \PYG{o}{=} \PYG{p}{(}\PYG{n}{flux\PYGZus{}v}\PYG{p}{[:,} \PYG{l+m+mi}{2}\PYG{p}{:]} \PYG{o}{\PYGZhy{}} \PYG{n}{flux\PYGZus{}v}\PYG{p}{[:,} \PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{2}\PYG{p}{])} \PYG{o}{/} \PYG{p}{(}\PYG{l+m+mi}{2} \PYG{o}{*} \PYG{n}{h}\PYG{p}{)}   \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}4)}
+
+        \PYG{c+c1}{\PYGZsh{} ∂\PYGZus{}t p\PYGZus{}tilde et ∂\PYGZus{}t v\PYGZus{}tilde au centre des cellules intérieures}
+        \PYG{n}{dt\PYGZus{}pt} \PYG{o}{=} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{p}{(}\PYG{n}{dt\PYGZus{}u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{+} \PYG{n}{dt\PYGZus{}u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{])}  \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}2)}
+        \PYG{n}{dt\PYGZus{}vt} \PYG{o}{=} \PYG{l+m+mf}{0.5} \PYG{o}{*} \PYG{p}{(}\PYG{n}{dt\PYGZus{}u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{0}\PYG{p}{]} \PYG{o}{+} \PYG{n}{dt\PYGZus{}u}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{,} \PYG{l+m+mi}{1}\PYG{p}{])}  \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}2)}
+
+        \PYG{c+c1}{\PYGZsh{} Résidus PDE sur les cellules intérieures (N\PYGZhy{}4)}
+        \PYG{n}{res\PYGZus{}pde\PYGZus{}p} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}\PYG{n}{dt\PYGZus{}pt}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{o}{+} \PYG{n}{dx\PYGZus{}flux\PYGZus{}p}\PYG{p}{)}   \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}4)}
+        \PYG{n}{res\PYGZus{}pde\PYGZus{}v} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}\PYG{n}{dt\PYGZus{}vt}\PYG{p}{[:,} \PYG{l+m+mi}{1}\PYG{p}{:}\PYG{o}{\PYGZhy{}}\PYG{l+m+mi}{1}\PYG{p}{]} \PYG{o}{+} \PYG{n}{dx\PYGZus{}flux\PYGZus{}v}\PYG{p}{)}   \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}4)}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Résidu ODE anche \PYGZhy{} équation (1f)}
+        \PYG{c+c1}{\PYGZsh{} 1/w² d\PYGZus{}tt y + 1/(Qr w) d\PYGZus{}t y + y \PYGZhy{} 1 = eps(gamma \PYGZhy{} p(0,t))}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{res\PYGZus{}ode} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+            \PYG{n}{y\PYGZus{}tt} \PYG{o}{/} \PYG{n}{omega\PYGZus{}r}\PYG{o}{**}\PYG{l+m+mi}{2}
+            \PYG{o}{+} \PYG{n}{z} \PYG{o}{/} \PYG{p}{(}\PYG{n}{Q\PYGZus{}r} \PYG{o}{*} \PYG{n}{omega\PYGZus{}r}\PYG{p}{)}    \PYG{c+c1}{\PYGZsh{} z = d\PYGZus{}t y stocké directement}
+            \PYG{o}{+} \PYG{n}{y} \PYG{o}{\PYGZhy{}} \PYG{l+m+mf}{1.0}
+            \PYG{o}{\PYGZhy{}} \PYG{n}{eps} \PYG{o}{*} \PYG{p}{(}\PYG{n}{gamma} \PYG{o}{\PYGZhy{}} \PYG{n}{pL}\PYG{p}{)}
+        \PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Résidu BC gauche \PYGZhy{} équation (1e)}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}v(0,t) + zeta l(y) F(gamma\PYGZhy{}p) + eps κ/wr d\PYGZus{}t y = 0}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{res\PYGZus{}bcL} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+            \PYG{o}{\PYGZhy{}} \PYG{n}{vL}
+            \PYG{o}{+} \PYG{n}{zeta} \PYG{o}{*} \PYG{n}{l}\PYG{p}{(}\PYG{n}{y}\PYG{p}{)} \PYG{o}{*} \PYG{n}{F\PYGZus{}func}\PYG{p}{(}\PYG{n}{gamma} \PYG{o}{\PYGZhy{}} \PYG{n}{pL}\PYG{p}{)}
+            \PYG{o}{+} \PYG{n}{eps} \PYG{o}{*} \PYG{p}{(}\PYG{n}{kappa} \PYG{o}{/} \PYG{n}{omega\PYGZus{}r}\PYG{p}{)} \PYG{o}{*} \PYG{n}{z}
+        \PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Résidu BC droite \PYGZhy{} équation (1d)}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}beta/Z* p(L) + v(L) + sqert(alpha) phi = 0}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{res\PYGZus{}bcR} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+            \PYG{o}{\PYGZhy{}} \PYG{p}{(}\PYG{n}{beta} \PYG{o}{/} \PYG{n}{Z}\PYG{p}{)} \PYG{o}{*} \PYG{n}{pR}
+            \PYG{o}{+} \PYG{n}{vR}
+            \PYG{o}{+} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{sqrt}\PYG{p}{(}\PYG{n}{alpha}\PYG{p}{)} \PYG{o}{*} \PYG{n}{phi}
+        \PYG{p}{)}
+
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{c+c1}{\PYGZsh{} Résidu ODE phi \PYGZhy{} équation (1c)}
+        \PYG{c+c1}{\PYGZsh{} Z* d\PYGZus{}t phi + sqrt(alpha) p(L) = 0}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{res\PYGZus{}phi} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{abs}\PYG{p}{(}
+            \PYG{n}{Z} \PYG{o}{*} \PYG{n}{phi\PYGZus{}t} \PYG{o}{+} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{sqrt}\PYG{p}{(}\PYG{n}{alpha}\PYG{p}{)} \PYG{o}{*} \PYG{n}{pR}
+        \PYG{p}{)}
+
+        \PYG{k}{return} \PYG{p}{\PYGZob{}}
+            \PYG{l+s+s2}{\PYGZdq{}pde\PYGZus{}p\PYGZdq{}}   \PYG{p}{:} \PYG{n}{res\PYGZus{}pde\PYGZus{}p}\PYG{p}{,}    \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}4)}
+            \PYG{l+s+s2}{\PYGZdq{}pde\PYGZus{}v\PYGZdq{}}   \PYG{p}{:} \PYG{n}{res\PYGZus{}pde\PYGZus{}v}\PYG{p}{,}    \PYG{c+c1}{\PYGZsh{} (M, N\PYGZhy{}4)}
+            \PYG{l+s+s2}{\PYGZdq{}ode\PYGZdq{}}     \PYG{p}{:} \PYG{n}{res\PYGZus{}ode}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (M,)}
+            \PYG{l+s+s2}{\PYGZdq{}bc\PYGZus{}left\PYGZdq{}} \PYG{p}{:} \PYG{n}{res\PYGZus{}bcL}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (M,)}
+            \PYG{l+s+s2}{\PYGZdq{}bc\PYGZus{}right\PYGZdq{}}\PYG{p}{:} \PYG{n}{res\PYGZus{}bcR}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (M,)}
+            \PYG{l+s+s2}{\PYGZdq{}phi\PYGZdq{}}     \PYG{p}{:} \PYG{n}{res\PYGZus{}phi}\PYG{p}{,}      \PYG{c+c1}{\PYGZsh{} (M,)}
+        \PYG{p}{\PYGZcb{}}
+\end{Verbatim}

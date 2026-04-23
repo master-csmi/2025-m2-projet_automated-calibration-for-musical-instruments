@@ -21,11 +21,12 @@ jobs:
                 python3 -m venv myenv
                 source myenv/bin/activate
                 pip install -r requirements.txt
+                pip install -e .
 
             - name: Discontinuous Galerkin tests
               run: |
                 source myenv/bin/activate
-                pytest test.py -v
+                pytest tests/test.py -v
 
             - name: Generate Report pdf
               run: |

@@ -1,0 +1,17 @@
+\begin{Verbatim}[commandchars=\\\{\}]
+\PYG{n}{u0} \PYG{o}{=} \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{stack}\PYG{p}{([}
+    \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{stack}\PYG{p}{([}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{} tilde p \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]}\PYG{o}{/}\PYG{p}{(}\PYG{n}{c}\PYG{o}{*}\PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{p0}\PYG{p}{(}\PYG{n}{xLs}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]),}
+            \PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]}\PYG{o}{/}\PYG{p}{(}\PYG{n}{c}\PYG{o}{*}\PYG{n}{S\PYGZus{}star}\PYG{p}{)} \PYG{o}{*} \PYG{n}{p0}\PYG{p}{(}\PYG{n}{xRs}\PYG{p}{[}\PYG{n}{i}\PYG{p}{])}
+        \PYG{p}{]),}
+        \PYG{c+c1}{\PYGZsh{} \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{} tilde v \PYGZhy{}\PYGZhy{}\PYGZhy{}\PYGZhy{}}
+        \PYG{n}{jnp}\PYG{o}{.}\PYG{n}{array}\PYG{p}{([}
+            \PYG{n}{S\PYGZus{}star}\PYG{o}{/}\PYG{p}{(}\PYG{n}{c}\PYG{o}{*}\PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{n}{i}\PYG{p}{])} \PYG{o}{*} \PYG{n}{v0}\PYG{p}{(}\PYG{n}{xLs}\PYG{p}{[}\PYG{n}{i}\PYG{p}{]),}
+            \PYG{n}{S\PYGZus{}star}\PYG{o}{/}\PYG{p}{(}\PYG{n}{c}\PYG{o}{*}\PYG{n}{S\PYGZus{}cells}\PYG{p}{[}\PYG{n}{i}\PYG{p}{])} \PYG{o}{*} \PYG{n}{v0}\PYG{p}{(}\PYG{n}{xRs}\PYG{p}{[}\PYG{n}{i}\PYG{p}{])}
+        \PYG{p}{])}
+    \PYG{p}{])}
+    \PYG{k}{for} \PYG{n}{i} \PYG{o+ow}{in} \PYG{n+nb}{range}\PYG{p}{(}\PYG{n}{N}\PYG{p}{)}
+\PYG{p}{],} \PYG{n}{axis}\PYG{o}{=}\PYG{l+m+mi}{0}\PYG{p}{)}
+\end{Verbatim}

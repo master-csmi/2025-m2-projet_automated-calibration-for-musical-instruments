@@ -1,0 +1,1030 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\usepackage{xcolor}
+\usepackage{minted}
+
+% --- Couleur Dracula ---
+\definecolor{bg}{HTML}{282A36}
+
+% --- Style minted ---
+\usemintedstyle{dracula} % sinon mettre monokai si problème
+
+\setminted{
+    bgcolor=bg,
+    fontsize=\small,
+    linenos,
+    breaklines,
+    frame=none, % plus propre que frame=lines
+    framesep=2mm
+}
+
+\title{Réunion du 01 avril 2026}
+\author{Rodolphe Vivant}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Sujets}
+Liste des sujets abordés lors de la réunion :
+\begin{itemize}
+    \item Sujet 1 : Schéma conservatif
+    \item Sujet 2 : Conditions aux limites
+    \item Sujet 3 : Résolution en temps
+    \item Sujet 4 : Résultats numériques
+\end{itemize}
+
+\section{Sujet 1 : Schéma conservatif}
+
+\begin{equation}
+\mathbf{u} =
+\begin{pmatrix}
+p \\
+v
+\end{pmatrix},
+\end{equation}
+
+Afin de rendre mon schéma conservatif, j'ai introduit les variables transformées suivantes selon l'idée de Laurent :
+\begin{equation}
+\mathbf{\tilde{u}} =
+\begin{pmatrix}
+\tilde{p} \\
+\tilde{v}
+\end{pmatrix}
+=
+\begin{pmatrix}
+\dfrac{S(x)}{c S^\ast} p \\
+\dfrac{S^\ast}{c S(x)} v
+\end{pmatrix},
+\end{equation}
+
+On peut écrire les invariant de riemann dans les variables transformées :
+\begin{equation}
+w^{\pm} = \tilde{v} \pm \left(\frac{S(x)}{c S^\ast}\right)^2 \tilde{p}
+\end{equation}
+
+
+On peut alors réécrire le système d'équations d'ondes dans sa forme conservative :
+\begin{equation}
+\partial_t \mathbf{\tilde{u}} + \partial_x \big( A(x)\mathbf{\tilde{u}} \big) = 0,
+\label{eq:conservative_form}
+\end{equation}
+
+avec
+\begin{equation}
+A(x) =
+\begin{pmatrix}
+0 & \dfrac{c S(x)}{ S^\ast} \\
+\dfrac{c S^\ast}{S(x)} & 0
+\end{pmatrix}.
+\end{equation}
+
+Les IC sont données par : 
+\begin{equation}
+\tilde{p}(x,0) = \frac{S(x)}{c S^\ast} p_0(x), 
+\qquad 
+\tilde{v}(x,0) = \frac{S^\ast}{c S(x)} v_0(x).
+\end{equation}
+
+\newpage
+\begin{minted}{python}
+u0 = jnp.stack([
+    jnp.stack([
+        # ---- tilde p ----
+        jnp.array([
+            S_cells[i]/(c*S_star) * p0(xLs[i]),
+            S_cells[i]/(c*S_star) * p0(xRs[i])
+        ]),
+        # ---- tilde v ----
+        jnp.array([
+            S_star/(c*S_cells[i]) * v0(xLs[i]),
+            S_star/(c*S_cells[i]) * v0(xRs[i])
+        ])
+    ])
+    for i in range(N)
+], axis=0)
+\end{minted}
+
+\subsection{Formulation locale DG}
+
+Pour chaque éléement $K_j$ et pour chaque test function $\boldsymbol{\Phi}$ de la forme
+\begin{equation}
+\boldsymbol{\Phi} = (\varphi_p, \varphi_v)^T \in (\mathbb{P}_1(K_j))^2,
+\end{equation}
+
+La formulation locale du schéma DG s'écrit :
+\begin{equation}
+\int_{K_j} C(x)\, \partial_t \mathbf{\tilde{u}}_h \cdot \boldsymbol{\Phi}\, dx
+-
+\int_{K_j} A(x)\mathbf{\tilde{u}}_h \cdot \partial_x \boldsymbol{\Phi}\, dx
++
+\widehat{\mathbf{F}}_{j+\frac12} \cdot \boldsymbol{\Phi}(x_j^-)
+-
+\widehat{\mathbf{F}}_{j-\frac12} \cdot \boldsymbol{\Phi}(x_{j-1}^+)
+= 0.
+\end{equation}
+
+Le flux physique est donné par :
+\begin{equation}
+\mathbf{F}(\mathbf{\tilde{u}}) = A(x)\mathbf{\tilde{u}} =
+\begin{pmatrix}
+\dfrac{S(x)}{c S^*} \tilde{v} \\
+\dfrac{S^*}{c S(x)} \tilde{p}
+\end{pmatrix}
+=
+\begin{pmatrix}
+v \\
+p
+\end{pmatrix}.
+\end{equation}
+
+\subsection{Flux Rusanov pour une section variable}
+
+Avec les variables $(\tilde p, \tilde v)$, le flux numérique à l'interface
+$x_{j+\frac12}$ avec la section locale $S_{j+\frac12}=\frac12(S_j+S_{j+1})$ est donné par
+\begin{equation}
+\widehat{\mathbf{F}} =
+\frac{1}{2}(A\mathbf{U}^- + A\mathbf{U}^+)
+- \frac{1}{2}(\mathbf{U}^+ - \mathbf{U}^-),
+\end{equation}
+
+
+La valeur maximale de la vitesse de propagation est donnée par $s_{\max} = 1.0$ (vitesse du son dans le milieu) :
+
+\begin{minted}{python}
+def rusanov_flux(U_L, U_R, S_interface, c, S_star):
+
+    # d_t(u_tilde)+d_x(A u_tilde) = 0
+
+    A = jnp.array([[0.0, c * S_interface / S_star],
+                   [c * S_star / S_interface, 0.0]])
+    
+    smax = c  # vitesse maximale du système
+    return 0.5 * (A @ U_L + A @ U_R) - 0.5 * smax * (U_R - U_L)
+\end{minted}
+
+\section{Sujet 2 : Conditions aux limites}
+
+\subsection{x=L}
+
+La condition limite à droite $x=L$ est modélisée comme ceci:
+\begin{equation}
+\begin{cases}
+Z^\ast_T\,\partial_t \phi(t)
++ \sqrt{\alpha}\, p(L,t) = 0,
+\\[0.4em]
+-\dfrac{\beta}{Z^\ast_T}\, p(L,t)
++ v(L,t)
++ \sqrt{\alpha}\,\phi(t) = 0.
+\end{cases}
+\label{eq:bc_ode_pde}
+\end{equation}
+
+La première équation gouverne l'évolution temporelle de la variable de bord $\phi(t)$, tandis que la deuxième
+équation fournit une relation d'impédance dynamique entre la pression et la vitesse à la frontière.
+\begin{equation}
+v(L,t) = \frac{\beta}{Z^\ast_T} p(L,t) - \sqrt{\alpha}\,\phi(t).
+\tag{BC}
+\end{equation}
+
+on réexprime avec les variables transformées :
+\begin{equation}
+    \begin{align}
+        \frac{cS(x)}{S^\ast} \tilde{v}(L,t) &= \frac{\beta}{Z^\ast_T} \frac{cS^\ast}{S(x)} \tilde{p}(L,t) - \sqrt{\alpha}\,\phi(t) \\
+        \tilde{v}(L,t) &= \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \tilde{p}(L,t) - \frac{S^\ast}{c S(x)} \sqrt{\alpha}\,\phi(t) \\
+        \frac{w^+ + w^-}{2} &= \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \frac{w^+ - w^-}{2*\left(\frac{S(x)}{cS^\ast}\right)^2} - \frac{S^\ast}{c S(x)} \sqrt{\alpha}\,\phi(t)
+    \end{align}
+\end{equation}
+
+Or $w^+=\tilde{v}+ \text{factor }\tilde{p}$ avec $\text{factor} = \left(\frac{S(x)}{c S^\ast}\right)^2$.
+Donc on impose $w^-$ (entrante) en fonction de $w^+$ (sortante) et de $\phi$ :
+\begin{equation}
+    \begin{align}
+        \frac{w^+ + w^-}{2} &= \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \frac{w^+ - w^-}{2*factor} - \frac{S^\ast}{c S(x)} \sqrt{\alpha}\,\phi(t) \\
+        w^- +  \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \frac{w^-}{factor} &= \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \frac{w^+}{factor} - w^+ - \frac{2*S^\ast}{c S(x)} \sqrt{\alpha}\,\phi(t) \\
+        w^- \left(1 + \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \frac{1}{factor}\right) &= w^+ \left(\frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2 \frac{1}{factor} - 1\right) - \frac{2*S^\ast}{c S(x)} \sqrt{\alpha}\,\phi(t) 
+    \end{align}
+\end{equation}
+
+en prenant $A = \frac{\beta}{Z^\ast_T} \left(\frac{S^\ast}{S(x)}\right)^2$ et $B = \frac{S^\ast}{c S(x)} \sqrt{\alpha}$, on trouve :
+
+\begin{equation}
+    \begin{align}
+        w^- \left(1 + \frac{A}{factor}\right) &= w^+ \left(\frac{A}{factor} - 1\right) - 2B \phi(t) \\
+        w^- &= \frac{\frac{A}{factor} - 1}{1 + \frac{A}{factor}} w^+ - \frac{2B}{1 + \frac{A}{factor}} \phi(t)
+    \end{align}
+\end{equation}
+
+\begin{minted}{python}
+def apply_bc_right_impedance(
+    u_tilde_cells, phi, beta, Z, alpha_param,
+    S_cells, S_star, c
+):
+    S_R = S_cells[-1]
+
+    # état intérieur (tilde)
+    p_tilde_R = u_tilde_cells[-1, 0, 1]
+    v_tilde_R = u_tilde_cells[-1, 1, 1]
+
+    # facteur section
+    factor = (S_R / (c * S_star))**2
+
+    # invariant sortant (→ droite)
+    w_plus = v_tilde_R + factor * p_tilde_R
+
+    # coefficients impédance
+    A = beta / Z * (S_star/(c*S_R))**2
+    B = S_star / (c * S_R) + jnp.sqrt(alpha_param)
+    
+
+    # invariant entrant
+    w_minus = (A/factor - 1) / (1 + A/factor) * w_plus - 2 * B / (1 + A/factor) * phi
+
+    # reconstruction en tilde
+    v_tilde_ext = 0.5 * (w_plus + w_minus)
+    p_tilde_ext = (w_plus - w_minus) / (2.0 * factor)
+
+    # ghost cell DG
+    ghost_R = jnp.stack([
+        jnp.array([p_tilde_ext, p_tilde_ext]),
+        jnp.array([v_tilde_ext, v_tilde_ext])
+    ])
+
+    return ghost_R
+\end{minted}
+
+\subsection{x=0}
+
+En $x=0$ :
+\begin{equation}
+    \begin{cases}
+    -v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y = 0,
+    \\[0.4em]
+    \frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 = \varepsilon(\gamma - p(0,t)).
+    \end{cases}
+\end{equation}
+
+La caractéristique sortante à $x=0$ est donnée par :
+\begin{equation}
+    w^- = p(0,t) - v(0,t),
+\end{equation}
+et la caractéristique entrante est déterminée en imposant $v(0,t) = v_{bc}(t)$,
+où $v_{bc}(t)$ est défini par la première équation de la condition de bord :
+\begin{equation}
+    v_{bc}(t) = \zeta\,\ell(y)\,F\!\bigl(\gamma - p(0,t)\bigr)
+    + \varepsilon\,\frac{\kappa}{\omega_r}\,\dot{y}(t).
+\end{equation}
+
+\begin{minted}{python}
+def compute_v_bc_left(y, y_t, p_in, zeta, gamma, eps, kappa, omega_r,l):
+    
+
+    return zeta * l(y) * pressure_func(gamma - p_in) + eps * kappa / omega_r *  y_t
+\end{minted}
+
+et la fonction $F$ est implémenté comme suit :
+\begin{minted}{python}
+def pressure_func(delta_p):
+     return jnp.sqrt(jnp.abs(delta_p))*jnp.sign(delta_p)
+\end{minted}
+
+En imposant la condition de bord, on trouve la relation suivante entre les caractéristiques à $x=0$ :
+\begin{equation}
+    w^+ = w^- + 2\,v_{bc}(t),
+\end{equation}
+ce qui permet de calculer les valeurs physiques à la frontière :
+\begin{equation}
+    p_{ext} = \tfrac{1}{2}(w^+ + w^-) = p(0,t) - v(0,t) + v_{bc}(t),
+    \qquad
+    v_{ext} = \tfrac{1}{2}(w^+ - w^-) = v_{bc}(t).
+\end{equation}
+
+\begin{equation}
+    \begin{align}
+        -v(0,t) & + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y = 0, \\
+        \frac{cS(0)}{S^\ast}\tilde{v}(0,t) &= \zeta \ell(y)\,F(\gamma - \frac{cS^\ast}{S(0)}\tilde{p}(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y, \\
+        \tilde{v}(0,t) &= \frac{S^\ast}{c S(0)} \zeta \ell(y)\,F(\gamma - \frac{cS^\ast}{S(0)}\tilde{p}(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\frac{S^\ast}{c S(0)}\partial_t y 
+    \end{align}
+\end{equation}
+
+Ici $w^-(0,t) = v(0,t) - \text{factor} \cdot p(0,t)$ (sortante) avec $ \text{factor} = \left(\frac{S(0)}{c S^\ast}\right)^2 $ 
+
+du coup :
+
+\begin{equation}
+    \begin{align}
+        \tilde{v}(0,t) &= \frac{S^\ast}{c S(0)} \zeta \ell(y)\,F\left(\gamma - \frac{cS^\ast}{S(0)}\tilde{p}(0,t)\right) + \varepsilon\frac{\kappa}{\omega_r}\,\frac{S^\ast}{c S(0)}\partial_t y \\
+        \frac{w^+ + w^-}{2} &= \frac{S^\ast}{c S(0)} \zeta \ell(y)\,F\left(\gamma - \frac{cS^\ast}{S(0)}\frac{w^+ - w^-}{2*\text{factor}}\right) + \varepsilon\frac{\kappa}{\omega_r}\,\frac{S^\ast}{c S(0)}\partial_t y\\
+        w^+ &= w^- + 2 \left( \frac{S^\ast}{c S(0)} \zeta \ell(y)\,F\left(\gamma - \frac{cS^\ast}{S(0)}\frac{w^+ - w^-}{2*\text{factor}}\right) + \varepsilon\frac{\kappa}{\omega_r}\,\frac{S^\ast}{c S(0)}\partial_t y \right)
+    \end{align}
+\end{equation}
+On résoud cette derniere équation itérativement par point fixe pour trouver $w^+$, puis on reconstruit les valeurs physiques à la frontière.
+en sachant que $v_bc = \left(\zeta \ell(y)\,F\left(\gamma - \frac{cS^\ast}{S(0)}\frac{w^+ - w^-}{2*\text{factor}}\right) + \varepsilon\frac{\kappa}{\omega_r}\partial_t y \right) $
+
+\begin{minted}{python}
+def apply_bc_left_dynamic(u_cells, v_bc, S_cells, c, S_star):
+    S_L = S_cells[0]
+
+    p_tilde_L = u_cells[0, 0, 0]
+    v_tilde_L = u_cells[0, 1, 0]
+
+    # facteur section
+    factor = (S_L / (c * S_star))**2
+
+    # invariant sortant
+    w_minus = v_tilde_L - factor * p_tilde_L
+
+    # invariant entrant imposé par v_bc
+    v_tilde_ext = (S_star / (c * S_L)) * v_bc
+
+    # invariant entrant par méthode itérative (point fixe)
+    w_plus = w_minus.copy()  # initial guess
+
+    for _ in range(3):  # 2-3 itérations suffisent pour dt petit
+        w_plus = w_minus + 2 * v_bc
+
+    # reconstruction
+    v_tilde_ext = 0.5 * (w_plus + w_minus)
+    p_tilde_ext = (w_plus - w_minus) / (2.0 * factor)
+
+    ghost_L = jnp.stack([
+        jnp.array([p_tilde_ext, p_tilde_ext]),
+        jnp.array([v_tilde_ext, v_tilde_ext])
+    ])
+    return ghost_L
+\end{minted}
+
+
+
+\begin{minted}{python}
+class ReedOpening(eqx.Module):
+    a: float
+
+    def __call__(self, y):
+        return jnp.maximum(0.0, y) * self.a
+
+# Right Hand Side of the ODE for phi at right BC
+def phi_rhs(pR, alpha, Z):
+    return -jnp.sqrt(alpha)/ (Z) * pR
+
+# Right Hand Side of the ODE for reed dynamics at left BC
+def reed_rhs(y, z, p_in, eps, gamma, omega_r, Q_r):
+    
+    dy = z
+    
+    dz = (
+        omega_r**2 * (eps * (gamma - p_in) - y + 1)
+        - (omega_r / Q_r) * z
+    )
+    
+    return dy, dz
+\end{minted}
+
+\subsection{Assemblage des conditions limites}
+Dans le schéma DG, les conditions aux limites sont appliquées en construisant des cellules fantômes à l'extérieur du domaine physique.
+
+\begin{minted}{python}
+def apply_bc(u_tilde_cells, phi, beta, Z, alpha, v_bc, S_cells, c, S_star):
+    # u_tilde_cells: (N, 2, 2)
+    ghost_L = apply_bc_left_dynamic(u_tilde_cells, v_bc, S_cells, c, S_star)
+
+    ghost_R = apply_bc_right_impedance(u_tilde_cells, phi, beta, Z, alpha, S_cells, S_star, c)
+
+    return jnp.concatenate([ghost_L[None, ...], u_tilde_cells, ghost_R[None, ...]],axis=0) #shape (N+2, 2, 2)
+\end{minted}
+
+\section{Sujet 3 : Résolution en temps }
+
+\subsection{pour x= 0}
+Afin de résoudre les équations couplées de l'anche, j'ai implémenté deux schémas numériques différents : un schéma d'Euler implicite et un schéma de Crank-Nicolson.
+Ceci me permet de conserver l'ordre de convergence en temps du schéma global, qui est de 2 grâce à l'utilisation de RK2 pour la partie PDE ou de 1 pour Euler explicite.
+L'équation à résoudre est :
+\begin{equation}
+    \ddot{y} + \frac{\omega_r}{Q_r} \dot{y} + \omega_r^2 (y-1) = \omega_r^2 \bigl( \varepsilon(\gamma - p_{in}) \bigr).
+\end{equation}
+\begin{equation}
+\begin{cases}
+\dot{y} = z,
+\\[0.4em]
+\dot{z} = \omega_r^2 \bigl( \varepsilon(\gamma - p_{in}) - y + 1 \bigr) - \frac{\omega_r}{Q_r} z.
+\end{cases}
+\end{equation}
+
+\paragraph{Discrétisation en temps par le schéma de Crank--Nicolson.}
+
+On considère le système du premier ordre
+\begin{equation}
+\begin{cases}
+\dot{y} = z, \\
+\dot{z} = \omega_r^2 \bigl( \varepsilon(\gamma - p_{in}) - y + 1 \bigr) - \dfrac{\omega_r}{Q_r} z.
+\end{cases}
+\end{equation}
+
+On introduit une discrétisation temporelle $t^n = n \Delta t$ et on note
+$$
+y^n \approx y(t^n), \qquad z^n \approx z(t^n).
+$$
+
+Le schéma de Crank--Nicolson consiste à approximer la dérivée temporelle par une moyenne entre les temps $t^n$ et $t^{n+1}$ :
+$$
+\dot{y} \approx \frac{y^{n+1} - y^n}{\Delta t}, \qquad
+\dot{z} \approx \frac{z^{n+1} - z^n}{\Delta t},
+$$
+et à évaluer le second membre au point milieu :
+$$
+f(y,z) \approx \frac{1}{2}\bigl(f(y^n,z^n) + f(y^{n+1},z^{n+1})\bigr).
+$$
+
+On obtient ainsi :
+
+\paragraph{Première équation}
+\begin{equation}
+\frac{y^{n+1} - y^n}{\Delta t}
+= \frac{1}{2}\bigl(z^n + z^{n+1}\bigr).
+\end{equation}
+
+\paragraph{Deuxième équation}
+\begin{equation}  
+\begin{aligned}
+\frac{z^{n+1} - z^n}{\Delta t}
+= \frac{1}{2} \Big[
+\omega_r^2 \bigl( \varepsilon(\gamma - p_{in}^n) - y^n + 1 \bigr)
+- \frac{\omega_r}{Q_r} z^n +\omega_r^2 \bigl( \varepsilon(\gamma - p_{in}^{n+1}) - y^{n+1} + 1 \bigr)
+- \frac{\omega_r}{Q_r} z^{n+1}
+  \Big].
+  \end{aligned}
+\end{equation}
+
+\paragraph{Système implicite}
+
+On obtient finalement un système couplé pour $(y^{n+1}, z^{n+1})$ :
+\begin{equation}
+\begin{cases}
+y^{n+1} - \dfrac{\Delta t}{2} z^{n+1}
+= y^n + \dfrac{\Delta t}{2} z^n, \\
+z^{n+1} - \dfrac{\Delta t}{2}\left(\dfrac{\omega_r}{Q_r}\right) z^{n+1}
+- \dfrac{\Delta t}{2}\omega_r^2 y^{n+1}
+=
+z^n
+- \dfrac{\Delta t}{2}\left(\dfrac{\omega_r}{Q_r}\right) z^n
+- \dfrac{\Delta t}{2}\omega_r^2 y^n \\
++ \dfrac{\Delta t}{2}\omega_r^2 \Big[
+  \varepsilon(\gamma - p_{in}^n)
++
+\varepsilon(\gamma - p_{in}^{n+1})
++ 2
+  \Big].
+  \end{cases}
+\end{equation}
+
+Ce système est linéaire en $(y^{n+1}, z^{n+1})$ et peut être résolu à chaque pas de temps en inversant une matrice $2\times2$.
+
+
+\begin{minted}{python}
+
+def reed_step_implicit_euler(y, z, pL, eps, gamma, omega_r, Q_r, dt):
+    
+    D = 1.0 + dt * omega_r / Q_r + dt**2 * omega_r**2
+    N = (y * (1.0 + dt * omega_r / Q_r)
+         + dt * z
+         + dt**2 * omega_r**2 * (eps * (gamma - pL) + 1.0))
+
+    y_new = N / D
+    z_new = (y_new - y) / dt
+
+    return y_new, z_new
+
+def reed_step_crank_nicolson(y, z, pL, eps, gamma, omega_r, Q_r, dt):
+    
+    A = 1.0 + 0.25 * dt**2 * omega_r**2 + 0.5 * dt * omega_r / Q_r
+    B = 1.0 - 0.25 * dt**2 * omega_r**2 - 0.5 * dt * omega_r / Q_r
+    R = dt * omega_r**2 * (eps * (gamma - pL) + 1.0 - (y + 0.5 * dt * z))
+
+
+    z_new = (B * z + R) / A
+    y_new = y + 0.5 * dt * (z + z_new)
+
+    return y_new, z_new
+\end{minted}
+
+\subsection{Résolution du système PDE + ODE}
+
+Le reste de la résolution temporelle du système couplé est assuré par un schéma de Runge-Kutta d'ordre 2 (RK2) pour la partie PDE, qui est compatible avec le schéma de Crank-Nicolson pour l'ODE de l'anche 
+pour un ordre de convergence en temps global de 2. J'ai également implémenté une version avec Euler explicite pour la partie PDE, qui est compatible avec le schéma d'Euler implicite pour l'ODE de l'anche, 
+donnant un ordre de convergence en temps global de 1.
+
+\begin{minted}{python}
+
+@jax.jit(static_argnames=("bc",))
+def rk2_step_system(
+    u_cells, x_nodes, c, dt,
+    Mp_inv, Mv_inv, bc,
+    phi, beta, Z, alpha,
+    y, z, gamma, eps, kappa, Q_r, omega_r, zeta, opening,
+    S_cells, S_star
+):
+    S_L = S_cells[0]
+    pL  = (c * S_star / S_L)  * u_cells[0, 0, 0]
+    S_R = S_cells[-1]
+    pR  = (c * S_star / S_R)  * u_cells[-1, 0, 1]
+
+    
+    # stage 1 tout au temps n
+    
+    k1_phi = phi_rhs(pR, alpha, Z)
+    v_bc_1 = compute_v_bc_left(y, z, pL, zeta, gamma, eps, kappa, omega_r, opening)
+
+    k1_u = dg_rhs_system(
+        u_cells, x_nodes, c,
+        Mp_inv, Mv_inv, bc,
+        phi, beta, Z, alpha,
+        v_bc_1, S_cells, S_star
+    )
+
+    
+    # midpoint temps n + dt/2
+    
+    u_mid   = u_cells + 0.5 * dt * k1_u
+    phi_mid = phi     + 0.5 * dt * k1_phi
+
+    pL_mid = (c * S_star / S_cells[0])  * u_mid[0, 0, 0]
+    pR_mid = (c * S_star / S_cells[-1]) * u_mid[-1, 0, 1]
+
+    
+    # anche 
+   
+    y_new, z_new = reed_step_crank_nicolson(
+        y, z, pL_mid, eps, gamma, omega_r, Q_r, dt
+    )
+
+    # stage 2 avec pL_mid
+    
+    k2_phi = phi_rhs(pR_mid, alpha, Z)
+    v_bc_2 = compute_v_bc_left(
+        y_new, z_new, pL_mid, zeta, gamma, eps, kappa, omega_r, opening
+    )
+
+    k2_u = dg_rhs_system(
+        u_mid, x_nodes, c,
+        Mp_inv, Mv_inv, bc,
+        phi_mid, beta, Z, alpha,
+        v_bc_2, S_cells, S_star
+    )
+
+    
+    # update final
+ 
+    u_new   = u_cells + dt * k2_u
+    phi_new = phi     + dt * k2_phi
+
+    return u_new, phi_new, y_new, z_new
+
+
+@jax.jit(static_argnames=("bc",))
+def euler_step_system(
+    u_cells, x_nodes, c, dt,
+    Mp_inv, Mv_inv, bc,
+    phi, beta, Z, alpha,
+    y, z, gamma, eps, kappa, omega_r, zeta, Q_r,opening,
+    S_cells, S_star
+):
+    S_L = S_cells[0]
+    pL = (c * S_star / S_L) * u_cells[0, 0, 0]   # tilde_p → p physique
+
+    S_R = S_cells[-1]
+    pR = (c * S_star / S_R) * u_cells[-1, 0, 1]  # tilde_p → p physique
+
+    # update phi
+    k_phi = phi_rhs(pR, alpha, Z)
+    phi_new = phi + dt * k_phi
+
+    # update reed
+    y_new, z_new = reed_step_implicit_euler(y, z, pL, eps, gamma, omega_r, Q_r, dt)
+
+    # compute boundary velocity
+    v_bc = compute_v_bc_left(y_new, z_new, pL, zeta, gamma, eps, kappa, omega_r,opening)
+
+    # PDE RHS
+    k_u = dg_rhs_system(
+        u_cells, x_nodes, c,
+        Mp_inv, Mv_inv, bc,
+        phi_new, beta, Z, alpha,
+        v_bc,
+        S_cells, S_star
+    )
+    u_new = u_cells + dt * k_u
+
+    return u_new, phi_new, y_new, z_new
+\end{minted}
+
+\subsection{boucle en temps globale}
+L'implémentation de la boucle en temps du systeme complet (utilisation de lax.scan):
+\begin{minted}{python}
+def time_integrate_rk2(
+    u0, x_nodes, c, dt, nsteps,
+    Mp_inv, Mv_inv, bc,
+    phi0, 
+    y0, z0,
+    data,
+    S_cells, S_star,
+    snapshot_steps
+):
+    beta, Z, alpha, eps, kappa, gamma, omega_r, Q_r, eta = data.beta, data.Zt, data.alpha, data.eps, data.kappa, data.gamma, data.wr, data.Qr, data.eta
+    opening = data.l
+    snapshot_steps = jnp.array(snapshot_steps)
+    nsnaps = snapshot_steps.shape[0]
+    y_snaps = jnp.zeros((nsnaps,))
+    u_snaps = jnp.zeros((nsnaps,) + u0.shape)
+
+    def step(carry, n):
+        u, phi, y, z, y_snaps, u_snaps = carry
+        u_next, phi_next, y_next, z_next = rk2_step_system(
+            u, x_nodes, c, dt,
+            Mp_inv, Mv_inv, bc,
+            phi, beta, Z, alpha,
+            y, z, gamma, eps, kappa, Q_r, omega_r, eta,opening,
+            S_cells, S_star
+        )
+        mask = snapshot_steps == n  # shape (nsnaps,)
+        y_snaps_next = y_snaps + mask* y_next  # broadcasting y_next
+        u_snaps_next = u_snaps + mask[:, None, None, None] * u_next
+        return (u_next, phi_next, y_next, z_next, y_snaps_next, u_snaps_next), None
+
+    (u_final, phi_final, y_final, z_final, y_snaps, u_snaps), _ = lax.scan(
+        step, (u0, phi0, y0, z0, y_snaps, u_snaps), jnp.arange(nsteps)
+    )
+    return u_final, phi_final, y_final, z_final, y_snaps, u_snaps
+
+def time_integrate_euler(
+    u0, x_nodes, c, dt, nsteps,
+    Mp_inv, Mv_inv, bc,
+    phi0,
+    y0, z0,
+    data,
+    S_cells, S_star,
+    snapshot_steps
+):  
+    beta, Z, alpha, eps, kappa, gamma, omega_r, Q_r, eta = data.beta, data.Zt, data.alpha, data.eps, data.kappa, data.gamma, data.wr, data.Qr, data.eta
+    opening = data.l
+    snapshot_steps = jnp.array(snapshot_steps)
+    nsnaps = snapshot_steps.shape[0]
+    y_snaps = jnp.zeros((nsnaps,))
+    u_snaps = jnp.zeros((nsnaps,) + u0.shape)
+
+    def step(carry, n):
+        u, phi, y, z, y_snaps, u_snaps = carry
+        u_next, phi_next, y_next, z_next = euler_step_system(
+            u, x_nodes, c, dt,
+            Mp_inv, Mv_inv, bc,
+            phi, beta, Z, alpha,
+            y, z, gamma, eps, kappa, omega_r, eta, Q_r,opening,
+            S_cells, S_star
+        )
+        mask = snapshot_steps == n
+        y_snaps_next = y_snaps + mask * y_next
+        u_snaps_next = u_snaps + mask[:, None, None, None] * u_next
+        return (u_next, phi_next, y_next, z_next, y_snaps_next, u_snaps_next), None
+
+    (u_final, phi_final, y_final, z_final, y_snaps, u_snaps), _ = lax.scan(
+        step, (u0, phi0, y0, z0, y_snaps, u_snaps), jnp.arange(nsteps)
+    )
+    return u_final, phi_final, y_final, z_final, y_snaps, u_snaps
+\end{minted}
+
+Pour ce faire, voici la fonction qui calcule le terme de volume local pour un élément donné, en intégrant les flux physiques pondérés par les dérivées des fonctions de base linéaires :
+\begin{minted}{python}
+    def local_volume_system(u_cell, xL, xR, nq=24):
+    h = xR - xL
+    xq = jnp.linspace(xL, xR, nq)
+    w  = jnp.ones(nq) * (h/(nq-1))
+    w  = w.at[0].set(h/(2*(nq-1)))
+    w  = w.at[-1].set(h/(2*(nq-1)))
+
+    phi_q = vphi_at(xq, xL, xR)
+    p_q = phi_q @ u_cell[0]
+    v_q = phi_q @ u_cell[1]
+
+    Fq = jnp.stack([v_q, p_q], axis=1)
+
+    # Dérivées exactes des fonctions de base
+    dphi0 = -1.0 / h
+    dphi1 =  1.0 / h
+
+    # Intégration
+    V0 = jnp.sum(w[:,None] * Fq * dphi0, axis=0)
+    V1 = jnp.sum(w[:,None] * Fq * dphi1, axis=0)
+
+    return jnp.stack([V0, V1], axis=1)  
+\end{minted}
+
+Ainsi que la fonction qui calcule le terme de surface pour un élément donné, en utilisant le flux de Rusanov pour les interfaces gauche et droite :
+\begin{minted}{python}
+def surface_term_system(u_ext, S_ext, j, c, S_star):
+    jp = j + 1
+
+    # Interface gauche : moyenne de S
+    S_left  = 0.5 * (S_ext[jp-1] + S_ext[jp])
+    S_right = 0.5 * (S_ext[jp]   + S_ext[jp+1])
+
+    UL_left  = u_ext[jp-1, :, 1]
+    UR_left  = u_ext[jp,   :, 0]
+    UL_right = u_ext[jp,   :, 1]
+    UR_right = u_ext[jp+1, :, 0]
+
+    f_left  = rusanov_flux(UL_left,  UR_left,  S_left,  c, S_star)
+    f_right = rusanov_flux(UL_right, UR_right, S_right, c, S_star)
+
+    S_term = jnp.zeros((2, 2))
+    S_term = S_term.at[:, 0].set(-f_left)
+    S_term = S_term.at[:, 1].set( f_right)
+    return S_term
+\end{minted}
+
+Et enfin, la fonction qui assemble le RHS du système pour tous les éléments, en combinant les contributions de volume et de surface, et en appliquant les conditions aux limites via les cellules fantômes :
+\begin{minted}{python}
+def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
+                  bc, phi, beta, Z, alpha,
+                  v_bc, S_cells, S_star):
+
+    xLs, xRs = cell_edges_from_nodes(x_nodes)
+    N = u_tilde_cells.shape[0]
+
+   
+    # Add ghost cells
+    if bc.type == "dirichlet":
+        u_tilde_ext = apply_bc(u_tilde_cells, phi, beta, Z, alpha,
+                         v_bc, S_cells, c, S_star)
+
+        # extend S
+        S_ext = jnp.concatenate([
+            S_cells[:1],   # ghost left
+            S_cells,
+            S_cells[-1:]   # ghost right
+        ])
+
+    elif bc.type == "neumann":
+        u_tilde_ext = apply_bc_neumann(u_tilde_cells)
+
+        # Same logic for S
+        S_ext = jnp.concatenate([
+            S_cells[:1],
+            S_cells,
+            S_cells[-1:]
+        ])
+
+    
+    # Surface term
+    S_all = jax.vmap(
+        lambda j: surface_term_system(
+            u_tilde_ext, 
+            S_ext, 
+            j,
+            c=c,
+            S_star=S_star
+        )
+    )(jnp.arange(N))
+
+   
+    # Volume term
+    V_all = jax.vmap(
+        lambda Ue, xL, xR: local_volume_system(Ue, xL, xR)
+    )(u_tilde_cells, xLs, xRs)
+
+    
+    # Assemble RHS
+    def element_rhs(e):
+        Vi = V_all[e]
+        Si = S_all[e]
+        rhs_p = Mp_inv[e] @ (Vi[0] - Si[0])
+        rhs_v = Mv_inv[e] @ (Vi[1] - Si[1])
+        return jnp.stack([rhs_p, rhs_v], axis=0)
+
+    RHS = jax.vmap(element_rhs)(jnp.arange(N))
+
+    return RHS
+
+\end{minted}
+
+\section{Reconstruction physique à partir des variables transformées}
+Ci-dessous la fonction qui permet la reconstruction de la solution suite à la résolution en temps. 
+\begin{minted}{python}
+def reconstruct_system(u_cells, x_nodes, x_plot,
+                       type_S,
+                       c=1.0,
+                       S_star=1.0):
+
+    xLs, xRs = cell_edges_from_nodes(x_nodes)
+    h = xRs[0] - xLs[0]
+    Ncells = u_cells.shape[0]
+
+    idx = jnp.clip(jnp.floor((x_plot - xLs[0]) / h).astype(int), 0, Ncells-1) #suggestion Claude
+
+    def eval_point(x, j):
+        xL = xLs[j]
+        xR = xRs[j]
+
+        ph = phi_at(x, xL, xR)
+
+        # conservative variables
+        pt = jnp.dot(ph, u_cells[j,0])  # tilde p
+        vt = jnp.dot(ph, u_cells[j,1])  # tilde v
+
+        # section at point
+        Sx = S_of_x(x, type_S) # peut être un probleme pour la dérivation (à checker)
+
+        # back to physical variables
+        p = (c*S_star/Sx) * pt
+        v = (Sx/(c*S_star)) * vt
+
+        return jnp.stack([p, v])
+
+    UV = jax.vmap(eval_point)(x_plot, idx)
+
+    return UV[:,0], UV[:,1]
+\end{minted}
+
+\section{Sujet 4 : Resultats numériques}
+
+J'ai choisi de présenter comme résultat, le cas d'une section exponentielle avec des schémàs temporels d'ordre 2. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{./Report_and_Presentation/Images/pressure_and_reed_rk2_exp.png}
+    \caption{Pression en $x=L$ et déplacement de la anche en fonction du temps.}
+\end{figure}
+
+Voici les paramètres utilisés : 
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ccccccccc}
+\hline
+$\gamma$ & $f_r$ & $Q_r$ & $\zeta$ & $\kappa$ & $\beta$ & $\alpha$ & $Z_T^\ast$ & CFL \\
+\hline
+0.025 & 0.75 & 20 & 1.0 & 0.1 & 0.1 & 0.1 & 1.5 & 0.2 \\
+\hline
+\end{tabular}
+\caption{Parameters used for the full system simulation.}
+\label{tab:reed_params}
+\end{table}
+
+Quelques quantité d'intérêts : 
+$$
+\begin{aligned}
+&f_{\mathrm{play}} = 0.896\ \mathrm{Hz}, \text{fréquence de p(L,t)} \\
+&A_{\mathrm{mean}} = 0.0044, \text{amplitude moyenne de p(L,t)} \\
+&\bar{y} = 0.829 \text{déplacement moyen de l'anche}
+\end{aligned}
+$$
+
+
+\section*{Conditions aux bords pour un système acoustique à section variable}
+
+Nous considérons un tube de section variable $S(x)$, avec les variables physiques :
+\[
+p(x,t) \text{ : pression}, \quad v(x,t) \text{ : vitesse}
+\]
+et les variables "tilde" conservées en DG :
+\[
+\tilde{p} = \frac{S}{c S^*} p, \quad \tilde{v} = \frac{c S^*}{S} v.
+\]
+
+Le système peut s'écrire de manière conservative :
+\[
+\partial_t \mathbf{u} + \partial_x (A \mathbf{u}) = 0, \quad 
+\mathbf{u} = \begin{bmatrix} \tilde{p} \\ \tilde{v} \end{bmatrix}.
+\]
+
+---
+
+\section{Bord gauche : anche dynamique}
+
+\subsection{Équations physiques}
+
+L'anche dynamique impose :
+\begin{equation}
+- v(0,t) + \zeta \, \ell(y) \, F(\gamma - p(0,t)) + \frac{\varepsilon \kappa}{\omega_r} \frac{\partial y}{\partial t} = 0,
+\end{equation}
+avec
+\[
+F(x) = \sqrt{|x|} \, \mathrm{sign}(x).
+\]
+
+Le schéma de Crank-Nicolson est utilisé pour l'évolution de l'anche :
+\begin{align}
+y^{n+1}, z^{n+1} &= \text{Crank-Nicolson}(y^n, z^n, p_L^{n+1/2}, \varepsilon, \gamma, \omega_r, Q_r, \Delta t)
+\end{align}
+
+---
+
+\subsection{Invariants en section variable}
+
+On définit :
+\[
+\text{factor} = \left(\frac{S_L}{c S^*}\right)^2.
+\]
+
+Les invariants de Riemann pour le bord gauche :
+\[
+w_- = \tilde{v}_L - \text{factor} \cdot \tilde{p}_L \quad \text{(sortant)}
+\]
+\[
+w_+ = 2 \, \tilde{v}_{\text{BC}} - w_- \quad \text{(entrant)}
+\]
+
+où
+\[
+\tilde{v}_{\text{BC}} = \frac{c S^*}{S_L} \left[ \zeta \, \ell(y) \, F(\gamma - p_L) + \frac{\varepsilon \kappa}{\omega_r} z \right].
+\]
+
+\subsection{Reconstruction du ghost cell}
+
+\[
+\tilde{v}_{\text{ext}} = \frac{w_+ + w_-}{2}, \quad
+\tilde{p}_{\text{ext}} = \frac{w_+ - w_-}{2 \, \text{factor}}
+\]
+
+\[
+\mathbf{u}_{\text{ghost,L}} =
+\begin{bmatrix}
+\tilde{p}_{\text{ext}} & \tilde{p}_{\text{ext}} \\
+\tilde{v}_{\text{ext}} & \tilde{v}_{\text{ext}}
+\end{bmatrix}.
+\]
+
+---
+
+\section{Bord droit : impédance acoustique}
+
+\subsection{Équations physiques}
+
+L'impédance impose :
+\begin{equation}
+- \frac{\beta}{Z_T} p(L,t) + v(L,t) + \sqrt{\alpha} \, \phi = 0,
+\end{equation}
+avec
+\begin{equation}
+Z_T^* \, \frac{\partial \phi}{\partial t} + \sqrt{\alpha} \, p(L,t) = 0.
+\end{equation}
+
+---
+
+\subsection{Invariants en section variable}
+
+On définit :
+\[
+\text{factor} = \left(\frac{S_R}{c S^*}\right)^2
+\]
+
+- Invariant sortant (vers l'extérieur) :
+\[
+w_+ = \tilde{v}_R + \text{factor} \cdot \tilde{p}_R
+\]
+
+- Invariant entrant imposé par l'impédance :
+\[
+A = 1 + \frac{\beta}{Z} \left(\frac{S^*}{S_R}\right)^4, \quad
+B = -1 + \frac{\beta}{Z} \left(\frac{S^*}{S_R}\right)^4
+\]
+\[
+w_- = \frac{B w_+ - \sqrt{\alpha} \, \phi}{A}.
+\]
+
+\subsection{Reconstruction du ghost cell}
+
+\[
+\tilde{v}_{\text{ext}} = \frac{w_+ + w_-}{2}, \quad
+\tilde{p}_{\text{ext}} = \frac{w_+ - w_-}{2 \, \text{factor}}
+\]
+
+\[
+\mathbf{u}_{\text{ghost,R}} =
+\begin{bmatrix}
+\tilde{p}_{\text{ext}} & \tilde{p}_{\text{ext}} \\
+\tilde{v}_{\text{ext}} & \tilde{v}_{\text{ext}}
+\end{bmatrix}.
+\]
+
+---
+
+\section{Remarques finales}
+
+\begin{itemize}
+    \item Les invariants \(w_\pm\) tiennent compte de la section variable \(S(x)\).
+    \item Les ghost cells sont calculés à partir de \(w_\pm\) pour imposer correctement les conditions aux bords dans le flux DG.
+    \item Pour l'anche, la pression est prise au midpoint pour la stabilité avec le schéma RK2.
+    \item Pour l'impédance, \(\phi\) et \(p(L,t)\) sont couplés à travers \(w_-\) afin de respecter l'équation dynamique de l'impédance.
+\end{itemize}
+
+
+\end{document}

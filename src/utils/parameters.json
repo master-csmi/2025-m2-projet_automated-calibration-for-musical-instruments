@@ -1,0 +1,61 @@
+{   
+    "solver_params": {
+        "c": 340.0,
+        "S_star": 0.035,
+        "phi0": 0.0,
+        "T_max":1.0,
+        "cfl":0.2,
+        "Nx": 200,
+        "N_snapshot": 250
+    },
+    "instrument_geometry": {
+        "tube" :{
+            "L_tube": 0.4,
+            "R_tube": 0.007
+        },
+        "bell": {
+            "L_bell": 0.1,
+            "k_bell": 20.0
+        }
+    },
+    "left_bc_params": {
+        "mouth_pressure_params": {
+        "gamma_final": 0.422,
+        "t_attack": 0.02,
+        "sharpness": 0.01,
+        "t_delay": 0.5
+        },
+        "epsilon": -1.0,
+        "kappa": 0.71,
+        "f_r": 170.0,
+        "Qr": 125.0,
+        "zeta": 0.4
+    },
+    "right_bc_params": {
+        "beta": 30.0,
+        "Zt": 1.0,
+        "alpha": 0.0333
+    },
+    "init_cond_reed": {
+        "y0": 1.0,
+        "y_dot0": 0.0
+    },
+    "trainable": {
+        "gamma_final": false,
+        "epsilon": false,
+        "kappa": false,
+        "f_r": false,
+        "Qr": false,
+        "zeta": false,
+        "beta": false,
+        "Zt": false,
+        "alpha": true,
+        "L_tube": false,
+        "R_tube": false,
+        "L_bell": false,
+        "k_bell": false,
+        "t_attack": false,
+        "t_delay": false,
+        "sharpness": false
+    }
+}

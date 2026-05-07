@@ -26,7 +26,8 @@ jobs:
             - name: Discontinuous Galerkin tests
               run: |
                 source myenv/bin/activate
-                pytest tests/test.py -v
+                cd tests/
+                pytest test.py -v
 
             - name: Generate Report pdf
               run: |

@@ -3,6 +3,8 @@
 # ======================================================================================
 
 import os
+
+os.environ["JAX_PLATFORM_NAME"] = "cpu"
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -152,12 +154,7 @@ def main():
     # Initial DG coefficients
     # ----------------------------------------------------------------------
 
-    project_L2_jit = jax.jit(
-    project_L2,
-    static_argnames=("p0", "v0", "S_fun")
-    )
-
-    u0 = project_L2_jit(
+    u0 = project_L2(
     xLs, xRs,
     p0, v0,
     data.section,
@@ -233,7 +230,7 @@ def main():
 
 
     if method == "euler":
-        u_tilde, phi, y, y_dot,snap_id, y_snaps,z_snaps, u_tilde_snaps= time_integrate_euler(
+        u_tilde, phi, y, y_dot,u_tilde_snaps,phi_snaps, y_snaps,z_snaps, = time_integrate_euler(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
             bc, phi0,
@@ -245,7 +242,7 @@ def main():
 
         )
     else:
-        u_tilde, phi, y, y_dot,snap_id, y_snaps, z_snaps, phi_snaps, u_tilde_snaps = time_integrate_rk2(
+        u_tilde, phi, y, y_dot,u_tilde_snaps,phi_snaps, y_snaps, z_snaps = time_integrate_rk2(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
             bc, phi0, 

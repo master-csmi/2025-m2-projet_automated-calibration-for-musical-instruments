@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import jax
 from dataclasses import dataclass
 from src.utils.util_func import ReedOpening 
 from src.utils.util_func import pressure_func as F_func
@@ -12,8 +13,9 @@ def apply_bc_right_impedance(
     u_tilde_cells, phi, beta, Z, alpha,
     S_cells, S_star, c
 ):
-    S_R = S_cells[-1]
+    
 
+    S_R = S_cells[-1]
     # état intérieur
     p_tilde_R = u_tilde_cells[-1, 0, 1]
     v_tilde_R = u_tilde_cells[-1, 1, 1]
@@ -41,6 +43,8 @@ def apply_bc_right_impedance(
         jnp.array([p_tilde_ext, p_tilde_ext]),
         jnp.array([v_tilde_ext, v_tilde_ext])
     ])
+
+  
 
     return ghost_R
 
@@ -124,6 +128,7 @@ def apply_bc_left_dynamic(u_cells, S_cells, c, S_star,v_bc_tilde,
         jnp.array([p_tilde_ext, p_tilde_ext]),
         jnp.array([v_tilde_ext, v_tilde_ext])
     ])
+
     return ghost_L
 
 

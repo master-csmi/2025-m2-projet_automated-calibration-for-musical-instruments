@@ -1,8 +1,17 @@
 {
-    "solver_params": {        
-        "T_max":1.0,
-        "cfl":0.2,
-        "Nx": 200,
-        "N_snapshot": 250
+    "solver_params": {
+        "train": {
+            "T_max": 0.02,
+            "cfl": 0.2,
+            "Nx": 50,
+            "N_snapshot": 80
+        },
+        "valid": {        
+            "T_max":0.2,
+            "cfl":0.2,
+            "Nx": 200,
+            "N_snapshot": 250
+        }
     }
 }
+

@@ -1,4 +1,4 @@
-venv/
+mon_env/
 
 *.aux
 *.log
@@ -29,3 +29,5 @@ prompt.md
 
 # Python package metadata
 *.egg-info/
+
+Réu/

@@ -22,3 +22,6 @@ pytest>=7.0.0
 
 #openwind
 openwind
+
+#optax
+optax>=0.1.0

@@ -40,6 +40,7 @@ def project_L2_cell(xL, xR, p0, v0, S_fun, c, S_star, Mp_inv, Mv_inv):
 
     return jnp.stack([u_p, u_v])
 
+@eqx.filter_jit
 def project_L2(
     xLs, xRs,
     p0, v0,
@@ -57,7 +58,7 @@ def project_L2(
         xLs, xRs, Mp_inv, Mv_inv
     )
 
-project_L2_jit = jax.jit(project_L2)
+
 
 # Reed opening function (trainable)
 class ReedOpening(eqx.Module):
@@ -82,8 +83,8 @@ def reed_rhs(y, z, p_in, eps, gamma, omega_r, Q_r):
     
     return dy, dz
 
-def pressure_func(delta_p):
-    return jnp.sqrt(jnp.abs(delta_p))*jnp.sign(delta_p)
+def pressure_func(delta_p, eps=1e-8):
+    return jnp.sqrt(jnp.abs(delta_p) + eps) * jnp.sign(delta_p)
 
 
 def compute_v_bc_left(y, y_t, p_in, zeta, gamma, eps, kappa, omega_r,l):

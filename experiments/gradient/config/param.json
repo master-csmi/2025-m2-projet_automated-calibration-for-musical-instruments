@@ -16,13 +16,11 @@
     "left_bc_params": {
         "mouth_pressure_params": {
         "gamma_final": 0.422,
-        "t_attack": 0.02,
-        "sharpness": 0.01,
-        "t_delay": 0.5
+        "t_attack": 0.02
         },
         "epsilon": -1.0,
         "kappa": 0.71,
-        "f_r": 170.0,
+        "fr": 170.0,
         "Qr": 125.0,
         "zeta": 0.4
     },
@@ -37,20 +35,18 @@
     },
     "trainable": {
         "gamma_final": false,
-        "epsilon": false,
-        "kappa": false,
-        "f_r": false,
-        "Qr": false,
-        "zeta": false,
-        "beta": false,
-        "Zt": false,
-        "alpha": true,
-        "L_tube": false,
-        "R_tube": false,
-        "L_bell": false,
-        "k_bell": false,
-        "t_attack": false,
-        "t_delay": false,
-        "sharpness": false
+        "epsilon":     false,
+        "kappa":       false,
+        "fr":          false,
+        "Qr":          true,
+        "zeta":        false,
+        "beta":        false,
+        "Zt":          false,
+        "alpha":       false,
+        "L_tube":      false,
+        "R_tube":      false,
+        "L_bell":      false,
+        "k_bell":      false,
+        "t_attack":    false
     }
 }

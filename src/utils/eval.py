@@ -14,8 +14,8 @@ def eval_pressure(u0, x_nodes, c,
             gamma_target,
             x_plot):
     
-    (_, _, _, _, _, _, _, _,
-         u_tilde_snaps_new) = time_integrate_rk2(
+    (_, _, _, _, u_tilde_snaps_new, _, _, _
+         ) = time_integrate_rk2(
             u0, x_nodes, c,
             dt, nsteps, Mp_inv, Mv_inv,
             bc, phi0,
@@ -34,5 +34,5 @@ def eval_pressure(u0, x_nodes, c,
     p_bell_new = p_all_new[:, -1]
 
     # Scalaire : moyenne sur le régime établi (deuxième moitié)
-    i_s = p_bell_new.shape[0] // 2
-    return jnp.mean(p_bell_new[i_s:])
+    
+    return jnp.mean(p_bell_new)

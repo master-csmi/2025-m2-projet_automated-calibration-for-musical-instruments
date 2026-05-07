@@ -34,7 +34,7 @@ def test_convergence_rate(method, slope_min, slope_max):
     #------------------------------------------------------------------------------
     # Read simulation parameters from json file
     #------------------------------------------------------------------------------
-    with open("experiments/convergence/config/simu.json", "r") as f:
+    with open("../experiments/convergence/config/simu.json", "r") as f:
         params = json.load(f)
 
         solver_params = params["solver_params"]
@@ -47,7 +47,7 @@ def test_convergence_rate(method, slope_min, slope_max):
     #------------------------------------------------------------------------------
     # Read physical parameters from json file
     #------------------------------------------------------------------------------
-    with open("experiments/convergence/config/param.json", "r") as f:
+    with open("../experiments/convergence/config/param.json", "r") as f:
         params = json.load(f)
         physical_params = params["physics"]
         initial_conditions_reed = params["init_cond_reed"]
@@ -141,7 +141,9 @@ def test_convergence_rate(method, slope_min, slope_max):
 
 
             # snapshot for plotting
-            n_snaps = [nsteps]
+            n_snaps = jnp.round(
+            jnp.linspace(0, nsteps - 1, N_snapshot_time)
+            ).astype(jnp.int32)
 
             t_solver = jnp.arange(nsteps) * dt
 
@@ -155,7 +157,7 @@ def test_convergence_rate(method, slope_min, slope_max):
             
 
             
-            u, _, _, _, _,_,_,_,_ = time_integrate_euler(
+            u, _, _, _,_,_,_,_= time_integrate_euler(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0,
@@ -177,7 +179,9 @@ def test_convergence_rate(method, slope_min, slope_max):
             n_steps = jnp.arange(0, nsteps, dtype=int)
 
             # snapshot for plotting
-            n_snaps = [nsteps - 1]
+            n_snaps = jnp.round(
+            jnp.linspace(0, nsteps - 1, N_snapshot_time)
+            ).astype(jnp.int32)
 
             t_solver = jnp.arange(nsteps) * dt
 
@@ -187,7 +191,7 @@ def test_convergence_rate(method, slope_min, slope_max):
             t    = t_solver
             )
             
-            u, _, _, _, _,_,_,_,_ = time_integrate_rk2(
+            u, _, _, _,_,_,_,_ = time_integrate_rk2(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0,

@@ -230,7 +230,7 @@ def main():
 
 
         if method == "euler":
-            u_tilde, phi, y, y_dot,snap_id, y_snaps,z_snaps, phi_snaps, u_tilde_snaps= time_integrate_euler(
+            u_tilde, phi, y, y_dot,u_tilde_snaps, phi_snaps, y_snaps,z_snaps,= time_integrate_euler(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0,
@@ -242,7 +242,7 @@ def main():
 
             )
         else:
-            u_tilde, phi, y, y_dot,snap_id, y_snaps, z_snaps, phi_snaps, u_tilde_snaps = time_integrate_rk2(
+            u_tilde, phi, y, y_dot,u_tilde_snaps, phi_snaps, y_snaps,z_snaps= time_integrate_rk2(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0, 
@@ -411,7 +411,7 @@ def main():
                 # Time integration
                 # ----------------------------------------------------------------------
                 if method == "euler":
-                    u_tilde, phi, y, y_dot,snap_id, y_snaps,z_snaps, phi_snaps, u_tilde_snaps= time_integrate_euler(
+                    u_tilde, phi, y, y_dot,u_tilde_snaps, phi_snaps, y_snaps,z_snaps= time_integrate_euler(
                         u0, x_nodes, c,
                         dt, nsteps, Mp_inv, Mv_inv,
                         bc, phi0,
@@ -423,7 +423,7 @@ def main():
 
                     )
                 else:
-                    u_tilde, phi, y, y_dot,snap_id, y_snaps, z_snaps, phi_snaps, u_tilde_snaps = time_integrate_rk2(
+                    u_tilde, phi, y, y_dot,u_tilde_snaps, phi_snaps, y_snaps,z_snaps= time_integrate_rk2(
                         u0, x_nodes, c,
                         dt, nsteps, Mp_inv, Mv_inv,
                         bc, phi0, 

@@ -54,10 +54,17 @@ def S_of_x(x, type_S="const", **kwargs):
     
 class SProfile(eqx.Module):
     type_S: str = eqx.field(static=True)
-    L_tube: float = 1.0
-    R_tube: float = 0.1
-    L_bell: float = 0.5
-    k_bell: float = 0.3
+    L_tube: float
+    R_tube: float
+    L_bell: float
+    k_bell: float
+
+    def __init__(self, type_S, L_tube, R_tube, L_bell, k_bell):
+        self.type_S = type_S
+        self.L_tube = jnp.array(L_tube, dtype=jnp.float64)
+        self.R_tube = jnp.array(R_tube, dtype=jnp.float64)
+        self.L_bell = jnp.array(L_bell, dtype=jnp.float64)
+        self.k_bell = jnp.array(k_bell, dtype=jnp.float64)
     
     
     def __call__(self, x):

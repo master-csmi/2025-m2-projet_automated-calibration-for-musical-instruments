@@ -58,12 +58,11 @@ def surface_term_system(u_ext, S_ext, j, c, S_star):
 
 def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
                   bc, phi, beta, Z, alpha, v_bc_tilde,
-                  S_cells, S_star,
+                  S_cells, S_star,S_ext,
                   zeta, gamma, eps, kappa, omega_r, y, z,
                   S_quad):          
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_tilde_cells.shape[0]
-
     # Ghost cells
     if bc.type == "full":
         u_ext = apply_bc(
@@ -76,7 +75,7 @@ def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
             S_cells, c, S_star,zeta, gamma, eps, kappa, omega_r, y, z
         )
 
-    S_ext = jnp.concatenate([S_cells[:1], S_cells, S_cells[-1:]])
+
 
     # Terme de surface
     S_all = jax.vmap(
@@ -96,3 +95,5 @@ def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
         return jnp.stack([rhs_p, rhs_v], axis=0)
 
     return jax.vmap(element_rhs)(jnp.arange(N))
+
+

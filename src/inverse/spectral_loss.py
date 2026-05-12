@@ -1,31 +1,23 @@
 import jax.numpy as jnp
+import jax
+from jax import lax
 
 
 def stft_mag(x, n_fft, hop_length):
-    """
-    x : shape (N,)
-    retourne |STFT(x)|
-    """
-    x = jnp.asarray(x)
 
-    N = x.shape[0]
-
-    # Si le signal est plus court que n_fft, on ajoute des zéros
-    if N < n_fft:
-        pad_width = n_fft - N
-        x = jnp.pad(x, (0, pad_width))
-        N = n_fft
-
+    # Hanning window 
     window = jnp.hanning(n_fft)
 
-    n_frames = 1 + (N - n_fft) // hop_length
+    n_frames = 1 + (x.shape[0] - n_fft) // hop_length
 
-    frames = jnp.stack([
-        x[i * hop_length : i * hop_length + n_fft] * window
-        for i in range(n_frames)
-    ])
+    def get_frame(i):
+        start = i * hop_length
+        frame = lax.dynamic_slice(x, (start,), (n_fft,))
+        return frame * window
 
-    return jnp.abs(jnp.fft.rfft(frames, n=n_fft))
+    frames = jax.vmap(get_frame)(jnp.arange(n_frames))
+
+    return jnp.abs(jnp.fft.rfft(frames))
 
 
 def spectral_loss_one_resolution(pred, target, n_fft, hop_length, eps=1e-7):

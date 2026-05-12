@@ -16,6 +16,7 @@
 \usepackage{placeins}
 % Graphics, tables, mathematics
 \usepackage{graphicx}
+\graphicspath{{../Images/}}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{empheq}
@@ -40,7 +41,7 @@
     sorting=none     % pour garder l'ordre d'apparition si tu veux
 ]{biblatex}
 
-\addbibresource{biblio.bib}
+\addbibresource{../biblio.bib}
 
 % Useful environments
 \theoremstyle{plain}
@@ -124,7 +125,7 @@ There are two principal categories of reed instruments:
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/reed.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
-    \includegraphics[width=0.75\textwidth]{Images/reed_column.png}
+    \includegraphics[width=0.75\textwidth]{reed_column.png}
     \caption{Reed and saxophone.}
     \label{fig:reed_schematic}
 \end{figure}
@@ -939,7 +940,7 @@ the comparaison when dealing with non-uniform cross-sections.
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/dg_solution.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
-    \includegraphics[width=0.9\textwidth]{Images/dg_solution_const_N800.png}
+    \includegraphics[width=0.9\textwidth]{dg_solution_const_N800.png}
     \caption{DG numerical solutions constant cross-section.}
     \label{fig:dg_solution_const}
 \end{figure}
@@ -963,14 +964,14 @@ This two final times are chosen to observe the solution before and after the wav
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.5_euler.png}
+        \includegraphics[width=\textwidth]{dg_convergence_T0.5_euler.png}
         \caption{Convergence of the DG method with Explicit Euler scheme.}
         \label{fig:convergence_plot_euler_t_05}
     \end{minipage}
     \hfill
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.5_rk2.png}
+        \includegraphics[width=\textwidth]{dg_convergence_T0.5_rk2.png}
         \caption{Convergence of the DG method with RK2 scheme.}
         \label{fig:convergence_plot_rk2_t_05}
     \end{minipage}
@@ -988,14 +989,14 @@ Runge–Kutta scheme.
     \centering
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.8_euler.png}
+        \includegraphics[width=\textwidth]{dg_convergence_T0.8_euler.png}
         \caption{Convergence of the DG method with Explicit Euler scheme.}
         \label{fig:convergence_plot_euler_t_08}
     \end{minipage}
     \hfill
     \begin{minipage}[t]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{Images/dg_convergence_T0.8_rk2.png}
+        \includegraphics[width=\textwidth]{dg_convergence_T0.8_rk2.png}
         \caption{Convergence of the DG method with Rk2 scheme.}
         \label{fig:convergence_plot_rk2_t_08}
     \end{minipage}
@@ -1025,7 +1026,7 @@ We consider an exponential cross-section defined as
     \hfill
     \begin{minipage}[c]{0.58\textwidth}
         \centering
-        \includegraphics[width=0.8\textwidth]{Images/exp_profile.png}
+        \includegraphics[width=0.8\textwidth]{exp_profile.png}
     \end{minipage}
     \caption{Exponential variation of the cross-sectional area $S(x)$.}
     \label{fig:exp_profile}
@@ -1036,7 +1037,7 @@ This is the shape of the clarinet bell for example.
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/dg_solution.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
-    \includegraphics[width=0.9\textwidth]{Images/dg_solution_exp_N800.png}
+    \includegraphics[width=0.9\textwidth]{dg_solution_exp_N800.png}
     \caption{DG numerical solutions exponential cross-section.}
     \label{fig:dg_solution_exp}
 \end{figure}
@@ -1058,7 +1059,7 @@ We consider a conical cross-section defined as
     \hfill
     \begin{minipage}[c]{0.58\textwidth}
         \centering
-        \includegraphics[width=0.8\textwidth]{Images/cone_profile.png}
+        \includegraphics[width=0.8\textwidth]{cone_profile.png}
     \end{minipage}
     \caption{Profile of an instrument with a conical cross-section.}
     \label{fig:cone_profile}
@@ -1069,7 +1070,7 @@ This is another shape of musical instrument.
 \begin{figure}[htbp]
     \centering
     % Remplacez 'figs/dg_solution.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
-    \includegraphics[width=0.9\textwidth]{Images/dg_solution_cone_N800.png}
+    \includegraphics[width=0.9\textwidth]{dg_solution_cone_N800.png}
     \caption{DG numerical solutions cone cross-section.}
     \label{fig:dg_solution_cone}
 \end{figure}
@@ -1091,11 +1092,11 @@ A performance analysis was carried out to assess the computational efficiency of
 The study measured the execution time for simulations with different numbers of elements ($N$), using the parameters listed in 
 Table~\ref{tab:sim_parameters}, with a final simulation time of $T = 0.5\ \mathrm{s}$.
 \subsection{Euler explicit time integration}
-\input{../Results/table_performance_euler.tex}
+\input{../../Results/table_performance_euler.tex}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.7\textwidth]{Images/performance_euler.png}
+    \includegraphics[width=0.7\textwidth]{performance_euler.png}
     \caption{Performance study with Explicit Euler time integration.}
     \label{fig:performance_euler}
 \end{figure}
@@ -1108,11 +1109,11 @@ for the constant cross-section case in Figure~\ref{fig:performance_euler}.
 \newpage
 \subsection{RK2 explicit time integration}
 
-\input{../Results/table_performance_rk2.tex}
+\input{../../Results/table_performance_rk2.tex}
 \newpage
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.7\textwidth]{Images/performance_rk2.png}
+    \includegraphics[width=0.7\textwidth]{performance_rk2.png}
     \caption{Performance study with RK2 explicit time integration.}
     \label{fig:performance_rk2}
 \end{figure}

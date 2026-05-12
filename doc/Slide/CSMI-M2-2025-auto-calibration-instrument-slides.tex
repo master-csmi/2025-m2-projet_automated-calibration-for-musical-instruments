@@ -11,6 +11,7 @@
 % Avoid requests for sans small-caps (Latin Modern Sans has no sc shape)
 \renewcommand{\scshape}{\upshape}
 \usepackage{graphicx}
+\graphicspath{{../Images/}}
 \usepackage{amsmath,empheq}
 \usepackage{hyperref}
 \usepackage{csquotes}
@@ -66,9 +67,9 @@
     % Trois logos sous la page de titre — adaptez les chemins/noms de fichiers
     \vfill
     \begin{center}
-        \includegraphics[height=2.5cm]{Images/inria_logo.png}\hspace{0.0em}%
-        \includegraphics[height=2.5cm]{Images/modartt_logo.png}\hspace{0.0em}%
-        \includegraphics[height=1.6cm]{Images/logo_irma.png}
+        \includegraphics[height=2.5cm]{inria_logo.png}\hspace{0.0em}%
+        \includegraphics[height=2.5cm]{modartt_logo.png}\hspace{0.0em}%
+        \includegraphics[height=1.6cm]{logo_irma.png}
     \end{center}
     \vspace{0.8em}
     % Si vous avez un logo : \includegraphics[height=1.5cm]{logo.png}
@@ -124,7 +125,7 @@ In JAX framework:
     \begin{column}{0.5\textwidth}
         \centering
         \vspace{-1ex}
-        \includegraphics[width=\linewidth,keepaspectratio]{Images/reed_column.png} 
+        \includegraphics[width=\linewidth,keepaspectratio]{reed_column.png} 
         \par\smallskip
         \scriptsize Example of a saxophone reed and mouthpiece.
         \label{fig:sax_reed}
@@ -547,7 +548,7 @@ Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acou
 \slideTitle{Result - Constant Cross-Section}
     \begin{figure}[htbp]
         \centering
-        \includegraphics[width=0.65\textwidth]{Images/dg_solution_const_N800.png}
+        \includegraphics[width=0.65\textwidth]{dg_solution_const_N800.png}
         \caption{DG numerical solutions constant cross-section.}
         \label{fig:dg_solution_const}
     \end{figure}
@@ -572,14 +573,14 @@ Thibault, Alexis (2023), \emph{Mod{\'e}lisation, analyse et simulation de l'acou
 \begin{columns}[T]
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.5_euler.png}
+        \includegraphics[width=0.7\linewidth]{dg_convergence_T0.5_euler.png}
         
         {\scriptsize DG convergence with Explicit Euler scheme.}
     \end{column}
 
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.5_rk2.png}
+        \includegraphics[width=0.7\linewidth]{dg_convergence_T0.5_rk2.png}
         
         {\scriptsize DG convergence with Runge--Kutta second-order scheme.}
     \end{column}
@@ -612,14 +613,14 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 \begin{columns}[T]
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.8_euler.png}
+        \includegraphics[width=0.7\linewidth]{dg_convergence_T0.8_euler.png}
         
         {\scriptsize DG convergence with Explicit Euler scheme.}
     \end{column}
 
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=0.7\linewidth]{Images/dg_convergence_T0.8_rk2.png}
+        \includegraphics[width=0.7\linewidth]{dg_convergence_T0.8_rk2.png}
         
         {\scriptsize DG convergence with Runge--Kutta second-order scheme.}
     \end{column}
@@ -655,7 +656,7 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
     \begin{column}{0.5\textwidth}
         \begin{figure}[htbp]
             \centering
-            \includegraphics[width=\linewidth]{Images/exp_profile.png}
+            \includegraphics[width=\linewidth]{exp_profile.png}
             \caption{Exponential cross-section $S(x) = S_0 e^{kx}$.}
             \label{fig:exp_profile}
         \end{figure}
@@ -663,7 +664,7 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
     \begin{column}{0.5\textwidth}
         \begin{figure}[htbp]
             \centering
-            \includegraphics[width=\linewidth]{Images/cone_profile.png}
+            \includegraphics[width=\linewidth]{cone_profile.png}
             \caption{Conical cross-section $S(x) = S_0 + kx$.}
             \label{fig:cone_profile}
         \end{figure}
@@ -676,7 +677,7 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 \slideTitle{Result - Exponential Cross-Section}
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.65\textwidth]{Images/dg_solution_exp_N800.png}
+    \includegraphics[width=0.65\textwidth]{dg_solution_exp_N800.png}
     \caption{DG numerical solutions exponential cross-section.}
     \label{fig:dg_solution_exp}
 \end{figure}
@@ -685,7 +686,7 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 \slideTitle{Result - Conical Cross-Section}
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.65\textwidth]{Images/dg_solution_cone_N800.png}
+    \includegraphics[width=0.65\textwidth]{dg_solution_cone_N800.png}
     \caption{DG numerical solutions conical cross-section.}
     \label{fig:dg_solution_cone}
 \end{figure}
@@ -701,13 +702,13 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 \begin{columns}[T]
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{Images/performance_euler.png}
+        \includegraphics[width=\linewidth]{performance_euler.png}
         \par\smallskip
         \scriptsize (a) Explicit Euler
     \end{column}
     \begin{column}{0.5\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{Images/performance_rk2.png}
+        \includegraphics[width=\linewidth]{performance_rk2.png}
         \par\smallskip
         \scriptsize (b) Runge--Kutta 2
     \end{column}
@@ -717,6 +718,7 @@ Hesthaven and Warburton (2008), \emph{Nodal Discontinuous Galerkin Methods}, Sec
 \normalsize
 For larger $N$, the execution time scales $\sim N^2$, as expected.
 \end{frame}
+
 \section{Conclusion}
 \slideTitle{Conclusion}
 
@@ -772,12 +774,12 @@ support throughout this project.
     \begin{column}{0.5\textwidth}
         \centering
         \textbf{Euler explicite}\\[0.5em]
-        \input{../Results/table_performance_euler.tex}
+        \input{../../Results/table_performance_euler.tex}
     \end{column}
     \begin{column}{0.5\textwidth}
         \centering
         \textbf{Runge--Kutta 2}\\[0.5em]
-        \input{../Results/table_performance_rk2.tex}
+        \input{../../Results/table_performance_rk2.tex}
     \end{column}
 \end{columns}
 \end{frame}

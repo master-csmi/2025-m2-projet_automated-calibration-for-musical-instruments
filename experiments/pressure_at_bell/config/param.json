@@ -1,6 +1,6 @@
 {
     "physics":{
-        "c": 343.0,
+        "c": 343.987773071615,
         "phi0": 0.0
     },
     "instrument_geometry": {
@@ -28,8 +28,8 @@
     },
     "right_bc_params": {
         "beta": 0.6646516378651401,
-        "Zt": 2650417.011489522,
-        "alpha": 79196.8507605227
+        "Zt": 1.0,
+        "alpha": 29476.61
     },
     "init_cond_reed": {
         "y0": 1.0,
@@ -42,8 +42,8 @@
         "fr": false,
         "Qr": false,
         "zeta": false,
-        "beta": false,
-        "Zt": false,
+        "beta": true,
+        "Zt": true,
         "alpha": true,
         "L_tube": false,
         "R_tube": false,

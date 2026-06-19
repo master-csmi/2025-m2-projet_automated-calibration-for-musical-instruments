@@ -174,7 +174,7 @@ Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
 where $S(x)$ is the cross-sectional area of the instrument at position $x$, $S^\ast$ is a reference area,
 $c$ is the speed of sound, $Z^\ast_T$ is a reference acoustic impedance, 
 $\alpha$ and $\beta$ are parameters related to the radiation effects, $L$ is the length of the instrument,
-$\zeta_\ell(y)$ is a function representing the lip-reed coupling, $F$ is a nonlinear function ($F(\Delta p)=\Delta p \, \text{sign} (\Delta p)$),
+$\zeta_\ell(y)$ is a function representing the lip-reed coupling, $F$ is a nonlinear function ($F(\Delta p)=\sqrt{|\Delta p|} \, \text{sign} (\Delta p)$),
 $\gamma$ is the dimensionless blowing pressure, $\varepsilon$ =-1 for a reed instrument, 
 $\kappa$ is a parameter related to the lip dynamics, $\omega_r$ is the reed's (or lips') frequency ($=2\pi f_r$), 
 $Q_r$ is the quality factor of the reed, and $y$ is the dimensionless reed opening. \newline
@@ -206,12 +206,34 @@ where $A(x) = \begin{pmatrix}
 \end{pmatrix}$ is the flux matrix. 
 \newline
 
-From this change of variables, we can also compute the Riemann invariants of the system, which are given by:
-(démo)
+From this change of variables, we can also compute the Riemann invariants of the system. \newline
+Fist, we compute the eigenvalues of the flux matrix $A(x)$:
+$$\lambda^\pm = \pm c$$
+Then, we compute the corresponding left-hand side eigenvectors $l_{\pm}$ with $l=(l_1, l_2)$:
+\begin{equation}
+    l_{\pm} A(x) = \lambda^\pm l_{\pm}
+\end{equation}
+which gives for $\lambda^+ = c$:
+\begin{equation}
+    l_2 = \frac{S^\ast}{S(x)} l_1
+\end{equation}
+and for $\lambda^- = -c$:
+\begin{equation}
+    l_2 = -\frac{S^\ast}{S(x)} l_1
+\end{equation}
+
+So, we can choose the left-hand side eigenvectors as follows:
+\begin{equation}
+    l^+ = (1, \frac{S^\ast}{S(x)}),
+    \qquad
+    l^- = (1, -\frac{S^\ast}{S(x)}).
+\end{equation}
+
+The Riemann invariants $w^\pm$ are then computed as the projection of the state vector $\tilde{u}$ onto the left-hand side eigenvectors:    
 \begin{equation}
     w^\pm = \tilde{v} \pm \kappa\tilde{p}
 \end{equation}
-where $\kappa = \left(\frac{S(x)}{cS^\ast}\right)^2$. \newline
+where $\kappa(x)=\frac{S^\ast}{S(x)}$. \newline
 These Riemann invariants represent the characteristic variables of the system 
 They appear to be very useful for understanding the wave propagation and for implementing boundary conditions.
 
@@ -277,7 +299,7 @@ Dividing by $\dfrac{cS_L}{S^\ast}$ gives
 \sqrt{\alpha}\,\phi(t).
 \end{equation}
 
-We now introduce the characteristic variables
+We now introduce the riemann invariants at the boundary $x=L$:
 \begin{equation}
 w^\pm
 =
@@ -288,10 +310,10 @@ w^\pm
 \kappa
 =
 \left(
-\frac{S_L}{cS^\ast}
-\right)^2.
+\frac{S_{\ast}}{S_R}
+\right).
 \end{equation}
-
+with $S_R = S(L)$.
 Hence,
 \begin{equation}
 \tilde v
@@ -309,77 +331,740 @@ Substituting these expressions into the boundary condition yields
 =
 \frac{\beta}{Z^\ast_T}
 \left(
-\frac{S^\ast}{S_L}
+\frac{S^\ast}{S_R}
 \right)^2
 \frac{w^+ - w^-}{2\kappa}
 -
-\frac{S^\ast}{cS_L}
+\frac{S^\ast}{cS_R}
 \sqrt{\alpha}\,\phi(t).
 \end{equation}
 
 Defining
 \[
-A
+K
 =
 \frac{\beta}{Z^\ast_T}
 \left(
-\frac{S^\ast}{S_L}
+\frac{S^\ast}{S_R}
 \right)^2,
 \qquad
-B
+r
 =
-\frac{S^\ast}{cS_L}\sqrt{\alpha},
+\frac{K}{\kappa},
+\qquad
+C
+=
+\frac{S^\ast}{cS_R}\sqrt{\alpha},
 \]
 we obtain
 \begin{equation}
 w^-
 \left(
-1+\frac{A}{\kappa}
+r+1
 \right)
 =
 w^+
-\left(
-\frac{A}{\kappa}-1
+\left(r-1
 \right)
 -
-2B\phi(t),
+2C\phi(t),
 \end{equation}
 and therefore
 \begin{equation}
 w^-
 =
-\frac{\dfrac{A}{\kappa}-1}
-     {1+\dfrac{A}{\kappa}}
+\frac{r-1}
+     {r+1}
 \, w^+
 -
-\frac{2B}
-     {1+\dfrac{A}{\kappa}}
+\frac{2C}
+     {r+1}
 \, \phi(t).
 \end{equation}
 
 This relation provides the incoming characteristic variable $w^-$
-as a function of the outgoing characteristic $w^+$ and the boundary
+as a function of the outgoing characteristic $w^+$ wich we impose 
+to be $w^+= \tilde{v}(L) + \kappa \tilde{p}(L)$ and the boundary 
 state variable $\phi(t)$.
 
 \section{Reed Model}
-The left-hand side boundary conditions \eqref{eq:1e} and \eqref{eq:1f} represent the coupling between the acoustic field inside the instrument and the dynamics of the reed.
+The left-hand side boundary conditions \eqref{eq:1e} and \eqref{eq:1f} 
+represent the coupling between the acoustic field inside the instrument and the dynamics of the reed.
+At \(x=0\), the reed boundary condition is described by the coupled system
+\begin{equation}
+\begin{cases}
+-v(0,t)
++
+\zeta \ell(y)\,F(\gamma - p(0,t))
++
+\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+= 0,
+\\[0.5em]
+\frac{1}{\omega_r^2}\,\partial_{tt} y
++
+\frac{1}{Q_r\omega_r}\,\partial_t y
++
+y - 1
+=
+\varepsilon(\gamma - p(0,t)).
+\end{cases}
+\end{equation}
+
+Using the transformed variables
+\begin{equation}
+\tilde p
+=
+\frac{S(x)}{cS^\ast}p,
+\qquad
+\tilde v
+=
+\frac{S^\ast}{cS(x)}v,
+\end{equation}
+the first boundary equation becomes
+\begin{equation}
+\frac{cS(0)}{S^\ast}\tilde v(0,t)
+=
+\zeta \ell(y)\,
+F\!\left(
+\gamma
+-
+\frac{cS^\ast}{S(0)}\tilde p(0,t)
+\right)
++
+\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y.
+\end{equation}
+
+Hence,
+\begin{equation}
+\tilde v(0,t)
+=
+\frac{S^\ast}{cS(0)}
+\left[
+\zeta \ell(y)\,
+F\!\left(
+\gamma
+-
+\frac{cS^\ast}{S(0)}\tilde p(0,t)
+\right)
++
+\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+\right].
+\end{equation}
+
+We now introduce the characteristic variables
+\begin{equation}
+w^\pm
+=
+\tilde v
+\pm
+k_c \tilde p,
+\qquad
+k_c = \frac{S^\ast}{S(0)}.
+\end{equation}
+
+The outgoing characteristic at the left boundary is therefore
+\begin{equation}
+w^-
+=
+\tilde v(0,t)
+-
+k_c \tilde p(0,t),
+\end{equation}
+while the incoming characteristic \(w^+\) is determined by the nonlinear reed condition.
+
+Using
+\begin{equation}
+\tilde v
+=
+\frac{w^+ + w^-}{2},
+\qquad
+\tilde p
+=
+\frac{w^+ - w^-}{2k_c},
+\end{equation}
+the boundary equation becomes
+\begin{equation}
+\frac{w^+ + w^-}{2}
+=
+\frac{S^\ast}{cS(0)}
+\left[
+\zeta \ell(y)\,
+F\!\left(
+\gamma
+-
+\frac{cS^\ast}{S(0)}
+\frac{w^+ - w^-}{2k_c}
+\right)
++
+\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+\right].
+\end{equation}
+
+Rearranging yields the nonlinear equation
+\begin{equation}
+w^+
+=
+-w^-
++
+2\frac{S^\ast}{cS(0)}
+\left[
+\zeta \ell(y)\,
+F\!\left(
+\gamma
+-
+\frac{cS^\ast}{S(0)}
+\frac{w^+ - w^-}{2k_c}
+\right)
++
+\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+\right].
+\end{equation}
+
+This equation is solved iteratively using a fixed-point method in order to determine the incoming characteristic \(w^+\).
+
+Once \(w^+\) has been computed, the boundary state is reconstructed from
+\begin{equation}
+\tilde v
+=
+\frac{w^+ + w^-}{2},
+\qquad
+\tilde p
+=
+\frac{w^+ - w^-}{2k_c}.
+\end{equation}
 
 
 
 \chapter{Numerical Methods}
 \minitoc
-\section{Discontinuous Galerkin Formulation}
+
+\section{Discontinuous Galerkin Method}
+
+The Discontinuous Galerkin method is used to discretize the acoustic PDE in space. 
+It is well suited for hyperbolic conservation laws because it combines local polynomial
+approximations with numerical fluxes at cell interfaces \cite{HesthavenWarburton2008}.
+
+\subsection{Original Mixed Formulation}
+
+We consider the mixed formulation of the one-dimensional acoustic equations:
+\begin{equation}
+\frac{S(x)}{cS^\ast}\partial_t p+\partial_x v=0,
+\qquad
+\frac{S^\ast}{cS(x)}\partial_t v+\partial_x p=0.
+\label{eq:mixed_system}
+\end{equation}
+
+Here, \(p\) is the acoustic pressure, \(v\) the volume velocity, \(S(x)\) the
+cross-sectional area, \(S^\ast\) a reference section, and \(c\) the speed of sound.
+
+\subsection{Weak Formulation and Mass Matrix Issue}
+
+Let \(K_j=(x_{j-1},x_j)\) be a mesh cell. Multiplying by test functions
+\(\psi_p,\psi_v\in\mathbb P_1(K_j)\) and integrating by parts gives
+\begin{equation}
+\int_{K_j}\frac{S(x)}{cS^\ast}\partial_t p\,\psi_p\,dx
+-\int_{K_j}v\,\partial_x\psi_p\,dx
++v\psi_p\Big|_{\partial K_j}=0,
+\end{equation}
+\begin{equation}
+\int_{K_j}\frac{S^\ast}{cS(x)}\partial_t v\,\psi_v\,dx
+-\int_{K_j}p\,\partial_x\psi_v\,dx
++p\psi_v\Big|_{\partial K_j}=0.
+\end{equation}
+
+A direct DG discretization would therefore lead to geometry-dependent mass matrices:
+\begin{equation}
+(M_p)_{ij}
+=
+\int_{K_j}
+\frac{S(x)}{cS^\ast}\psi_i\psi_j\,dx,
+\qquad
+(M_v)_{ij}
+=
+\int_{K_j}
+\frac{S^\ast}{cS(x)}\psi_i\psi_j\,dx.
+\end{equation}
+
+This is inconvenient because the mass matrices depend on the local geometry.
+
+\subsection{Conservative Change of Variables}
+
+To obtain uniform mass matrices, we introduce
+\begin{equation}
+\tilde p=\frac{S(x)}{cS^\ast}p,
+\qquad
+\tilde v=\frac{S^\ast}{cS(x)}v.
+\end{equation}
+
+With
+\begin{equation}
+\tilde{\mathbf u}
+=
+\begin{pmatrix}
+\tilde p\\
+\tilde v
+\end{pmatrix},
+\end{equation}
+the system becomes
+\begin{equation}
+\partial_t\tilde{\mathbf u}
++
+\partial_x\left(A(x)\tilde{\mathbf u}\right)=0,
+\end{equation}
+where
+\begin{equation}
+A(x)=
+\begin{pmatrix}
+0 & \dfrac{cS(x)}{S^\ast}\\[0.4em]
+\dfrac{cS^\ast}{S(x)} & 0
+\end{pmatrix}.
+\end{equation}
+
+The physical flux is
+\begin{equation}
+\mathbf F(\tilde{\mathbf u})
+=
+A(x)\tilde{\mathbf u}
+=
+\begin{pmatrix}
+v\\
+p
+\end{pmatrix}.
+\end{equation}
+
+The eigenvalues of \(A(x)\) are
+\begin{equation}
+\lambda_\pm=\pm c,
+\end{equation}
+independently of the geometry. The corresponding Riemann invariants are
+\begin{equation}
+w^\pm
+=
+\tilde v
+\pm
+\frac{S^\ast}{S(x)}\tilde p.
+\end{equation}
+
+\subsection{DG Approximation Space}
+
+We seek
+\begin{equation}
+\tilde{\mathbf u}_h=(\tilde p_h,\tilde v_h)^T\in (V_h^1)^2,
+\end{equation}
+where
+\begin{equation}
+V_h^1=
+\left\{
+u\in L^2(0,L)
+\;\middle|\;
+u|_{K_j}\in\mathbb P_1(K_j)
+\right\}.
+\end{equation}
+
+The local mass matrix is now the standard P1 mass matrix:
+\begin{equation}
+M
+=
+\frac{h}{6}
+\begin{pmatrix}
+2&1\\
+1&2
+\end{pmatrix}.
+\end{equation}
+
+\subsection{Local DG Formulation}
+
+For each element \(K_j\), the DG formulation reads
+\begin{equation}
+\int_{K_j}
+\partial_t\tilde{\mathbf u}_h\cdot\boldsymbol\psi\,dx
+-
+\int_{K_j}
+\left(A(x)\tilde{\mathbf u}_h\right)\cdot\partial_x\boldsymbol\psi\,dx
++
+\widehat{\mathbf F}_{j+\frac12}\cdot\boldsymbol\psi(x_j^-)
+-
+\widehat{\mathbf F}_{j-\frac12}\cdot\boldsymbol\psi(x_{j-1}^+)
+=0.
+\label{eq:dg_local_vector}
+\end{equation}
+
 \section{Numerical Fluxes}
+
+At each interface, the numerical flux is chosen as a Rusanov flux:
+\begin{equation}
+\widehat{\mathbf F}
+=
+\frac12
+\left(
+\mathbf F^-+\mathbf F^+
+\right)
+-
+\frac{c}{2}
+\left(
+\tilde{\mathbf u}^+ - \tilde{\mathbf u}^-
+\right).
+\end{equation}
+
+Writing
+\[
+\tilde{\mathbf u}^\pm
+=
+(\tilde p^\pm,\tilde v^\pm)^T,
+\]
+one obtains
+\begin{equation}
+\widehat{\mathbf F}
+=
+\begin{pmatrix}
+\widehat F_p\\
+\widehat F_v
+\end{pmatrix},
+\end{equation}
+with
+\begin{equation}
+\begin{aligned}
+\widehat F_p
+&=
+\frac12
+\left(
+\frac{cS}{S^\ast}\tilde v^-
++
+\frac{cS}{S^\ast}\tilde v^+
+\right)
+-
+\frac{c}{2}
+(\tilde p^+-\tilde p^-),
+\\[0.5em]
+\widehat F_v
+&=
+\frac12
+\left(
+\frac{cS^\ast}{S}\tilde p^-
++
+\frac{cS^\ast}{S}\tilde p^+
+\right)
+-
+\frac{c}{2}
+(\tilde v^+-\tilde v^-).
+\end{aligned}
+\end{equation}
+
+Boundary fluxes are obtained by constructing ghost states from the characteristic
+variables \(w^\pm\), using the reed condition at \(x=0\) and the radiation condition
+at \(x=L\).
+
 \section{Time Integration}
+
+\subsection{Semi-discrete Formulation}
+
+After spatial discretization, the coupled problem can be written abstractly as
+\begin{equation}
+\frac{dX}{dt}=F(X),
+\qquad
+X=(\boldsymbol U,\phi,y,z),
+\end{equation}
+where \(\boldsymbol U\) contains the DG degrees of freedom, \(\phi\) is the radiation
+boundary variable, \(y\) is the reed opening, and \(z=\dot y\).
+
+More explicitly,
+\begin{equation}
+F(X)=
+\begin{pmatrix}
+M^{-1}\mathcal L(\boldsymbol U,\phi,y,z)\\
+G(\boldsymbol U,\phi)\\
+z\\
+K(\boldsymbol U,y,z)
+\end{pmatrix}.
+\end{equation}
+
+\subsection{Explicit Euler Scheme}
+
+The explicit Euler scheme is used as a simple first-order reference:
+\begin{equation}
+X^{n+1}=X^n+\Delta t\,F(X^n).
+\end{equation}
+
+It is straightforward to implement, but it is very restrictive for wave propagation
+problems because of its small stability region.
+
+\subsection{Second-order Runge--Kutta Scheme}
+
+For the acoustic field and the radiation variable, we use a second-order explicit
+Runge--Kutta midpoint scheme:
+\begin{equation}
+X^{n+\frac12}
+=
+X^n+\frac{\Delta t}{2}F(X^n),
+\end{equation}
+\begin{equation}
+X^{n+1}
+=
+X^n+\Delta t\,F(X^{n+\frac12}).
+\end{equation}
+
+In practice, the reed variables are treated separately using a Crank--Nicolson
+step, while the acoustic and radiation variables are advanced with RK2.
+
+\subsection{Crank--Nicolson Scheme for the Reed Dynamics}
+
+The reed equation is
+\begin{equation}
+\frac{1}{\omega_r^2}\ddot y
++
+\frac{1}{Q_r\omega_r}\dot y
++
+y-1
+=
+\varepsilon(\gamma-p_L).
+\end{equation}
+
+Introducing \(z=\dot y\), we obtain
+\begin{equation}
+\dot y=z,
+\qquad
+\dot z=
+\omega_r^2\left[\varepsilon(\gamma-p_L)+1-y\right]
+-\frac{\omega_r}{Q_r}z.
+\end{equation}
+
+With \(p_L\) frozen during one reed update, the Crank--Nicolson discretization gives
+\begin{equation}
+z^{n+1}
+=
+\frac{Bz^n+R}{A},
+\end{equation}
+where
+\begin{equation}
+A=
+1+\frac{\Delta t}{2}\frac{\omega_r}{Q_r}
++\frac{\Delta t^2}{4}\omega_r^2,
+\end{equation}
+\begin{equation}
+B=
+1-\frac{\Delta t}{2}\frac{\omega_r}{Q_r}
+-\frac{\Delta t^2}{4}\omega_r^2,
+\end{equation}
+and
+\begin{equation}
+R=
+\Delta t\,\omega_r^2
+\left[
+\varepsilon(\gamma-p_L)+1-y^n
+\right].
+\end{equation}
+
+The reed opening is then updated by
+\begin{equation}
+y^{n+1}
+=
+y^n
++
+\frac{\Delta t}{2}
+\left(
+z^n+z^{n+1}
+\right).
+\end{equation}
+
+This semi-implicit treatment improves stability for the reed oscillator, especially
+when \(\omega_r\) is large.
+
+\subsection{Coupling Strategy}
+
+At each time step, the acoustic state is evaluated at both boundaries. The radiation
+condition at \(x=L\) is imposed by reconstructing a ghost state from the outgoing
+characteristic and the auxiliary variable \(\phi\). At \(x=0\), the reed condition
+provides a boundary velocity depending on \(y\), \(z\), and the local pressure.
+
+The reconstructed ghost states are then used in the numerical fluxes. In the RK2
+scheme, this procedure is repeated at the midpoint stage in order to preserve
+second-order accuracy for the acoustic field.
+
+\subsection{CFL Stability Discussion}
+
+The CFL restriction depends on both the DG spatial discretization and the time
+integration scheme. After spatial discretization, one may consider the linearized
+system
+\begin{equation}
+\frac{dU}{dt}=LU.
+\end{equation}
+
+For an eigenmode satisfying \(\dot u=\lambda u\), an explicit method is stable when
+\begin{equation}
+|R(\Delta t\lambda)|\le 1,
+\end{equation}
+where \(R\) is the stability function of the time scheme.
+
+For explicit Euler,
+\begin{equation}
+R_{\mathrm{Euler}}(z)=1+z,
+\end{equation}
+whereas for RK2,
+\begin{equation}
+R_{\mathrm{RK2}}(z)=1+z+\frac{z^2}{2}.
+\end{equation}
+
+For purely oscillatory modes \(z=i\omega\Delta t\), Euler satisfies
+\begin{equation}
+|R_{\mathrm{Euler}}(i\omega\Delta t)|^2
+=
+1+(\omega\Delta t)^2>1,
+\end{equation}
+so it amplifies oscillatory modes. RK2 gives
+\begin{equation}
+|R_{\mathrm{RK2}}(i\omega\Delta t)|^2
+=
+1+\frac{(\omega\Delta t)^4}{4}.
+\end{equation}
+
+Thus, RK2 also slightly amplifies purely imaginary modes, but only at order
+\((\omega\Delta t)^4\), whereas Euler amplifies them at order
+\((\omega\Delta t)^2\). This explains the much better practical stability observed
+with RK2 for acoustic wave propagation.
+
+For a DG method of degree \(k\), the time step typically scales as
+\begin{equation}
+\Delta t
+\le
+C_{\mathrm{CFL}}
+\frac{h}{(2k+1)c},
+\end{equation}
+where \(C_{\mathrm{CFL}}\) depends on the chosen time integration scheme.
+
+\section{JAX Implementation and Differentiability}
+
+The numerical solver was implemented in JAX. This choice was motivated by two main
+objectives: efficient execution through JIT compilation and differentiability of the
+complete simulation pipeline.
+
+Most computational kernels were compiled using \texttt{jax.jit}, which reduces Python
+overhead during long time integrations. Local DG operations were vectorized over the
+mesh using \texttt{jax.vmap}, allowing element-wise computations to be expressed without
+explicit Python loops.
+
+Time integration was implemented using \texttt{jax.lax.scan}, which provides a compiled
+loop compatible with automatic differentiation. This is particularly important for
+future inverse problems, where gradients of a loss function with respect to physical
+parameters must be computed through the whole simulation.
+
+The implementation was designed in a functional style, avoiding in-place mutations and
+using JAX-compatible operations for ghost-cell construction, boundary conditions and
+time stepping. For long simulations, reverse-mode differentiation can lead to high
+memory consumption, so checkpointing strategies may be used to reduce the memory cost
+during gradient computation.
+
 
 \chapter{Numerical Results}
 \minitoc
+In this section, we present numerical results obtained using the Discontinuous Galerkin Method (DGM) 
+for simulating wave propagation in a one-dimensional domain with variable cross-sectional area.
+We will first describe the initial conditions and simulation parameters used in the experiments.
+Then, we will present the results of the DGM solver for both uniform and non-uniform cross-sections(exponential and conical shapes),
+with an analysis of the convergence of the method for the uniform cross-section case. 
+Finally, we will present some performance benchmarks of the JAX implementation.
 \section{Validation}
+\subsection{Initial Condition}
+The initial pressure profile is defined as a smooth compactly supported bump function
+centered at $x=L/2$. Introducing the rescaled variable
+\begin{equation}
+\xi(x) = \frac{4}{L}\left(x - \frac{L}{2}\right),
+\end{equation}
+the initial condition reads
+\begin{equation}
+p_0(x) =
+\begin{cases}
+\dfrac{\phi_0}{4}\,
+\exp\!\left(1 - \dfrac{1}{1-\xi(x)^2}\right),
+& \text{if } |\xi(x)| < 1, \\[1.2ex]
+0, & \text{otherwise}.
+\end{cases}
+\end{equation}
+
+The initial acoustic volume velocity is set to zero:
+\begin{equation}
+v_0(x) = 0.
+\end{equation}
+
+\subsection{Simulation Parameters}
+Here are the parameters used in the simulations presented in this section.
+We used the same set of parameters for all the test cases to ensure consistency 
+and comparability of the results.
+\begin{table}[h!]
+\centering
+\begin{tabular}{c cccccc}
+\hline
+Parameters & $\alpha$ & $\beta$ & $S^\ast$ & c & $Z^\ast_T$ & CLF \\
+\hline
+Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 0.05 \\
+\hline
+\end{tabular}
+\caption{Simulation parameters used in the DG P1 solver.}
+\label{tab:sim_parameters}
+\end{table}
+
+These parameters define the physical properties of the wave propagation and take into
+account certain aspects of the geometry of the instrument. 
 \subsection{Case $S(x)=const$}
 \subsubsection{Analytical vs numerical solution}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../../experiments/convergence/results/euler/dg_solution_const_N800_method_euler.png}
+        \caption{(a) Euler}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../../experiments/convergence/results/rk2/dg_solution_const_N800_method_rk2.png}
+        \caption{(b) RK2}
+    \end{minipage}
+    \caption{Validation of the numerical solution against an analytical solution for a uniform cross-section.}
+    \label{fig:validation_uniform}
+\end{figure}
 \subsubsection{Convergence analysis}
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../../experiments/convergence/results/euler/dg_convergence_T0.5_euler.png}
+        \caption{(a) $T_{final}=0.5s$}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../../experiments/convergence/results/euler/dg_convergence_T0.8_euler.png}
+        \caption{(b) $T_{final}=0.8s$}
+    \end{minipage}
+    \caption{Convergence analysis for different final times for Euler scheme.}
+    \label{fig:validation_uniform}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../../experiments/convergence/results/rk2/dg_convergence_T0.5_rk2.png}
+        \caption{(a) $T_{final}=0.5s$}
+    \end{minipage}\hfill
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../../experiments/convergence/results/rk2/dg_convergence_T0.8_rk2.png}
+        \caption{(b) $T_{final}=0.8s$}
+    \end{minipage}
+    \caption{Convergence analysis for different final times for RK2 scheme.}
+    \label{fig:validation_uniform}
+\end{figure}
 \subsection{Case $S(x)$ variates}
+
+
 \section{Reed Oscillations}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{../../experiments/pressure_at_bell/results/pressure_and_reed_rk2_const.png}
+    \caption{Pressure at the bell and reed oscillations for a uniform cross-section using RK2 time integration.}
+    \label{fig:pressure_reed_oscillations_rk2}
+\end{figure}
 \subsection{Performances}
 
 \chapter{Conclusion}

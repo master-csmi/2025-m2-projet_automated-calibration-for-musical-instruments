@@ -2,7 +2,7 @@
     "solver_params": {        
         "T_max":0.5,
         "cfl":0.2,
-        "Nx": 200,
+        "Nx": 800,
         "N_snapshot": 10000
     }
 }

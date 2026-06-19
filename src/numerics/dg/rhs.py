@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from src.numerics.dg.mesh import cell_edges_from_nodes
 from src.numerics.dg.basis import vphi_at
-from src.physics.bc import apply_bc, apply_bc_test
+from src.physics.bc import apply_bc, apply_bc_test, apply_bc_fixed
 from src.numerics.dg.flux import rusanov_flux
 
 
@@ -59,15 +59,15 @@ def surface_term_system(u_ext, S_ext, j, c, S_star):
 def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
                   bc, phi, beta, Z, alpha, v_bc_tilde,
                   S_cells, S_star,S_ext,
-                  zeta, gamma, eps, kappa, omega_r, y, z,
+                  zeta, gamma, eps, kappa, omega_r, y, z, opening,
                   S_quad):          
     xLs, xRs = cell_edges_from_nodes(x_nodes)
     N = u_tilde_cells.shape[0]
     # Ghost cells
     if bc.type == "full":
-        u_ext = apply_bc(
-            u_tilde_cells, phi, beta, v_bc_tilde, Z, alpha,
-            S_cells, c, S_star,zeta, gamma, eps, kappa, omega_r, y, z
+        u_ext = apply_bc_fixed(
+            u_tilde_cells, phi, beta, Z, alpha,
+            S_cells, c, S_star,zeta, gamma, eps, kappa, omega_r, y, z, opening
         )
     elif bc.type == "right_free":
         u_ext = apply_bc_test(

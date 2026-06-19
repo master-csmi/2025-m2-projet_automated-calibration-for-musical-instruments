@@ -36,7 +36,7 @@ def reed_step_crank_nicolson(y, z, pL, eps, gamma, omega_r, Q_r, dt):
 
     z_new = (B * z + R) / A
     y_new = y + 0.5 * dt * (z + z_new)
-    y_new = smooth_clip(y_new, 0.0, 1.0)  # éviter que l'anche ne devienne négative ou dépasse 1 (physiquement non réaliste)
+    #y_new = smooth_clip(y_new, 0.0, 1.0)  # éviter que l'anche ne devienne négative ou dépasse 1 (physiquement non réaliste)
 
     return y_new, z_new
 
@@ -58,7 +58,7 @@ def rk2_step_system(
 ):
     
     S_L = S_cells[0]
-    pL  = (c * S_star / S_L)  * u_tilde_cells[0, 0, 1]
+    pL  = (c * S_star / S_L)  * u_tilde_cells[0, 0, 0]
     S_R = S_cells[-1]
     pR  = (c * S_star / S_R)  * u_tilde_cells[-1, 0, 1]
 
@@ -75,7 +75,8 @@ def rk2_step_system(
         Mp_inv, Mv_inv, bc,
         phi, beta, Z, alpha,
         v_bc1_tilde, S_cells, S_star,S_ext,
-        zeta, gamma, eps, kappa, omega_r, y, z,S_quad
+        zeta, gamma, eps, kappa, omega_r, y, z, opening,
+        S_quad
     )
 
     # -------------------
@@ -107,7 +108,7 @@ def rk2_step_system(
         Mp_inv, Mv_inv, bc,
         phi_mid, beta, Z, alpha,
         v_bc2_tilde, S_cells, S_star,S_ext,
-        zeta, gamma, eps, kappa, omega_r, y_new, z_new,S_quad
+        zeta, gamma, eps, kappa, omega_r, y_new, z_new, opening, S_quad
     )
 
     # -----

@@ -62,10 +62,9 @@ def project_L2(
 
 # Reed opening function (trainable)
 class ReedOpening(eqx.Module):
-    a: float
 
     def __call__(self, y):
-        return jnp.maximum(0.0, y) * self.a
+        return y * (y > 0)
 
 # Right Hand Side of the ODE for phi at right BC
 def phi_rhs(pR, alpha, Z):
@@ -99,3 +98,40 @@ def precompute_S_quad(section, xLs, xRs, nq):
 
     return jax.vmap(compute_cell)(xLs, xRs)  # (N, nq)
 
+def compute_Zt(data):
+    L = data.section.L_tube + data.section.L_bell
+
+    S_star = data.section(0)
+    S_L = data.section(L)
+
+    return S_star / S_L
+
+def make_openwind_radius_profile(data, n_points=200):
+    L = float(data.L_tube + data.L_bell)
+
+    x = jnp.linspace(0.0, L, n_points)
+    S = data.section(x)
+    R = jnp.sqrt(S / jnp.pi)
+
+    return x, R
+
+def best_time_shift(x, y, dt):
+    """
+    Cherche le décalage temporel qui maximise la corrélation entre x et y.
+    x : signal DG
+    y : signal OpenWind
+    dt : pas de temps entre snapshots
+    """
+    x0 = x - jnp.mean(x)
+    y0 = y - jnp.mean(y)
+
+    corr_full = jnp.correlate(x0, y0, mode="full")
+    lag_index = jnp.argmax(corr_full) - (len(y0) - 1)
+
+    shift_time = lag_index * dt
+
+    corr_max = jnp.max(corr_full) / (
+        jnp.linalg.norm(x0) * jnp.linalg.norm(y0) + 1e-12
+    )
+
+    return int(lag_index), float(shift_time), float(corr_max)

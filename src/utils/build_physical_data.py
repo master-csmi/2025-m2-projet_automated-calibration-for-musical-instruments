@@ -29,7 +29,7 @@ def build_physical_data(params, type_S):
         k_bell_data = (instrument["bell"]["k_bell"], train["k_bell"]),
         Qr_data    = (left["Qr"], train["Qr"]),
 
-        l = ReedOpening(a=1.0),
+        l = ReedOpening(),
         section=SProfile(type_S=type_S, L_tube=instrument["tube"]["L_tube"], 
                          R_tube=instrument["tube"]["R_tube"], L_bell=instrument["bell"]["L_bell"], 
                         k_bell=instrument["bell"]["k_bell"])

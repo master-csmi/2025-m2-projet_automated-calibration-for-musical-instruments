@@ -67,7 +67,7 @@ def euler_step_system(
         Mp_inv, Mv_inv, bc,
         phi_new, beta, Z, alpha,
         v_bc_tilde, S_cells, S_star, S_ext,
-        zeta, gamma, eps, kappa, omega_r, y_new, z_new,
+        zeta, gamma, eps, kappa, omega_r, y_new, z_new,opening,
         S_quad
     )
     u_tilde_new = u_tilde_cells + dt * k_u

@@ -46,7 +46,7 @@ def euler_step_system(
     S_quad
 ):
     S_L = S_cells[0]
-    pL = (c * S_star / S_L) * u_tilde_cells[0, 0, 1]   # tilde_p → p physique
+    pL = (c * S_star / S_L) * u_tilde_cells[0, 0, 0]   # tilde_p → p physique
 
     S_R = S_cells[-1]
     pR = (c * S_star / S_R) * u_tilde_cells[-1, 0, 1]  # tilde_p → p physique
@@ -80,62 +80,85 @@ def euler_step_system(
 # ------------------------------------------------------------------------------------------------------------------------------
 
 def time_integrate_euler(
-    u_tilde_0, x_nodes, c, dt, nsteps,
+    u0, x_nodes, c, dt, nsteps,
     Mp_inv, Mv_inv, bc,
-    phi0,
-    y0, z0,
+    phi0, y0, z0,
     data,
-    S_cells, S_star,S_quad,
+    S_cells, S_star, S_quad, S_ext,
     snapshot_steps,
-    gamma_target = None
-):  
-    beta, Z, alpha, eps, kappa, gamma, omega_r, Q_r, zeta = data.beta, data.Zt, data.alpha, data.eps, data.kappa, data.gamma_final, 2*jnp.pi*data.fr, data.Qr, data.zeta
-    section = data.section
+    gamma_target=None,
+):
+    beta, Z, alpha = data.beta, data.Zt, data.alpha
+    eps, kappa = data.eps, data.kappa
+    omega_r = 2.0 * jnp.pi * data.fr
+    Q_r = data.Qr
+    zeta = data.zeta
     opening = data.l
-    snapshot_steps = jnp.array(snapshot_steps)
+
+    if gamma_target is None:
+        gamma_target = jnp.ones((nsteps,)) * data.gamma_final
+
+    snapshot_steps = jnp.asarray(snapshot_steps)
     nsnaps = snapshot_steps.shape[0]
-    snap_idx0 = 0
+
+    u_snaps = jnp.zeros((nsnaps,) + u0.shape)
+    phi_snaps = jnp.zeros((nsnaps,))
     y_snaps = jnp.zeros((nsnaps,))
     z_snaps = jnp.zeros((nsnaps,))
-    phi_snaps = jnp.zeros((nsnaps,))
-    u_tilde_snaps = jnp.zeros((nsnaps,) + u_tilde_0.shape)
-    S_ext = jnp.concatenate([S_cells[:1], S_cells, S_cells[-1:]])
-
-    # Si gamma_t non fourni, gamma constant
-    if gamma_target is None:
-        gamma_target = jnp.ones(nsteps) * gamma
 
     def step(carry, inputs):
-        u, phi, y, z, snap_idx, y_snaps,z_snaps, phi_snaps, u_tilde_snaps = carry
+        u, phi, y, z, snap_idx, u_snaps, phi_snaps, y_snaps, z_snaps = carry
         n, gamma_n = inputs
 
         u_next, phi_next, y_next, z_next = euler_step_system(
             u, x_nodes, c, dt,
             Mp_inv, Mv_inv, bc,
             phi, beta, Z, alpha,
-            y, z, 
-            gamma_n, 
-            eps, kappa, omega_r, zeta, Q_r,opening,
+            y, z,
+            gamma_n,
+            eps, kappa, omega_r, zeta, Q_r, opening,
             S_cells, S_star, S_ext,
-            S_quad
+            S_quad,
         )
-        # stockage avec .at[]
+
         safe_idx = jnp.minimum(snap_idx, nsnaps - 1)
-        target_step = snapshot_steps[safe_idx]
+        is_snap = (snap_idx < nsnaps) & (n == snapshot_steps[safe_idx])
 
-        is_snap = (snap_idx < nsnaps) & (n == target_step)
+        u_snaps = u_snaps.at[safe_idx].set(
+            jnp.where(is_snap, u_next, u_snaps[safe_idx])
+        )
+        phi_snaps = phi_snaps.at[safe_idx].set(
+            jnp.where(is_snap, phi_next, phi_snaps[safe_idx])
+        )
+        y_snaps = y_snaps.at[safe_idx].set(
+            jnp.where(is_snap, y_next, y_snaps[safe_idx])
+        )
+        z_snaps = z_snaps.at[safe_idx].set(
+            jnp.where(is_snap, z_next, z_snaps[safe_idx])
+        )
 
-        y_snaps = y_snaps.at[safe_idx].set(jnp.where(is_snap, y_next, y_snaps[safe_idx]))
-        z_snaps = z_snaps.at[safe_idx].set(jnp.where(is_snap, z_next, z_snaps[safe_idx]))
-        phi_snaps = phi_snaps.at[safe_idx].set(jnp.where(is_snap, phi_next, phi_snaps[safe_idx]))
-        u_tilde_snaps = u_tilde_snaps.at[safe_idx].set(jnp.where(is_snap, u_next, u_tilde_snaps[safe_idx]))
+        snap_idx = snap_idx + is_snap.astype(jnp.int32)
 
-        snap_idx = snap_idx + is_snap.astype(int)
+        return (
+            u_next, phi_next, y_next, z_next,
+            snap_idx, u_snaps, phi_snaps, y_snaps, z_snaps,
+        ), None
 
-        return (u_next, phi_next, y_next, z_next,
-        snap_idx, y_snaps, z_snaps, phi_snaps, u_tilde_snaps), None
-    
-    (u_tilde_final, phi_final, y_final, z_final, snap_idx_final, y_snaps, z_snaps, phi_snaps, u_tilde_snaps), _ = lax.scan(
-        step, (u_tilde_0, phi0, y0, z0, snap_idx0, y_snaps, z_snaps, phi_snaps, u_tilde_snaps), (jnp.arange(nsteps), gamma_target)
+    init = (
+        u0, phi0, y0, z0,
+        jnp.array(0, dtype=jnp.int32),
+        u_snaps, phi_snaps, y_snaps, z_snaps,
     )
-    return u_tilde_final, phi_final, y_final, z_final,u_tilde_snaps, phi_snaps, y_snaps, z_snaps, 
+
+    final, _ = lax.scan(
+        step,
+        init,
+        (jnp.arange(nsteps), gamma_target),
+    )
+
+    u_final, phi_final, y_final, z_final, _, u_snaps, phi_snaps, y_snaps, z_snaps = final
+
+    return (
+        u_final, phi_final, y_final, z_final,
+        u_snaps, phi_snaps, y_snaps, z_snaps,
+    )

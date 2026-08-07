@@ -21,6 +21,9 @@
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{empheq}
 \usepackage{siunitx}
+\usepackage{tikz}
+\usepackage{caption}
+\usetikzlibrary{arrows.meta, positioning, calc, decorations.pathreplacing}
 
 % For floating algorithms with caption
 \usepackage{algorithm}
@@ -34,6 +37,15 @@
 \usepackage{csquotes}
 % biblatex is loaded later with the desired options to avoid an "Option clash for package biblatex" error
 \usepackage{minitoc}
+
+\usetikzlibrary{
+    arrows.meta,
+    positioning,
+    calc,
+    decorations.pathreplacing,
+    fit,
+    backgrounds
+}
 
 % --------------------------------
 % Reset chapter counter at each part
@@ -101,760 +113,1501 @@ Cette approche fournit une base solide pour la calibration efficace des paramèt
 \tableofcontents
 
 \newpage
+
 \chapter*{Introduction}
 \addcontentsline{toc}{chapter}{Introduction}
 
-During my project of the thrid semester of the CSMI Master degree, I worked on the automated calibration 
-of physical models for musical instruments. 
-The goal of this project was to develop a method to automatically adjust the parameters of physical models 
-so that they accurately reproduce the characteristic sounds of reed instruments. \newline
-I worked under the supervision of Dr Emmanuel Franck, Dr Laurent Navoret and Dr Victor Michel-Dansac from 
-the Institut de Recherche Mathématique Avancée (IRMA) in Strasbourg and Dr Juliette Chabassier from Modartt. \newline
-Modartt (MOdels and Data for ARTs and Technology)\cite{Modartt} is a french company specialized in the development of artistic and technological application softwares.
-In 2006, they released \textit{Pianoteq}, a software that simulates the sound of various musical instruments using physical modeling techniques isntead 
-of relying on pre-recorded samples. \newline
-First, we present the context of reed instruments and the state of the art of the mathematical modeling of the wave equation inside these instruments.
-Then, we describe the numerical methods used to solve the wave equation with different types of cross-sectional 
-area (uniform, exponential, conical) using the Discontinuous Galerkin Method (DGM). We will particularly focus on the implementation of the boundary conditions
-that represent a crucial aspect of the behavior of the sound produced by the instrument.
-Finally, we present the results of the numerical simulations and the performance analysis of the implemented method.
+This Master's internship is a continuation of the project carried out during the third semester of the CSMI Master's degree, 
+devoted to the automated calibration of physical models for reed wind instruments.
+
+The internship was conducted under the supervision of Dr Emmanuel Franck, Dr Laurent Navoret and Dr Victor Michel-Dansac 
+from the Institut de Recherche Mathématique Avancée (IRMA) in Strasbourg, together with Dr Juliette Chabassier from Modartt.
+
+Modartt (MOdels and Data for ARTs and Technology) \cite{Modartt} is a French company specialized in physically based sound 
+synthesis. Since the release of \textit{Pianoteq} in 2006, the company has developed virtual musical instruments based on physical 
+modeling rather than sample playback, providing realistic sound synthesis while preserving a strong physical interpretability of 
+the underlying models.
+
+The mathematical model considered in this work describes the generation of sound waves in reed wind instruments through the 
+coupling of a one-dimensional acoustic wave propagation model with a nonlinear reed model. Although the geometry of the instrument 
+can generally be measured accurately, several parameters governing the reed dynamics and the nonlinear coupling remain difficult 
+or impossible to determine experimentally. Consequently, these parameters must be estimated from recorded acoustic signals through 
+the solution of an inverse problem.
+
+The objective of this internship is therefore to develop an automatic calibration framework capable of identifying both scalar 
+physical parameters and, more generally, unknown functions appearing in the governing equations of the model. The proposed methodology 
+relies on differentiable numerical simulations implemented in JAX, allowing gradients to be computed efficiently through 
+automatic differentiation.
+
+To assess the proposed approach under controlled conditions, synthetic datasets generated with the OpenWind software are first used, 
+where the ground-truth parameters are known. This enables a quantitative evaluation of the accuracy and robustness of the calibration 
+procedure. In a second stage, the methodology is applied to experimental recordings provided by Modartt in order to evaluate its 
+applicability on real musical data.
+
+The remainder of this manuscript is organized as follows. First, the mathematical model describing sound production in reed instruments 
+is introduced together with the associated numerical solver developed during the previous project. We then formulate the inverse problem 
+and present the optimization framework used for parameter and function estimation. Finally, we evaluate the proposed approach on both 
+synthetic and experimental datasets and discuss its performance and limitations.
 
 
 \newpage
 \section*{Reed Instruments}
-A reed is a thin, flexible lamina mounted at the mouthpiece or at the entrance of an air column resonator that acts \cite{Universalis_Anche} \cite{chaigne:hal-05370840} as a valve that controls the airflow driven by a pressure difference between the upstream region 
-(the player’s mouth) and the downstream region (the mouthpiece or mouthpiece tip of the instrument). \newline
+
+A reed is a thin, flexible lamina mounted at the mouthpiece or at the entrance
+of an air column resonator that acts as a valve controlling the airflow generated
+by the pressure difference between the player's mouth and the instrument bore
+\cite{Universalis_Anche,chaigne:hal-05370840}.
+
+\vspace{0.4cm}
+
+The interaction between the vibrating reed and the acoustic resonator is
+responsible for the self-sustained oscillations that produce sound.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{reed_column.png}
+\caption{Reed and saxophone.}
+\label{fig:reed_schematic}
+\end{figure}
 There are two principal categories of reed instruments:
 \begin{itemize}
-    \item Free reeds (harmonicas, accordions, ...).
-    \item Beating reeds (clarinets, saxophones, ...).
+    \item Free reeds (harmonicas, accordions, \dots).
+    \item Beating reeds (clarinets, saxophones, oboes, bassoons, \dots).
 \end{itemize}
-% Figure : schéma de l'anche / embouchure
-\begin{figure}[htbp]
-    \centering
-    % Remplacez 'figs/reed.png' par le chemin et l'extension réels de votre image (pdf, png, jpg...)
-    \includegraphics[width=0.75\textwidth]{reed_column.png}
-    \caption{Reed and saxophone.}
-    \label{fig:reed_schematic}
-\end{figure}
+
+In beating reed instruments, which constitute the focus of this work, the reed periodically opens and closes under the combined action of 
+the mouth pressure and the acoustic pressure inside the mouthpiece. This nonlinear interaction regulates the airflow entering the instrument 
+and excites acoustic waves that propagate along the air column. The geometry of the resonator, together with the reed dynamics, determines 
+the resulting sound.
+
+Accurate numerical simulation of this coupled reed--resonator system requires modeling both the wave propagation inside the instrument and 
+the nonlinear boundary conditions describing the reed motion. Several parameters governing the reed behavior cannot be directly measured 
+and must therefore be estimated from acoustic observations. This motivates the inverse calibration problem addressed in this internship.
 
 \section*{Objectives}
-The main objectives of this project are: \\
-In JAX framework:
+
+The main objectives of this internship are:
+
 \begin{enumerate}
-    \item Implement a discontinous Galerkin discretization of the mixed form of the wave equation and numerically solve it.
-    \item Implement the Left Hand Side boundary conditions (equations \eqref{eq:1c} and \eqref{eq:1d}) coupled with the DG solver.
-    \item Implement the Right Hand Side boundary conditions (equations \eqref{eq:1e} and \eqref{eq:1f}) coupled with the DG solver.
-    \item Compute the gradient with respect to all the problem parameters.   
+    \item Develop a differentiable numerical solver for the mathematical model describing sound production in reed wind instruments.
+    
+    \item Formulate the calibration of the physical model as an inverse problem.
+    
+    \item Estimate unknown physical parameters of the model from acoustic pressure measurements.
+    
+    \item Extend the calibration procedure to the estimation of unknown functions involved in the governing equations.
+    
+    \item Validate the proposed methodology on synthetic datasets generated with OpenWind and on experimental recordings provided by Modartt.
 \end{enumerate}
 
 \part{Direct Resolution}
+Before addressing the inverse calibration problem, a differentiable numerical solver must be developed to accurately simulate 
+the sound generation mechanism in reed wind instruments. This first part presents the mathematical model, its numerical discretization 
+and its implementation.
+
+\begin{figure}[ht]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.8cm,
+        every node/.style={
+            draw,
+            rounded corners,
+            minimum width=3.4cm,
+            minimum height=0.9cm,
+            align=center,
+            fill=blue!5
+        },
+        >=Stealth,
+        thick
+    ]
+
+    \node (physical) {Physical\\Model};
+
+    \node (math) [below=of physical] {Mathematical\\Formulation};
+
+    \node (dg) [below=of math] {Discontinuous Galerkin\\Discretization};
+
+    \node (time) [below=of dg] {Time\\Integration};
+
+    \node (diff) [below=of time] {Differentiable\\Forward Solver};
+
+    \draw[->] (physical) -- (math);
+    \draw[->] (math) -- (dg);
+    \draw[->] (dg) -- (time);
+    \draw[->] (time) -- (diff);
+
+    \end{tikzpicture}
+    \caption{Main steps leading to the differentiable forward solver.}
+    \label{fig:forward_pipeline}
+\end{figure}
+
 
 \chapter{Physical Model}
 
-The equations governing the behavior of reed instruments are mathematically described \cite{MAMAMIA2024} by a set of coupled 
-differential equations (Partial Differential Equations - PDEs, Ordinary Differential Equations - ODEs, and 
-algebraic equations). These equations capture the complex interactions between the pressure ($p$), the acoustic
-volume velocity ($v$) \eqref{eq:1a} \eqref{eq:1b}, radiative phenomenons happening at the bell of the instrument($\phi$) \eqref{eq:1c} \eqref{eq:1d}, 
-and the effects of the instrumental player \eqref{eq:1e} \eqref{eq:1f} :
+\section{Sound generation mechanism}
 
-% Système d'équations décrivant un modèle réducteur pour un instrument à anche
+Single-reed instruments, such as the saxophone or the clarinet, produce sound through the interaction between an airflow supplied by the musician, a vibrating reed, and the acoustic resonator formed by the instrument bore \cite{chaigne:hal-05370840}.
+
+When the player blows into the mouthpiece, a pressure difference is established between the mouth cavity and the interior of the instrument. Air is forced through the narrow opening between the reed and the mouthpiece. Since the reed is flexible, the aerodynamic force causes it to oscillate, continuously modifying the opening through which the air flows.
+
+The resulting oscillations periodically modulate the airflow entering the resonator. This modulation generates pressure fluctuations that propagate inside the air column in the form of acoustic waves. These waves travel along the bore, are reflected by the instrument boundaries, and interact again with the reed. The continuous exchange of energy between the reed and the resonator produces self-sustained oscillations, which are responsible for the generation of musical sound.
+
+At the bell of the instrument, the acoustic wave is not entirely transmitted to the surrounding air. A portion of the wave is radiated outside the instrument, while the remaining part is reflected back into the bore. This radiation phenomenon modifies the acoustic impedance of the resonator and influences both the energy losses and the produced sound.
+
+Figure~\ref{fig:reed_generation} summarizes the three physical mechanisms involved in the sound production process.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\linewidth]{generation_onde_anche.png}
+    \caption{Illustration of the sound generation mechanism in a single-reed instrument (adapted from Chapter~2 of \cite{vergez2010analyse}).}
+    \label{fig:reed_generation}
+\end{figure}
+
+The physical behaviour of the instrument results from the continuous interaction of three complementary mechanisms:
+
+\begin{itemize}
+    \item the mechanical oscillations of the reed,
+    \item the propagation of acoustic waves inside the resonator,
+    \item the radiation of acoustic energy at the bell.
+\end{itemize}
+
+These mechanisms constitute the basis of the mathematical model introduced in the following section.
+
+\section{Mathematical model}
+
+To reproduce the physical behaviour described above, each physical mechanism is represented by an appropriate mathematical model. Acoustic wave propagation inside the bore is governed by conservation laws, the reed motion is described by a mechanical oscillator, and both subsystems are coupled through nonlinear boundary conditions.
+
+Following the adimensional formulation proposed in \cite{chabassier:hal-03794382}, the behaviour of a single-reed instrument is described by the coupled system \cite{MAMAMIA2024}
+
 \begin{subequations}
 \begin{empheq}[left=\empheqlbrace]{align}
 \frac{S(x)}{c S^\ast}\,\partial_t p(x,t) + \partial_x v(x,t) &= 0 \label{eq:1a}\\[4pt]
 \frac{S^\ast}{c S(x)}\,\partial_t v(x,t) + \partial_x p(x,t) &= 0 \label{eq:1b}\\[4pt]
 Z^\ast_T\,\partial_t \phi + \sqrt{\alpha}\,p(L,t) &= 0 \label{eq:1c}\\[4pt]
 -\frac{\beta}{Z^\ast_T}\,p(L,t) + v(L,t) + \sqrt{\alpha}\,\phi &= 0 \label{eq:1d}\\[4pt]
--v(0,t) + \zeta \ell(y)\,F(\gamma - p(0,t)) + \varepsilon\frac{\kappa}{\omega_r}\,\partial_t y &= 0 \label{eq:1e}\\[6pt]
-\frac{1}{\omega_r^2}\,\partial_{tt} y + \frac{1}{Q_r\omega_r}\,\partial_t y + y - 1 
-&= \varepsilon(\gamma - p(0,t)) \label{eq:1f}
+-v(0,t) + \zeta \ell(y)\,F(\gamma-p(0,t))
++ \varepsilon\frac{\kappa}{\omega_r}\partial_t y &=0
+\label{eq:1e}\\[6pt]
+\frac{1}{\omega_r^2}\partial_{tt}y
++\frac{1}{Q_r\omega_r}\partial_ty
++y-1
+&=\varepsilon(\gamma-p(0,t))
+\label{eq:1f}
 \end{empheq}
 \end{subequations}
 
-where $S(x)$ is the cross-sectional area of the instrument at position $x$, $S^\ast$ is a reference area,
-$c$ is the speed of sound, $Z^\ast_T$ is a reference acoustic impedance, 
-$\alpha$ and $\beta$ are parameters related to the radiation effects, $L$ is the length of the instrument,
-$\zeta_\ell(y)$ is a function representing the lip-reed coupling, $F$ is a nonlinear function ($F(\Delta p)=\sqrt{|\Delta p|} \, \text{sign} (\Delta p)$),
-$\gamma$ is the dimensionless blowing pressure, $\varepsilon$ =-1 for a reed instrument, 
-$\kappa$ is a parameter related to the lip dynamics, $\omega_r$ is the reed's (or lips') frequency ($=2\pi f_r$), 
-$Q_r$ is the quality factor of the reed, and $y$ is the dimensionless reed opening. \newline
-This kind of system of equation can already be solved numerically with Openwind \cite{OpenwindInria}.
+where $p(x,t)$ denotes the acoustic pressure, $v(x,t)$ the acoustic volume flow, and $y(t)$ the dimensionless reed opening. The nonlinear function
+
+\[
+F(\Delta p)=\operatorname{sign}(\Delta p)\sqrt{|\Delta p|}
+\]
+
+models the dependence of the airflow on the pressure difference across the reed.
+
+The remaining parameters describe the geometry of the instrument and the reed dynamics: $S(x)$ is the bore cross-sectional area, $S^\ast$ a reference area, $c$ the speed of sound, $Z_T^\ast$ a reference acoustic impedance, $\alpha$ and $\beta$ characterize the radiation condition at the bell, $\gamma$ is the dimensionless blowing pressure, $\omega_r=2\pi f_r$ is the reed natural angular frequency, $Q_r$ its quality factor, $\kappa$ characterizes the reed dynamics, and $\zeta \ell(y)$ models the coupling between the reed opening and the airflow.
+
+Although written as a single system, Equations~(\ref{eq:1a})--(\ref{eq:1f}) naturally decompose into three interacting components: acoustic wave propagation, reed dynamics, and boundary coupling.
+
+\section{Interpretation of the model}
+
+The mathematical model combines equations of different nature in order to represent the physical processes occurring inside the instrument.
+
+The propagation of acoustic waves inside the resonator is described by the first two equations. Since the acoustic pressure and the acoustic volume flow evolve both in space and in time, they naturally form a system of partial differential equations (PDEs). Under the assumption of plane wave propagation, these equations express the conservation of mass and momentum inside the air column.
+
+Unlike the acoustic field, the reed motion is localized at the mouthpiece. Its displacement depends only on time and is therefore modeled by an ordinary differential equation (ODE). In the present model, the reed is represented as a damped one-degree-of-freedom mechanical oscillator excited by the pressure difference across the mouthpiece.
+
+These two subsystems cannot be considered independently. The reed controls the airflow entering the resonator, while the acoustic pressure generated inside the bore modifies the reed motion. Their interaction is introduced through the nonlinear boundary condition at the mouthpiece, creating the feedback mechanism responsible for self-sustained oscillations.
+
+At the opposite end of the instrument, a radiation boundary condition models the interaction between the resonator and the surrounding air. Part of the acoustic energy is radiated outside the instrument, whereas the remaining part is reflected back into the bore. This dynamic boundary condition accounts for both radiation losses and the acoustic impedance seen at the bell.
+
+The complete physical model is therefore obtained by coupling
+
+\begin{itemize}
+    \item a hyperbolic system of partial differential equations describing acoustic propagation,
+    \item a nonlinear ordinary differential equation describing the reed motion,
+    \item dynamic boundary conditions coupling the two subsystems.
+\end{itemize}
+
+\section{Mathematical properties}
+
+Although each component of the model is relatively simple when considered separately, their coupling results in a nonlinear dynamical system whose numerical simulation is particularly challenging.
+
+The acoustic equations constitute a first-order hyperbolic system. Such systems are characterized by the propagation of information along characteristic directions at finite speed, making them particularly suitable for describing wave propagation. Numerical methods must therefore preserve wave amplitudes and propagation speeds while limiting artificial numerical dissipation.
+
+The reed dynamics introduce an additional mechanical subsystem coupled to the acoustic field. Because the airflow depends nonlinearly on both the pressure difference and the reed opening, the interaction between the resonator and the reed remains strongly nonlinear throughout the simulation.
+
+The boundary conditions also play a central role. At the mouthpiece, they provide the nonlinear coupling between the acoustic resonator and the reed oscillator. At the bell, the radiation condition introduces an additional dynamic equation accounting for acoustic radiation into the surrounding air. These boundary conditions govern the exchange of energy between the different physical components.
+
+Consequently, the complete model consists of a coupled PDE--ODE system with nonlinear dynamic boundary conditions. Except for highly simplified configurations, no analytical solution is available. Numerical methods are therefore required to approximate the solution of the governing equations.
+
+In the remainder of this work, the acoustic equations are discretized using the Discontinuous Galerkin method, while suitable time integration schemes are employed to advance both the acoustic field and the reed dynamics.
+\chapter{Mathematical Reformulation}
+\label{chap:mathematical_reformulation}
 
 \minitoc
 
+The governing equations introduced in the previous chapter provide an accurate
+description of the physical mechanisms responsible for sound generation in reed
+wind instruments. However, this formulation is primarily motivated by physical
+considerations and is not directly suitable for the numerical method employed in
+this work.
+
+The Discontinuous Galerkin (DG) method is naturally designed for systems of
+hyperbolic conservation laws (see Chapter~5 in \cite{HesthavenWarburton2008}). Consequently, before introducing the numerical
+discretization, the acoustic equations must first be rewritten into a
+conservative form. This reformulation also reveals the characteristic structure
+of the system, which considerably simplifies the treatment of the nonlinear
+boundary conditions.
+
+The objective of this chapter is therefore threefold. First, we introduce a
+change of variables that transforms the acoustic equations into a conservative
+form compatible with the DG framework. Secondly, we derive the characteristic
+variables associated with the resulting hyperbolic system. Finally, both the
+radiation and reed boundary conditions are rewritten in terms of these
+characteristic variables, leading to a formulation particularly well suited for
+their numerical treatment.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{Conservative formulation}
-The main issue with the latter formulation is that the first two equations \eqref{eq:1a} and \eqref{eq:1b} are not in conservative form, 
-which makes it difficult to apply the Discontinuous Galerkin Method (DGM) for numerical resolution.
-To address this issue, we introduce the following change of variables:
+
+The acoustic propagation inside the instrument is governed by the coupled
+equations
+
 \begin{equation}
-\tilde{u} = 
+\frac{S(x)}{cS^\ast}\,\partial_t p(x,t)
++
+\partial_x v(x,t)
+=
+0,
+\label{eq:cons_original_1}
+\end{equation}
+
+\begin{equation}
+\frac{S^\ast}{cS(x)}\,\partial_t v(x,t)
++
+\partial_x p(x,t)
+=
+0,
+\label{eq:cons_original_2}
+\end{equation}
+
+where \(p(x,t)\) denotes the acoustic pressure, \(v(x,t)\) the acoustic volume
+velocity, \(S(x)\) the local cross-sectional area of the resonator and
+\(S^\ast\) a reference section.
+
+Although this formulation is physically meaningful, it presents a significant
+difficulty for a DG discretization. Indeed, the coefficients multiplying the
+time derivatives depend explicitly on the geometry of the instrument. A direct
+spatial discretization would therefore produce local mass matrices depending on
+the cross-sectional area, making the numerical implementation unnecessarily
+complex.
+
+To overcome this difficulty, we introduce the conservative variables
+
+\begin{equation}
+\tilde{\mathbf{u}}
+=
 \begin{pmatrix}
-    \tilde{p} \\ \tilde{v}
-\end{pmatrix} 
-= 
-\begin{pmatrix}
-    \frac{S(x)}{c S^\ast}\,p \\ \frac{S^\ast}{c S(x)}\,v
+\tilde p \\
+\tilde v
 \end{pmatrix}
+=
+\begin{pmatrix}
+\dfrac{S(x)}{cS^\ast}\,p \\
+\dfrac{S^\ast}{cS(x)}\,v
+\end{pmatrix}.
+\label{eq:conservative_variables}
 \end{equation}
 
-The system of equations can then be rewritten in a conservative form as follows:
-\begin{equation}
-    \partial_t \tilde{u} + \partial_x F(\tilde{u}) = \partial_t \tilde{u} + \partial_x (A(x)\tilde{u}) = 0
-\end{equation}
-where $A(x) = \begin{pmatrix}
-    0 & \frac{c S(x)}{S^\ast} \\ \frac{c S^\ast}{S(x)} & 0
-\end{pmatrix}$ is the flux matrix. 
-\newline
+Substituting these definitions into Equations
+\eqref{eq:cons_original_1}--\eqref{eq:cons_original_2} yields
 
-From this change of variables, we can also compute the Riemann invariants of the system. \newline
-Fist, we compute the eigenvalues of the flux matrix $A(x)$:
-$$\lambda^\pm = \pm c$$
-Then, we compute the corresponding left-hand side eigenvectors $l_{\pm}$ with $l=(l_1, l_2)$:
 \begin{equation}
-    l_{\pm} A(x) = \lambda^\pm l_{\pm}
-\end{equation}
-which gives for $\lambda^+ = c$:
-\begin{equation}
-    l_2 = \frac{S^\ast}{S(x)} l_1
-\end{equation}
-and for $\lambda^- = -c$:
-\begin{equation}
-    l_2 = -\frac{S^\ast}{S(x)} l_1
+\partial_t \tilde{\mathbf{u}}
++
+\partial_x
+\left(
+A(x)\tilde{\mathbf{u}}
+\right)
+=
+0,
+\label{eq:conservative_system}
 \end{equation}
 
-So, we can choose the left-hand side eigenvectors as follows:
+where the flux matrix is
+
 \begin{equation}
-    l^+ = (1, \frac{S^\ast}{S(x)}),
-    \qquad
-    l^- = (1, -\frac{S^\ast}{S(x)}).
+A(x)
+=
+\begin{pmatrix}
+0 &
+\dfrac{cS(x)}{S^\ast}
+\\[0.4em]
+\dfrac{cS^\ast}{S(x)}
+&
+0
+\end{pmatrix}.
+\label{eq:flux_matrix}
 \end{equation}
 
-The Riemann invariants $w^\pm$ are then computed as the projection of the state vector $\tilde{u}$ onto the left-hand side eigenvectors:    
+Equation \eqref{eq:conservative_system} is now written under the standard form
+of a first-order conservation law,
+
 \begin{equation}
-    w^\pm = \tilde{v} \pm \kappa\tilde{p}
+\partial_t\tilde{\mathbf u}
++
+\partial_x
+\mathbf F(\tilde{\mathbf u})
+=
+0,
 \end{equation}
-where $\kappa(x)=\frac{S^\ast}{S(x)}$. \newline
-These Riemann invariants represent the characteristic variables of the system 
-They appear to be very useful for understanding the wave propagation and for implementing boundary conditions.
 
-\section{Radiation Boundary Conditions}
+with
 
-The right boundary condition at $x=L$ is modeled by the coupled system
+\begin{equation}
+\mathbf F(\tilde{\mathbf u})
+=
+A(x)\tilde{\mathbf u}.
+\end{equation}
+
+This reformulation constitutes the key step allowing the application of the
+Discontinuous Galerkin method. Besides recovering the conservative structure of
+the equations, it also leads to uniform mass matrices that no longer depend on
+the instrument geometry.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Characteristic variables}
+
+Beyond its conservative form, System
+\eqref{eq:conservative_system} possesses a simple characteristic structure.
+
+Characteristic variables describe waves travelling in opposite directions along
+the instrument bore. Their introduction considerably simplifies the treatment
+of boundary conditions since, at each boundary, only one characteristic enters
+the computational domain while the other leaves it. Consequently, prescribing
+the incoming characteristic variable automatically defines the boundary state.
+
+The characteristic variables are obtained from the eigenstructure of the flux
+matrix \(A(x)\).
+
+The eigenvalues satisfy
+
+\begin{equation}
+\det(A-\lambda I)=0,
+\end{equation}
+
+which immediately gives
+
+\begin{equation}
+\boxed{
+\lambda^\pm=\pm c.
+}
+\end{equation}
+
+An important observation is that the propagation speed is independent of the
+cross-sectional area. Although the geometry modifies the amplitudes of the
+acoustic variables, waves always propagate at the speed of sound.
+
+The corresponding left eigenvectors satisfy
+
+\begin{equation}
+l^\pm A
+=
+\lambda^\pm l^\pm.
+\end{equation}
+
+For the positive eigenvalue \(\lambda^+=c\), one obtains
+
+\begin{equation}
+l_2
+=
+\frac{S^\ast}{S(x)}\,l_1,
+\end{equation}
+
+whereas for \(\lambda^-=-c\),
+
+\begin{equation}
+l_2
+=
+-
+\frac{S^\ast}{S(x)}\,l_1.
+\end{equation}
+
+Choosing \(l_1=1\) gives the normalized eigenvectors
+
+\begin{equation}
+l^+
+=
+\left(
+1,
+\frac{S^\ast}{S(x)}
+\right),
+\qquad
+l^-
+=
+\left(
+1,
+-
+\frac{S^\ast}{S(x)}
+\right).
+\end{equation}
+
+The characteristic variables are then obtained by projecting the conservative
+state vector onto these eigenvectors,
+
+\begin{equation}
+w^\pm
+=
+l^\pm\tilde{\mathbf u}.
+\end{equation}
+
+Finally,
+
+\begin{equation}
+\boxed{
+w^\pm
+=
+\tilde v
+\pm
+\frac{S^\ast}{S(x)}
+\tilde p.
+}
+\label{eq:riemann_variables}
+\end{equation}
+
+These quantities are commonly referred to as the \emph{Riemann invariants} of
+the acoustic system.
+
+Physically, \(w^+\) represents the acoustic wave travelling from the reed
+towards the bell, whereas \(w^-\) corresponds to the wave reflected from the
+bell towards the reed as shown in Figure~\ref{fig:characteristics_propagation}. 
+Throughout the remainder of this work, boundary
+conditions are expressed in terms of these characteristic variables rather than
+directly in terms of pressure and volume velocity. This choice considerably
+simplifies both the mathematical analysis and the numerical implementation of
+the coupled problem.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=0.8\linewidth]{characteristics_propagation.png}
+    \caption{Illustration of the characteristic variables \(w^+\) and \(w^-\) representing waves propagating in opposite directions along the instrument bore. 
+    The positive characteristic \(w^+\) travels from the reed towards the bell, while the negative characteristic \(w^-\) travels from the bell towards the reed.}
+    \label{fig:characteristics_propagation}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Radiation boundary condition}
+
+The right boundary of the computational domain corresponds to the bell of the
+instrument, where the acoustic wave is partially radiated into the surrounding
+air. Unlike a perfectly reflecting boundary, part of the acoustic energy leaves
+the resonator while the remaining part is reflected back into the instrument.
+
+Within the present model, this phenomenon is described by the coupled system
+
 \begin{equation}
 \begin{cases}
-Z^\ast_T\,\partial_t \phi(t)
-+ \sqrt{\alpha}\, p(L,t) = 0,
+Z_T^\ast\,\partial_t\phi(t)
++
+\sqrt{\alpha}\,p(L,t)
+=
+0,
 \\[0.4em]
--\dfrac{\beta}{Z^\ast_T}\, p(L,t)
-+ v(L,t)
-+ \sqrt{\alpha}\,\phi(t) = 0.
+-\dfrac{\beta}{Z_T^\ast}p(L,t)
++
+v(L,t)
++
+\sqrt{\alpha}\phi(t)
+=
+0,
 \end{cases}
-\label{eq:bc_ode_pde}
+\label{eq:rad_original}
 \end{equation}
 
-The first equation governs the temporal evolution of the boundary variable
-$\phi(t)$, while the second equation defines a dynamic impedance relation
-between pressure and velocity at the boundary. Rewriting the second equation yields
+where the auxiliary variable $\phi(t)$ models the dynamic response of the
+radiation impedance.
+
+The second equation can be rewritten as
+
 \begin{equation}
 v(L,t)
 =
-\frac{\beta}{Z^\ast_T} p(L,t)
+\dfrac{\beta}{Z_T^\ast}p(L,t)
 -
-\sqrt{\alpha}\,\phi(t).
-\tag{BC}
+\sqrt{\alpha}\phi(t).
+\label{eq:rad_velocity}
 \end{equation}
 
-Introducing the transformed variables
-\[
-\tilde p
+To express this condition in terms of the conservative variables introduced
+previously, we use
+
+\begin{equation}
+p
 =
-\frac{S(x)}{cS^\ast}p,
+\dfrac{cS^\ast}{S_R}\tilde p,
 \qquad
+v
+=
+\dfrac{cS_R}{S^\ast}\tilde v,
+\end{equation}
+
+where $S_R=S(L)$ denotes the cross-sectional area at the bell.
+
+Substituting these expressions into
+Equation~\eqref{eq:rad_velocity} gives
+
+\begin{equation}
 \tilde v
 =
-\frac{S^\ast}{cS(x)}v,
-\]
-the boundary condition becomes
-\begin{equation}
-\frac{cS_L}{S^\ast}\tilde v(L,t)
-=
-\frac{\beta}{Z^\ast_T}
-\frac{cS^\ast}{S_L}\tilde p(L,t)
--
-\sqrt{\alpha}\,\phi(t),
-\end{equation}
-where $S_L = S(L)$.
-
-Dividing by $\dfrac{cS_L}{S^\ast}$ gives
-\begin{equation}
-\tilde v(L,t)
-=
-\frac{\beta}{Z^\ast_T}
+\dfrac{\beta}{Z_T^\ast}
 \left(
-\frac{S^\ast}{S_L}
+\dfrac{S^\ast}{S_R}
 \right)^2
-\tilde p(L,t)
+\tilde p
 -
-\frac{S^\ast}{cS_L}
-\sqrt{\alpha}\,\phi(t).
+\dfrac{S^\ast}{cS_R}
+\sqrt{\alpha}\phi.
 \end{equation}
 
-We now introduce the riemann invariants at the boundary $x=L$:
+Introducing the characteristic variables
+
 \begin{equation}
 w^\pm
 =
 \tilde v
 \pm
-\kappa \tilde p,
+k_R\tilde p,
 \qquad
-\kappa
+k_R
 =
-\left(
-\frac{S_{\ast}}{S_R}
-\right).
+\dfrac{S^\ast}{S_R},
 \end{equation}
-with $S_R = S(L)$.
-Hence,
+
+we have
+
 \begin{equation}
 \tilde v
 =
-\frac{w^+ + w^-}{2},
+\dfrac{w^++w^-}{2},
 \qquad
 \tilde p
 =
-\frac{w^+ - w^-}{2\kappa}.
+\dfrac{w^+-w^-}{2k_R}.
 \end{equation}
 
 Substituting these expressions into the boundary condition yields
+
 \begin{equation}
-\frac{w^+ + w^-}{2}
+\dfrac{w^++w^-}{2}
 =
-\frac{\beta}{Z^\ast_T}
+\dfrac{\beta}{Z_T^\ast}
 \left(
-\frac{S^\ast}{S_R}
+\dfrac{S^\ast}{S_R}
 \right)^2
-\frac{w^+ - w^-}{2\kappa}
+\dfrac{w^+-w^-}{2k_R}
 -
-\frac{S^\ast}{cS_R}
-\sqrt{\alpha}\,\phi(t).
+\dfrac{S^\ast}{cS_R}
+\sqrt{\alpha}\phi.
 \end{equation}
 
-Defining
-\[
+For clarity, we introduce the coefficients
+
+\begin{equation}
 K
 =
-\frac{\beta}{Z^\ast_T}
+\dfrac{\beta}{Z_T^\ast}
 \left(
-\frac{S^\ast}{S_R}
+\dfrac{S^\ast}{S_R}
 \right)^2,
 \qquad
-r
-=
-\frac{K}{\kappa},
+r=\dfrac{K}{k_R},
 \qquad
 C
 =
-\frac{S^\ast}{cS_R}\sqrt{\alpha},
-\]
-we obtain
-\begin{equation}
-w^-
-\left(
-r+1
-\right)
-=
-w^+
-\left(r-1
-\right)
--
-2C\phi(t),
-\end{equation}
-and therefore
-\begin{equation}
-w^-
-=
-\frac{r-1}
-     {r+1}
-\, w^+
--
-\frac{2C}
-     {r+1}
-\, \phi(t).
+\dfrac{S^\ast}{cS_R}\sqrt{\alpha}.
 \end{equation}
 
-This relation provides the incoming characteristic variable $w^-$
-as a function of the outgoing characteristic $w^+$ wich we impose 
-to be $w^+= \tilde{v}(L) + \kappa \tilde{p}(L)$ and the boundary 
-state variable $\phi(t)$.
+After straightforward algebraic manipulations, the incoming characteristic is
+obtained as
 
-\section{Reed Model}
-The left-hand side boundary conditions \eqref{eq:1e} and \eqref{eq:1f} 
-represent the coupling between the acoustic field inside the instrument and the dynamics of the reed.
-At \(x=0\), the reed boundary condition is described by the coupled system
+\begin{equation}
+\boxed{
+w^-
+=
+\dfrac{r-1}{r+1}w^+
+-
+\dfrac{2C}{r+1}\phi.
+}
+\label{eq:rad_final}
+\end{equation}
+
+Equation~\eqref{eq:rad_final} expresses the incoming wave solely as a function
+of the outgoing wave and the radiation state variable.
+Consequently, the radiation boundary condition can be imposed explicitly during
+the numerical resolution without requiring any iterative procedure.
+
+Moreover, this characteristic formulation naturally provides the ghost state
+required by the numerical flux of the DG method, making its implementation both
+simple and physically consistent.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Reed boundary condition}
+
+The left boundary of the instrument differs fundamentally from the radiation
+boundary. Instead of coupling the acoustic field with the surrounding air, it
+models the interaction between the pressure waves inside the resonator and the
+mechanical motion of the reed.
+
+This interaction is responsible for the self-sustained oscillations that
+generate the musical sound. Owing to the nonlinear airflow through the reed
+channel, the corresponding boundary condition is intrinsically nonlinear.
+
+The coupled reed model is given by
+
 \begin{equation}
 \begin{cases}
 -v(0,t)
 +
-\zeta \ell(y)\,F(\gamma - p(0,t))
+\zeta\ell(y)
+F(\gamma-p(0,t))
 +
-\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
-= 0,
-\\[0.5em]
-\frac{1}{\omega_r^2}\,\partial_{tt} y
-+
-\frac{1}{Q_r\omega_r}\,\partial_t y
-+
-y - 1
+\varepsilon\dfrac{\kappa}{\omega_r}\dot y
 =
-\varepsilon(\gamma - p(0,t)).
+0,
+\\[0.5em]
+\dfrac{1}{\omega_r^2}\ddot y
++
+\dfrac{1}{Q_r\omega_r}\dot y
++
+y-1
+=
+\varepsilon(\gamma-p(0,t)).
 \end{cases}
+\label{eq:reed_original}
 \end{equation}
 
-Using the transformed variables
+The first equation prescribes the acoustic velocity at the entrance of the tube,
+while the second governs the mechanical dynamics of the reed.
+
+Using the conservative variables,
+
 \begin{equation}
-\tilde p
+p
 =
-\frac{S(x)}{cS^\ast}p,
+\dfrac{cS^\ast}{S_L}\tilde p,
 \qquad
+v
+=
+\dfrac{cS_L}{S^\ast}\tilde v,
+\end{equation}
+
+where $S_L=S(0)$, the acoustic boundary condition becomes
+
+\begin{equation}
 \tilde v
 =
-\frac{S^\ast}{cS(x)}v,
-\end{equation}
-the first boundary equation becomes
-\begin{equation}
-\frac{cS(0)}{S^\ast}\tilde v(0,t)
-=
-\zeta \ell(y)\,
-F\!\left(
-\gamma
--
-\frac{cS^\ast}{S(0)}\tilde p(0,t)
-\right)
-+
-\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y.
-\end{equation}
-
-Hence,
-\begin{equation}
-\tilde v(0,t)
-=
-\frac{S^\ast}{cS(0)}
+\dfrac{S^\ast}{cS_L}
 \left[
-\zeta \ell(y)\,
-F\!\left(
+\zeta\ell(y)
+F\left(
 \gamma
 -
-\frac{cS^\ast}{S(0)}\tilde p(0,t)
+\dfrac{cS^\ast}{S_L}\tilde p
 \right)
 +
-\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+\varepsilon
+\dfrac{\kappa}{\omega_r}\dot y
 \right].
 \end{equation}
 
-We now introduce the characteristic variables
+Introducing the characteristic variables
+
 \begin{equation}
 w^\pm
 =
 \tilde v
 \pm
-k_c \tilde p,
+k_L\tilde p,
 \qquad
-k_c = \frac{S^\ast}{S(0)}.
-\end{equation}
-
-The outgoing characteristic at the left boundary is therefore
-\begin{equation}
-w^-
+k_L
 =
-\tilde v(0,t)
--
-k_c \tilde p(0,t),
+\dfrac{S^\ast}{S_L},
 \end{equation}
-while the incoming characteristic \(w^+\) is determined by the nonlinear reed condition.
 
-Using
+together with
+
 \begin{equation}
 \tilde v
 =
-\frac{w^+ + w^-}{2},
+\dfrac{w^++w^-}{2},
 \qquad
 \tilde p
 =
-\frac{w^+ - w^-}{2k_c},
+\dfrac{w^+-w^-}{2k_L},
 \end{equation}
+
 the boundary equation becomes
+
 \begin{equation}
-\frac{w^+ + w^-}{2}
+\dfrac{w^++w^-}{2}
 =
-\frac{S^\ast}{cS(0)}
+\dfrac{S^\ast}{cS_L}
 \left[
-\zeta \ell(y)\,
-F\!\left(
+\zeta\ell(y)
+F
+\left(
 \gamma
 -
-\frac{cS^\ast}{S(0)}
-\frac{w^+ - w^-}{2k_c}
+\dfrac{cS^\ast}{S_L}
+\dfrac{w^+-w^-}{2k_L}
 \right)
 +
-\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+\varepsilon
+\dfrac{\kappa}{\omega_r}\dot y
 \right].
 \end{equation}
 
-Rearranging yields the nonlinear equation
+Unlike the radiation condition, the unknown characteristic variable $w^+$
+appears both outside and inside the nonlinear function $F$. Consequently, it
+cannot be isolated analytically.
+
+After rearranging the previous equation, the boundary state is defined as the
+solution of the nonlinear scalar equation
+
 \begin{equation}
+\boxed{
+R(w^+)
+=
 w^+
+-
+G(w^+)
+=
+0,
+}
+\label{eq:reed_scalar}
+\end{equation}
+
+where
+
+\begin{equation}
+G(w^+)
 =
 -w^-
 +
-2\frac{S^\ast}{cS(0)}
+2\dfrac{S^\ast}{cS_L}
 \left[
-\zeta \ell(y)\,
-F\!\left(
+\zeta\ell(y)
+F
+\left(
 \gamma
 -
-\frac{cS^\ast}{S(0)}
-\frac{w^+ - w^-}{2k_c}
+\dfrac{cS^\ast}{S_L}
+\dfrac{w^+-w^-}{2k_L}
 \right)
 +
-\varepsilon\frac{\kappa}{\omega_r}\,\partial_t y
+\varepsilon
+\dfrac{\kappa}{\omega_r}\dot y
 \right].
 \end{equation}
 
-This equation is solved iteratively using a fixed-point method in order to determine the incoming characteristic \(w^+\).
+The reed boundary condition therefore differs fundamentally from the radiation
+condition. Whereas the latter directly provides the incoming characteristic
+variable through an explicit expression, the reed model requires the solution of
+a nonlinear equation at every time step.
 
-Once \(w^+\) has been computed, the boundary state is reconstructed from
-\begin{equation}
-\tilde v
-=
-\frac{w^+ + w^-}{2},
-\qquad
-\tilde p
-=
-\frac{w^+ - w^-}{2k_c}.
-\end{equation}
+Fortunately, this problem remains one-dimensional, so that an iterative solver
+can be employed with a negligible computational overhead compared with the cost
+of advancing the acoustic field.
 
+The numerical strategy adopted to solve Equation~\eqref{eq:reed_scalar}, together
+with the complete DG discretization and the time integration procedure, are
+presented in the next chapter.
 
+\chapter{Numerical Resolution}
+\label{chap:numerical_resolution}
 
-\chapter{Numerical Methods}
 \minitoc
 
-\section{Discontinuous Galerkin Method}
+The previous chapter reformulated the governing equations into a conservative
+hyperbolic system and expressed both boundary conditions in terms of
+characteristic variables. The resulting formulation is particularly well suited
+for numerical approximation but still requires the design of an efficient
+computational strategy capable of solving the coupled acoustic--mechanical
+system.
 
-The Discontinuous Galerkin method is used to discretize the acoustic PDE in space. 
-It is well suited for hyperbolic conservation laws because it combines local polynomial
-approximations with numerical fluxes at cell interfaces \cite{HesthavenWarburton2008}.
+The numerical solver developed in this work combines several complementary
+numerical techniques. The acoustic field is discretized in space using the
+Discontinuous Galerkin (DG) method, while the temporal integration relies on a
+combination of an explicit second-order Runge--Kutta scheme for the acoustic
+variables and a Crank--Nicolson discretization for the reed dynamics. The
+nonlinear boundary condition at the mouthpiece is solved iteratively using a
+damped Newton method.
 
-\subsection{Original Mixed Formulation}
+Rather than considering these components independently, they should be viewed
+as different building blocks of a single numerical algorithm. At every time
+step, the boundary conditions are first evaluated, the corresponding ghost
+states are reconstructed, the acoustic field is advanced using the DG solver,
+and finally the reed variables are updated.
 
-We consider the mixed formulation of the one-dimensional acoustic equations:
-\begin{equation}
-\frac{S(x)}{cS^\ast}\partial_t p+\partial_x v=0,
-\qquad
-\frac{S^\ast}{cS(x)}\partial_t v+\partial_x p=0.
-\label{eq:mixed_system}
-\end{equation}
+Figure~\ref{fig:solver_pipeline} summarizes the overall numerical strategy
+adopted throughout this work.
 
-Here, \(p\) is the acoustic pressure, \(v\) the volume velocity, \(S(x)\) the
-cross-sectional area, \(S^\ast\) a reference section, and \(c\) the speed of sound.
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=0.8\linewidth]{solver_pipeline.png}
+\caption{Overall organization of the numerical solver.}
+\label{fig:solver_pipeline}
 
-\subsection{Weak Formulation and Mass Matrix Issue}
+\end{figure}
 
-Let \(K_j=(x_{j-1},x_j)\) be a mesh cell. Multiplying by test functions
-\(\psi_p,\psi_v\in\mathbb P_1(K_j)\) and integrating by parts gives
-\begin{equation}
-\int_{K_j}\frac{S(x)}{cS^\ast}\partial_t p\,\psi_p\,dx
--\int_{K_j}v\,\partial_x\psi_p\,dx
-+v\psi_p\Big|_{\partial K_j}=0,
-\end{equation}
-\begin{equation}
-\int_{K_j}\frac{S^\ast}{cS(x)}\partial_t v\,\psi_v\,dx
--\int_{K_j}p\,\partial_x\psi_v\,dx
-+p\psi_v\Big|_{\partial K_j}=0.
-\end{equation}
+The following sections detail each component of this numerical procedure,
+starting with the spatial discretization of the acoustic equations.
 
-A direct DG discretization would therefore lead to geometry-dependent mass matrices:
-\begin{equation}
-(M_p)_{ij}
-=
-\int_{K_j}
-\frac{S(x)}{cS^\ast}\psi_i\psi_j\,dx,
-\qquad
-(M_v)_{ij}
-=
-\int_{K_j}
-\frac{S^\ast}{cS(x)}\psi_i\psi_j\,dx.
-\end{equation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-This is inconvenient because the mass matrices depend on the local geometry.
+\section{Discontinuous Galerkin discretization}
 
-\subsection{Conservative Change of Variables}
+The acoustic propagation is governed by the conservative hyperbolic system
 
-To obtain uniform mass matrices, we introduce
-\begin{equation}
-\tilde p=\frac{S(x)}{cS^\ast}p,
-\qquad
-\tilde v=\frac{S^\ast}{cS(x)}v.
-\end{equation}
-
-With
-\begin{equation}
-\tilde{\mathbf u}
-=
-\begin{pmatrix}
-\tilde p\\
-\tilde v
-\end{pmatrix},
-\end{equation}
-the system becomes
 \begin{equation}
 \partial_t\tilde{\mathbf u}
 +
-\partial_x\left(A(x)\tilde{\mathbf u}\right)=0,
-\end{equation}
-where
-\begin{equation}
-A(x)=
-\begin{pmatrix}
-0 & \dfrac{cS(x)}{S^\ast}\\[0.4em]
-\dfrac{cS^\ast}{S(x)} & 0
-\end{pmatrix}.
-\end{equation}
-
-The physical flux is
-\begin{equation}
-\mathbf F(\tilde{\mathbf u})
-=
+\partial_x
+\left(
 A(x)\tilde{\mathbf u}
+\right)
 =
-\begin{pmatrix}
-v\\
-p
-\end{pmatrix}.
+0,
+\label{eq:dg_system}
 \end{equation}
 
-The eigenvalues of \(A(x)\) are
-\begin{equation}
-\lambda_\pm=\pm c,
-\end{equation}
-independently of the geometry. The corresponding Riemann invariants are
-\begin{equation}
-w^\pm
-=
-\tilde v
-\pm
-\frac{S^\ast}{S(x)}\tilde p.
-\end{equation}
-
-\subsection{DG Approximation Space}
-
-We seek
-\begin{equation}
-\tilde{\mathbf u}_h=(\tilde p_h,\tilde v_h)^T\in (V_h^1)^2,
-\end{equation}
 where
+
+\[
+\tilde{\mathbf u}
+=
+(\tilde p,\tilde v)^T
+\]
+
+contains the conservative variables introduced in the previous chapter.
+
+Among the different numerical methods available for the approximation of
+hyperbolic conservation laws, the Discontinuous Galerkin (DG) method has become
+one of the most popular approaches. It combines several desirable properties,
+including high-order accuracy, local conservation, geometric flexibility and
+excellent parallelization capabilities.
+
+Unlike continuous finite element methods, the DG approximation is allowed to be
+discontinuous across element interfaces. Information is exchanged only through
+numerical fluxes, which naturally handle wave propagation and discontinuities.
+\cite{HesthavenWarburton2008}
+These properties make the method particularly attractive for acoustic
+simulations, where propagating waves and boundary interactions play a central
+role.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Weak formulation}
+
+Let
+
+\[
+K_j=(x_{j-1},x_j)
+\]
+
+denote a generic element of the computational mesh.
+
+Multiplying Equation~\eqref{eq:dg_system} by a vector-valued test function
+$\boldsymbol\psi$ and integrating over $K_j$ gives
+
 \begin{equation}
-V_h^1=
+\int_{K_j}
+\partial_t\tilde{\mathbf u}
+\cdot
+\boldsymbol\psi
+\,dx
++
+\int_{K_j}
+\partial_x
+(A\tilde{\mathbf u})
+\cdot
+\boldsymbol\psi
+\,dx
+=
+0.
+\end{equation}
+
+The derivative acting on the flux is transferred onto the test function by
+integration by parts,
+
+\begin{equation}
+\int_{K_j}
+\partial_t\tilde{\mathbf u}
+\cdot
+\boldsymbol\psi
+\,dx
+-
+\int_{K_j}
+A\tilde{\mathbf u}
+\cdot
+\partial_x\boldsymbol\psi
+\,dx
++
+\left(
+A\tilde{\mathbf u}
+\cdot
+\boldsymbol\psi
+\right)
+\Big|_{\partial K_j}
+=
+0.
+\label{eq:weak_form}
+\end{equation}
+
+The appearance of boundary terms is a fundamental feature of the DG method.
+Since the numerical approximation is discontinuous from one element to the
+next, the physical flux cannot be evaluated uniquely at the interfaces.
+Consequently, it must be replaced by a numerical flux that consistently couples
+neighboring elements.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Approximation space}
+
+The computational domain is divided into $N_x$ non-overlapping elements
+
+\[
+\Omega
+=
+\bigcup_{j=1}^{N_x}
+K_j.
+\]
+
+Within each element, the conservative variables are approximated by local
+polynomials of degree one,
+
+\begin{equation}
+V_h^1
+=
 \left\{
-u\in L^2(0,L)
+u\in L^2(\Omega)
 \;\middle|\;
 u|_{K_j}\in\mathbb P_1(K_j)
 \right\}.
 \end{equation}
 
-The local mass matrix is now the standard P1 mass matrix:
+The numerical solution therefore belongs to the discontinuous finite element
+space
+
+\begin{equation}
+\tilde{\mathbf u}_h
+\in
+(V_h^1)^2.
+\end{equation}
+
+Using first-order polynomials represents a compromise between numerical
+accuracy and computational efficiency. Although higher-order approximations
+could easily be considered within the DG framework, the present work focuses on
+a $P^1$ discretization, which already provides accurate solutions while keeping
+the computational cost moderate.
+
+Inside every element, the solution is expanded onto the local basis functions
+
+\begin{equation}
+\tilde{\mathbf u}_h(x,t)
+=
+\sum_{i=1}^{2}
+\mathbf U_i(t)\,
+\varphi_i(x),
+\end{equation}
+
+where $\varphi_i$ denote the usual linear Lagrange basis functions.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Element matrices}
+
+Substituting the polynomial approximation into the weak formulation
+(Equation~\eqref{eq:weak_form}) and choosing the basis functions as test
+functions yields a semi-discrete system of ordinary differential equations for
+the nodal coefficients.
+
+The first term gives rise to the local mass matrix
+
+\begin{equation}
+M_{ij}
+=
+\int_{K_j}
+\varphi_i(x)\varphi_j(x)\,dx.
+\end{equation}
+
+Since the conservative variables have removed the geometric coefficients from
+the time derivatives, the mass matrix is identical for every element. For a
+uniform mesh of size \(h\) and linear basis functions, it is given by
+
 \begin{equation}
 M
 =
 \frac{h}{6}
 \begin{pmatrix}
-2&1\\
-1&2
+2 & 1\\
+1 & 2
 \end{pmatrix}.
 \end{equation}
 
-\subsection{Local DG Formulation}
+This is one of the main advantages of the conservative reformulation presented
+in Chapter~\ref{chap:mathematical_reformulation}. Without this change of
+variables, each element would possess its own geometry-dependent mass matrix,
+leading to a more complex implementation and increased computational cost.
 
-For each element \(K_j\), the DG formulation reads
+The second integral defines the local stiffness contribution
+
 \begin{equation}
-\int_{K_j}
-\partial_t\tilde{\mathbf u}_h\cdot\boldsymbol\psi\,dx
--
-\int_{K_j}
-\left(A(x)\tilde{\mathbf u}_h\right)\cdot\partial_x\boldsymbol\psi\,dx
-+
-\widehat{\mathbf F}_{j+\frac12}\cdot\boldsymbol\psi(x_j^-)
--
-\widehat{\mathbf F}_{j-\frac12}\cdot\boldsymbol\psi(x_{j-1}^+)
-=0.
-\label{eq:dg_local_vector}
-\end{equation}
-
-\section{Numerical Fluxes}
-
-At each interface, the numerical flux is chosen as a Rusanov flux:
-\begin{equation}
-\widehat{\mathbf F}
+K(\mathbf U)
 =
-\frac12
-\left(
-\mathbf F^-+\mathbf F^+
-\right)
--
-\frac{c}{2}
-\left(
-\tilde{\mathbf u}^+ - \tilde{\mathbf u}^-
-\right).
+\int_{K_j}
+A(x)\tilde{\mathbf u}_h
+\cdot
+\partial_x\boldsymbol\varphi
+\,dx,
 \end{equation}
 
-Writing
+where the flux matrix is evaluated at the quadrature points inside each
+element.
+
+Finally, the interface contributions introduce numerical fluxes evaluated at
+the two boundaries of every cell. The resulting semi-discrete formulation may
+therefore be written as
+
+\begin{equation}
+M
+\frac{d\mathbf U_j}{dt}
+=
+K_j(\mathbf U)
+-
+\widehat{\mathbf F}_{j+\frac12}
++
+\widehat{\mathbf F}_{j-\frac12},
+\label{eq:semi_discrete}
+\end{equation}
+
+where
+\(\widehat{\mathbf F}\)
+denotes the numerical flux.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Numerical flux}
+
+Because the approximation is discontinuous across element interfaces, the
+physical flux cannot be evaluated uniquely at the cell boundaries.
+
+Let
+
 \[
-\tilde{\mathbf u}^\pm
-=
-(\tilde p^\pm,\tilde v^\pm)^T,
+\tilde{\mathbf u}^-
 \]
-one obtains
+
+and
+
+\[
+\tilde{\mathbf u}^+
+\]
+
+denote the left and right traces of the numerical solution at a given
+interface.
+
+The numerical flux must satisfy two fundamental properties:
+
+\begin{itemize}
+\item consistency with the physical flux,
+
+\item numerical stability.
+\end{itemize}
+
+In the present work, these requirements are fulfilled by the Rusanov
+(Lax--Friedrichs) flux
+
 \begin{equation}
+\boxed{
 \widehat{\mathbf F}
 =
-\begin{pmatrix}
-\widehat F_p\\
-\widehat F_v
-\end{pmatrix},
-\end{equation}
-with
-\begin{equation}
-\begin{aligned}
-\widehat F_p
-&=
 \frac12
 \left(
-\frac{cS}{S^\ast}\tilde v^-
+\mathbf F^-
 +
-\frac{cS}{S^\ast}\tilde v^+
+\mathbf F^+
 \right)
 -
-\frac{c}{2}
-(\tilde p^+-\tilde p^-),
-\\[0.5em]
-\widehat F_v
-&=
-\frac12
+\frac{s_{\max}}{2}
 \left(
-\frac{cS^\ast}{S}\tilde p^-
-+
-\frac{cS^\ast}{S}\tilde p^+
-\right)
+\tilde{\mathbf u}^+
 -
-\frac{c}{2}
-(\tilde v^+-\tilde v^-).
-\end{aligned}
+\tilde{\mathbf u}^-
+\right),
+}
+\label{eq:rusanov_flux}
 \end{equation}
 
-Boundary fluxes are obtained by constructing ghost states from the characteristic
-variables \(w^\pm\), using the reed condition at \(x=0\) and the radiation condition
-at \(x=L\).
+where
 
-\section{Time Integration}
+\[
+s_{\max}
+=
+\max |\lambda|
+\]
 
-\subsection{Semi-discrete Formulation}
+is the largest propagation speed.
 
-After spatial discretization, the coupled problem can be written abstractly as
+Since the eigenvalues of the acoustic system are
+
+\[
+\lambda^\pm=\pm c,
+\]
+
+the Rusanov parameter simply becomes
+
 \begin{equation}
-\frac{dX}{dt}=F(X),
+s_{\max}=c.
+\end{equation}
+
+The first term in Equation~\eqref{eq:rusanov_flux} represents the average
+physical flux across the interface, whereas the second introduces numerical
+dissipation proportional to the jump of the conservative variables.
+
+Although more sophisticated approximate Riemann solvers could be employed, the
+Rusanov flux offers an excellent compromise between simplicity, robustness and
+accuracy for one-dimensional acoustic wave propagation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Boundary treatment through ghost states}
+
+The numerical flux introduced above requires two states at every interface.
+
+Inside the computational domain, these states are naturally provided by the
+neighboring elements.
+
+At the two extremities of the tube, however, only one physical state is
+available. A second state must therefore be constructed in order to evaluate
+the numerical flux.
+
+The Discontinuous Galerkin method addresses this difficulty through the
+introduction of \emph{ghost states} located outside the computational domain.
+
+Figure~\ref{fig:ghost_cell} illustrates this construction.
+
+\begin{figure}[htbp]
+\centering
+
+\begin{tikzpicture}[scale=1]
+
+\draw (0,0) rectangle (2,1);
+\draw (2,0) rectangle (4,1);
+\draw (4,0) rectangle (6,1);
+
+\node at (1,0.5){Cell $N-1$};
+\node at (3,0.5){Cell $N$};
+\node at (5,0.5){Ghost};
+
+\draw[thick,dashed] (4,-0.3)--(4,1.3);
+
+\node[below] at (4,-0.3){Boundary};
+
+\end{tikzpicture}
+
+\caption{Construction of a ghost state outside the computational domain.}
+\label{fig:ghost_cell}
+
+\end{figure}
+
+The ghost state is not an additional unknown of the problem. Instead, it is
+reconstructed from the physical boundary conditions derived in the previous
+chapter.
+
+At the right boundary, the radiation model explicitly provides the incoming
+characteristic variable. The corresponding ghost state is therefore obtained by
+combining the outgoing characteristic computed by the DG solution with the
+incoming characteristic determined by the radiation model.
+
+Similarly, at the left boundary, the reed model supplies the incoming
+characteristic after solving the nonlinear boundary equation. Once both
+characteristic variables are known, the conservative variables are recovered
+through
+
+\begin{equation}
+\tilde v
+=
+\frac{w^++w^-}{2},
 \qquad
-X=(\boldsymbol U,\phi,y,z),
-\end{equation}
-where \(\boldsymbol U\) contains the DG degrees of freedom, \(\phi\) is the radiation
-boundary variable, \(y\) is the reed opening, and \(z=\dot y\).
-
-More explicitly,
-\begin{equation}
-F(X)=
-\begin{pmatrix}
-M^{-1}\mathcal L(\boldsymbol U,\phi,y,z)\\
-G(\boldsymbol U,\phi)\\
-z\\
-K(\boldsymbol U,y,z)
-\end{pmatrix}.
-\end{equation}
-
-\subsection{Explicit Euler Scheme}
-
-The explicit Euler scheme is used as a simple first-order reference:
-\begin{equation}
-X^{n+1}=X^n+\Delta t\,F(X^n).
-\end{equation}
-
-It is straightforward to implement, but it is very restrictive for wave propagation
-problems because of its small stability region.
-
-\subsection{Second-order Runge--Kutta Scheme}
-
-For the acoustic field and the radiation variable, we use a second-order explicit
-Runge--Kutta midpoint scheme:
-\begin{equation}
-X^{n+\frac12}
+\tilde p
 =
-X^n+\frac{\Delta t}{2}F(X^n),
+\frac{w^+-w^-}{2k},
 \end{equation}
+
+which completely defines the ghost state.
+
+This characteristic reconstruction allows the same numerical flux to be used
+both inside the computational domain and at the physical boundaries. As a
+result, no special treatment of the DG discretization is required at the
+extremities of the mesh.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Semi-discrete formulation}
+
+The DG discretization presented in the previous section transforms the
+continuous acoustic problem into a finite-dimensional system of ordinary
+differential equations. At this stage, only the spatial variables have been
+discretized, while time remains continuous.
+
+Denoting by
+
+\[
+\mathbf U(t)
+\]
+
+the vector gathering all DG degrees of freedom, the acoustic problem may be
+written under the abstract form
+
 \begin{equation}
-X^{n+1}
+\boxed{
+\frac{d\mathbf U}{dt}
 =
-X^n+\Delta t\,F(X^{n+\frac12}).
+\mathcal L
+(\mathbf U,\phi,y,\dot y),
+}
+\label{eq:semi_discrete_system}
 \end{equation}
 
-In practice, the reed variables are treated separately using a Crank--Nicolson
-step, while the acoustic and radiation variables are advanced with RK2.
+where the nonlinear operator
+\(\mathcal L\)
+contains the DG volume contributions together with the numerical fluxes
+evaluated at every interface.
 
-\subsection{Crank--Nicolson Scheme for the Reed Dynamics}
+Unlike a standard hyperbolic conservation law, the operator
+\(\mathcal L\)
+also depends on the boundary variables.
+Indeed,
 
-The reed equation is
+\begin{itemize}
+
+\item the radiation variable \(\phi\) determines the ghost state at the bell,
+
+\item the reed displacement \(y\) and its velocity \(\dot y\) determine the
+ghost state at the mouthpiece.
+
+\end{itemize}
+
+Consequently, the complete model consists of the coupled system
+
 \begin{equation}
-\frac{1}{\omega_r^2}\ddot y
+\begin{cases}
+\dfrac{d\mathbf U}{dt}
+=
+\mathcal L
+(\mathbf U,\phi,y,\dot y),
+\\[0.5em]
+\dfrac{d\phi}{dt}
+=
+G(\mathbf U,\phi),
+\\[0.5em]
+\dfrac{dy}{dt}
+=
+z,
+\\[0.5em]
+\dfrac{dz}{dt}
+=
+K(\mathbf U,y,z),
+\end{cases}
+\label{eq:complete_ode_system}
+\end{equation}
+
+where \(z=\dot y\).
+
+The numerical resolution of this coupled system requires an appropriate time
+integration scheme capable of preserving the accuracy of the DG
+discretization while remaining computationally efficient.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Time integration}
+
+Once the spatial discretization has been performed, the remaining problem
+consists in integrating the coupled system of ordinary differential equations
+given by Equation~\eqref{eq:complete_ode_system}.
+
+Because the different variables exhibit distinct dynamical behaviors, a single
+time integration scheme is not necessarily optimal for all components of the
+system.
+
+The acoustic field evolves according to a hyperbolic conservation law and is
+therefore integrated explicitly using a second-order Runge--Kutta method.
+Conversely, the reed behaves as a damped harmonic oscillator, whose stiffness
+may lead to stability issues for explicit schemes. For this reason, the reed
+equation is discretized using a semi-implicit Crank--Nicolson method.
+
+This hybrid strategy combines the simplicity and efficiency of explicit time
+integration for wave propagation with the improved stability of implicit
+methods for oscillatory mechanical systems.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Runge--Kutta discretization of the acoustic field}
+
+The semi-discrete acoustic system
+
+\begin{equation}
+\frac{d\mathbf U}{dt}
+=
+\mathcal L(\mathbf U)
+\end{equation}
+
+is advanced in time using the explicit midpoint Runge--Kutta scheme.
+
+Starting from the solution at time \(t^n\), an intermediate state is first
+computed,
+
+\begin{equation}
+\mathbf U^{n+\frac12}
+=
+\mathbf U^n
 +
-\frac{1}{Q_r\omega_r}\dot y
+\frac{\Delta t}{2}
+\mathcal L(\mathbf U^n).
+\end{equation}
+
+The solution is then updated according to
+
+\begin{equation}
+\boxed{
+\mathbf U^{n+1}
+=
+\mathbf U^n
++
+\Delta t
+\,
+\mathcal L
+(
+\mathbf U^{n+\frac12}
+).
+}
+\end{equation}
+
+Compared with the explicit Euler method, the midpoint Runge--Kutta scheme
+provides second-order accuracy in time while preserving a relatively simple
+implementation.
+
+Moreover, all boundary conditions are recomputed at the intermediate stage,
+ensuring a consistent second-order treatment of the coupled acoustic problem.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Crank--Nicolson discretization of the reed dynamics}
+
+The reed displacement satisfies the second-order differential equation
+
+\begin{equation}
+\frac{1}{\omega_r^2}
+\ddot y
++
+\frac{1}{Q_r\omega_r}
+\dot y
 +
 y-1
 =
-\varepsilon(\gamma-p_L).
+\varepsilon
+(\gamma-p).
 \end{equation}
 
-Introducing \(z=\dot y\), we obtain
+Introducing the auxiliary variable
+
+\[
+z=\dot y,
+\]
+
+the equation is rewritten as
+
 \begin{equation}
-\dot y=z,
-\qquad
-\dot z=
-\omega_r^2\left[\varepsilon(\gamma-p_L)+1-y\right]
--\frac{\omega_r}{Q_r}z.
+\dot y
+=
+z,
 \end{equation}
 
-With \(p_L\) frozen during one reed update, the Crank--Nicolson discretization gives
+\begin{equation}
+\dot z
+=
+\omega_r^2
+\left[
+\varepsilon(\gamma-p)
++
+1-y
+\right]
+-
+\frac{\omega_r}{Q_r}
+z.
+\end{equation}
+
+Since the reed behaves as a damped oscillator, an explicit discretization would
+require very small time steps when the resonance frequency becomes large.
+
+To improve the numerical stability, the reed variables are therefore integrated
+using the Crank--Nicolson method.
+
+Assuming that the acoustic pressure remains constant during one reed update,
+the discretization leads to
+
 \begin{equation}
 z^{n+1}
 =
 \frac{Bz^n+R}{A},
 \end{equation}
-where
+
+with
+
 \begin{equation}
-A=
-1+\frac{\Delta t}{2}\frac{\omega_r}{Q_r}
-+\frac{\Delta t^2}{4}\omega_r^2,
+A
+=
+1
++
+\frac{\Delta t}{2}
+\frac{\omega_r}{Q_r}
++
+\frac{\Delta t^2}{4}
+\omega_r^2,
 \end{equation}
+
 \begin{equation}
-B=
-1-\frac{\Delta t}{2}\frac{\omega_r}{Q_r}
--\frac{\Delta t^2}{4}\omega_r^2,
+B
+=
+1
+-
+\frac{\Delta t}{2}
+\frac{\omega_r}{Q_r}
+-
+\frac{\Delta t^2}{4}
+\omega_r^2,
 \end{equation}
+
 and
+
 \begin{equation}
-R=
-\Delta t\,\omega_r^2
+R
+=
+\Delta t
+\omega_r^2
 \left[
-\varepsilon(\gamma-p_L)+1-y^n
+\varepsilon(\gamma-p)
++
+1-y^n
 \right].
 \end{equation}
 
-The reed opening is then updated by
+Finally, the reed opening is updated according to
+
 \begin{equation}
 y^{n+1}
 =
@@ -862,226 +1615,3086 @@ y^n
 +
 \frac{\Delta t}{2}
 \left(
-z^n+z^{n+1}
+z^n
++
+z^{n+1}
 \right).
 \end{equation}
 
-This semi-implicit treatment improves stability for the reed oscillator, especially
-when \(\omega_r\) is large.
+This semi-implicit discretization considerably improves the robustness of the
+solver while preserving second-order temporal accuracy.
 
-\subsection{Coupling Strategy}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-At each time step, the acoustic state is evaluated at both boundaries. The radiation
-condition at \(x=L\) is imposed by reconstructing a ghost state from the outgoing
-characteristic and the auxiliary variable \(\phi\). At \(x=0\), the reed condition
-provides a boundary velocity depending on \(y\), \(z\), and the local pressure.
+\section{Boundary reconstruction}
 
-The reconstructed ghost states are then used in the numerical fluxes. In the RK2
-scheme, this procedure is repeated at the midpoint stage in order to preserve
-second-order accuracy for the acoustic field.
+The numerical flux introduced previously requires the conservative variables to
+be known on both sides of every interface. While this information is directly
+available inside the computational domain, additional states must be
+constructed at the physical boundaries.
 
-\subsection{CFL Stability Discussion}
+These so-called \emph{ghost states} are reconstructed from the characteristic
+variables obtained in Chapter~\ref{chap:mathematical_reformulation}. The
+procedure differs at the two extremities of the tube.
 
-The CFL restriction depends on both the DG spatial discretization and the time
-integration scheme. After spatial discretization, one may consider the linearized
-system
+At the bell, the radiation model directly provides the incoming characteristic
+variable through the explicit relation derived previously. The ghost state is
+therefore reconstructed without any additional computation.
+
+At the mouthpiece, however, the reed model defines the incoming
+characteristic implicitly through a nonlinear equation. Consequently, a local
+nonlinear problem must be solved before the ghost state can be reconstructed.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Implicit nonlinear equation}
+
+The reed boundary condition obtained in the previous chapter can be written as
+
 \begin{equation}
-\frac{dU}{dt}=LU.
+R(w^+)=0,
 \end{equation}
 
-For an eigenmode satisfying \(\dot u=\lambda u\), an explicit method is stable when
-\begin{equation}
-|R(\Delta t\lambda)|\le 1,
-\end{equation}
-where \(R\) is the stability function of the time scheme.
+where
 
-For explicit Euler,
 \begin{equation}
-R_{\mathrm{Euler}}(z)=1+z,
-\end{equation}
-whereas for RK2,
-\begin{equation}
-R_{\mathrm{RK2}}(z)=1+z+\frac{z^2}{2}.
-\end{equation}
-
-For purely oscillatory modes \(z=i\omega\Delta t\), Euler satisfies
-\begin{equation}
-|R_{\mathrm{Euler}}(i\omega\Delta t)|^2
+R(w^+)
 =
-1+(\omega\Delta t)^2>1,
+w^+
+-
+G(w^+).
 \end{equation}
-so it amplifies oscillatory modes. RK2 gives
+
+Unlike the radiation condition, no analytical expression of the incoming
+characteristic variable is available because \(w^+\) appears inside the
+nonlinear airflow function.
+
+The computation of the boundary state therefore reduces to solving a scalar
+nonlinear equation at every time step.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Newton iteration}
+
+To determine the incoming characteristic variable, we employ Newton's method.
+
+Starting from an initial approximation
+\(w_0^+\),
+the successive iterates are computed according to
+
 \begin{equation}
-|R_{\mathrm{RK2}}(i\omega\Delta t)|^2
+w_{k+1}^+
 =
-1+\frac{(\omega\Delta t)^4}{4}.
+w_k^+
+-
+\frac{R(w_k^+)}
+{R'(w_k^+)}.
 \end{equation}
 
-Thus, RK2 also slightly amplifies purely imaginary modes, but only at order
-\((\omega\Delta t)^4\), whereas Euler amplifies them at order
-\((\omega\Delta t)^2\). This explains the much better practical stability observed
-with RK2 for acoustic wave propagation.
+Provided that the initial approximation is sufficiently close to the solution,
+Newton's method converges quadratically.
 
-For a DG method of degree \(k\), the time step typically scales as
+In the present problem, an excellent initial guess is naturally provided by the
+solution obtained at the previous time step,
+
 \begin{equation}
+w_0^+
+=
+w_{n-1}^+,
+\end{equation}
+
+since the acoustic variables evolve continuously in time.
+
+As a result, only a small number of Newton iterations is generally required to
+reach convergence.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Damped Newton method}
+
+Although Newton's method exhibits quadratic convergence close to the solution,
+its convergence may deteriorate when the initial approximation is farther from
+the root.
+
+To improve the robustness of the iterative process, a damping coefficient
+
+\[
+0<\theta_N\le1
+\]
+
+is introduced.
+
+The Newton correction becomes
+
+\begin{equation}
+\Delta w
+=
+\frac{R(w)}
+{R'(w)},
+\end{equation}
+
+and the iterative procedure reads
+
+\begin{equation}
+w_{k+1}
+=
+w_k
+-
+\theta_N
+\Delta w.
+\end{equation}
+
+In addition, excessively large corrections are avoided by limiting the Newton
+increment,
+
+\begin{equation}
+\Delta w
+=
+\mathrm{clip}
+\left(
+\Delta w,
+-\Delta_{\max},
+\Delta_{\max}
+\right).
+\end{equation}
+
+The final update therefore becomes
+
+\begin{equation}
+w_{k+1}
+=
+w_k
+-
+\theta_N
+\,
+\mathrm{clip}
+\left(
+\frac{R(w_k)}
+{R'(w_k)},
+-\Delta_{\max},
+\Delta_{\max}
+\right).
+\end{equation}
+
+This damping strategy slightly reduces the asymptotic convergence rate but
+greatly improves the robustness of the solver, particularly during the initial
+transient of the simulation.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Ghost-state reconstruction}
+
+Once the nonlinear equation has converged, both characteristic variables are
+known at the reed boundary.
+
+The conservative variables are then reconstructed through
+
+\begin{equation}
+\tilde v
+=
+\frac{w^++w^-}{2},
+\qquad
+\tilde p
+=
+\frac{w^+-w^-}{2k_L}.
+\end{equation}
+
+These quantities define the ghost state located outside the computational
+domain.
+
+The same reconstruction procedure is applied at the bell using the explicit
+radiation condition.
+
+Consequently, the numerical flux can be evaluated exactly as at any interior
+interface, ensuring a uniform implementation of the DG method over the entire
+computational domain.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Stability considerations}
+
+The stability of the numerical solver is primarily governed by the explicit
+integration of the acoustic field.
+
+For a DG discretization of polynomial degree \(k\), the time step must satisfy
+a Courant--Friedrichs--Lewy (CFL) condition of the form
+
+\begin{equation}
+\boxed{
 \Delta t
 \le
 C_{\mathrm{CFL}}
-\frac{h}{(2k+1)c},
+\,
+\frac{h}
+{(2k+1)c},
+}
 \end{equation}
-where \(C_{\mathrm{CFL}}\) depends on the chosen time integration scheme.
 
-\section{JAX Implementation and Differentiability}
+where \(h\) denotes the element size and \(c\) the speed of sound.
 
-The numerical solver was implemented in JAX. This choice was motivated by two main
-objectives: efficient execution through JIT compilation and differentiability of the
-complete simulation pipeline.
+Throughout this work, the value of the CFL number is chosen sufficiently small
+to guarantee stable wave propagation while preserving the computational
+efficiency of the solver.
 
-Most computational kernels were compiled using \texttt{jax.jit}, which reduces Python
-overhead during long time integrations. Local DG operations were vectorized over the
-mesh using \texttt{jax.vmap}, allowing element-wise computations to be expressed without
-explicit Python loops.
+The semi-implicit Crank--Nicolson discretization employed for the reed dynamics
+further improves the stability of the coupled simulation by preventing the
+stiff mechanical oscillator from imposing excessively restrictive time-step
+constraints.
 
-Time integration was implemented using \texttt{jax.lax.scan}, which provides a compiled
-loop compatible with automatic differentiation. This is particularly important for
-future inverse problems, where gradients of a loss function with respect to physical
-parameters must be computed through the whole simulation.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-The implementation was designed in a functional style, avoiding in-place mutations and
-using JAX-compatible operations for ghost-cell construction, boundary conditions and
-time stepping. For long simulations, reverse-mode differentiation can lead to high
-memory consumption, so checkpointing strategies may be used to reduce the memory cost
-during gradient computation.
+\section{Implementation remarks}
+
+Although the numerical method presented above follows the classical
+Discontinuous Galerkin framework, several implementation choices were made to
+improve both efficiency and robustness.
+
+First, all geometric quantities depending on the instrument shape are computed
+only once during the initialization stage. This includes the cross-sectional
+areas, the flux matrices and the interpolation coefficients used during the
+quadrature procedure. Consequently, the time integration only involves matrix
+operations and numerical flux evaluations.
+
+Secondly, the characteristic formulation considerably simplifies the
+implementation of the boundary conditions. Regardless of the considered
+boundary, the numerical flux is always evaluated from two conservative states.
+The only difference lies in the construction of the ghost state, which is
+obtained either explicitly from the radiation model or implicitly from the reed
+model.
+
+Finally, the nonlinear problem associated with the reed boundary remains
+computationally inexpensive since it only involves a single scalar unknown.
+Compared with the DG discretization of the acoustic field, its computational
+cost is therefore negligible.
+
+These implementation choices lead to a compact numerical solver in which the
+same DG formulation is employed throughout the computational domain, including
+at the physical boundaries.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Discussion}
+
+The numerical strategy proposed in this chapter combines several complementary
+methods, each addressing a specific aspect of the coupled acoustic problem.
+
+The Discontinuous Galerkin method provides a high-order spatial approximation
+particularly well suited for hyperbolic wave propagation. The characteristic
+reformulation introduced in the previous chapter allows the boundary conditions
+to be incorporated naturally through ghost-state reconstruction. The nonlinear
+reed model is efficiently handled by a damped Newton method, while the hybrid
+RK2/Crank--Nicolson time integration ensures both accuracy and stability.
+
+An important feature of this solver is that every component has been designed
+with differentiability in mind. The numerical operations involved in the DG
+discretization, the reconstruction of the ghost states and the time integration
+are all compatible with automatic differentiation. As a consequence, the
+complete forward solver can later be embedded into a gradient-based optimization
+procedure without requiring any modification of the numerical algorithm itself.
+
+The resulting solver therefore provides not only an accurate numerical
+approximation of the physical model but also the computational foundation
+required for the inverse calibration framework developed in the second part of
+this manuscript.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Chapter summary}
+
+In this chapter, a complete numerical strategy for solving the coupled
+acoustic--mechanical model has been presented.
+
+Starting from the conservative formulation derived previously, the acoustic
+equations were discretized in space using the Discontinuous Galerkin method.
+The radiation and reed boundary conditions were incorporated through
+characteristic variables and ghost-state reconstruction, while the nonlinear
+reed equation was solved iteratively using a damped Newton method.
+Finally, the coupled system was integrated in time by combining a second-order
+Runge--Kutta scheme for the acoustic field with a Crank--Nicolson
+discretization of the reed dynamics.
+
+The resulting solver constitutes the forward model used throughout the
+remainder of this work. Before addressing the inverse calibration problem, its
+accuracy and numerical properties are first assessed through several validation
+experiments presented in the next chapter.
 
 
-\chapter{Numerical Results}
+\chapter{Validation of the Forward Solver}
+\label{chap:validation}
+
 \minitoc
-In this section, we present numerical results obtained using the Discontinuous Galerkin Method (DGM) 
-for simulating wave propagation in a one-dimensional domain with variable cross-sectional area.
-We will first describe the initial conditions and simulation parameters used in the experiments.
-Then, we will present the results of the DGM solver for both uniform and non-uniform cross-sections(exponential and conical shapes),
-with an analysis of the convergence of the method for the uniform cross-section case. 
-Finally, we will present some performance benchmarks of the JAX implementation.
-\section{Validation}
-\subsection{Initial Condition}
-The initial pressure profile is defined as a smooth compactly supported bump function
-centered at $x=L/2$. Introducing the rescaled variable
+
+The previous chapters introduced the physical model governing sound generation
+in reed wind instruments together with the numerical method developed to solve
+the corresponding coupled acoustic--mechanical problem. Before employing this
+solver within a gradient-based inverse calibration framework, its numerical
+accuracy and robustness must first be carefully assessed.
+
+The validation of the proposed solver is performed progressively through three
+complementary stages. First, the Discontinuous Galerkin discretization is
+validated on a simplified acoustic configuration for which an analytical
+solution is available. First, the acoustic solver is validated on a simplified configuration in which
+the nonlinear reed boundary condition is removed, while the radiation condition
+at the bell is kept unchanged. Under these assumptions, an analytical solution
+is available and provides an exact reference for assessing the accuracy of the
+numerical method.
+
+Once the acoustic solver has been validated, the complete coupled model is
+compared with the OpenWind software, which provides a reliable reference for
+the numerical simulation of wind instruments. Finally, the computational
+performances of the proposed implementation are evaluated in order to assess
+its suitability for the repeated forward simulations required by the inverse
+calibration procedure developed in the second part of this manuscript.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Validation of the acoustic solver}
+
+The objective of this first validation is to verify the correctness of the
+Discontinuous Galerkin implementation independently of the nonlinear reed
+model. To this end, the acoustic equations are solved on a simplified test
+configuration for which an analytical solution can be derived.
+
+This benchmark serves two complementary purposes. First, it verifies that the
+implementation correctly reproduces the exact solution of the continuous
+problem. Secondly, it allows the experimental convergence order of the
+numerical method to be compared with its theoretical prediction.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Test configuration}
+
+To validate the spatial and temporal discretizations independently of the reed
+model, the nonlinear reed boundary condition is removed and replaced by a
+prescribed acoustic boundary condition for which an analytical solution can be
+derived.
+
+The radiation condition at the bell is, however, kept unchanged. This allows
+the numerical implementation of the right boundary condition introduced in
+Chapter~\ref{chap:mathematical_reformulation} to be validated together with the
+DG discretization.
+
+The computational domain is assumed to have two types of cross-sectional area:
+\begin{itemize}
+    \item a uniform cross-section $S(x)=S_0$,
+    \item an "exponential" cross section 
+\end{itemize}
+
+
+so that the governing equations reduce to a linear acoustic propagation
+problem. Under these assumptions, an analytical solution is available and can
+be directly compared with the numerical approximation.
+
+This benchmark therefore validates the complete acoustic solver, including the
+DG discretization, the Runge--Kutta time integration and the implementation of
+the radiation boundary condition, while avoiding the nonlinear coupling induced
+by the reed dynamics.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Initial condition}
+
+The initial acoustic pressure is chosen as a smooth compactly supported pulse
+located at the center of the computational domain. Such a profile offers two
+important advantages. First, its smoothness allows the theoretical convergence
+order of the DG method to be observed without pollution from artificial
+discontinuities. Secondly, its compact support makes the wave propagation easy
+to visualize throughout the simulation.
+
+Introducing the normalized coordinate
+
 \begin{equation}
-\xi(x) = \frac{4}{L}\left(x - \frac{L}{2}\right),
+\xi(x)
+=
+\frac{4}{L}
+\left(
+x-\frac{L}{2}
+\right),
 \end{equation}
-the initial condition reads
+
+the initial pressure profile is defined by
+
 \begin{equation}
-p_0(x) =
+p_0(x)=
 \begin{cases}
-\dfrac{\phi_0}{4}\,
-\exp\!\left(1 - \dfrac{1}{1-\xi(x)^2}\right),
-& \text{if } |\xi(x)| < 1, \\[1.2ex]
-0, & \text{otherwise}.
+\dfrac{\phi_0}{4}
+\exp
+\left(
+1-
+\dfrac{1}{1-\xi(x)^2}
+\right),
+&
+|\xi(x)|<1,
+\\[1.2em]
+0,
+&
+\text{otherwise.}
 \end{cases}
 \end{equation}
 
-The initial acoustic volume velocity is set to zero:
+This function belongs to \(C^\infty(\mathbb{R})\) and therefore introduces no
+spurious high-frequency components into the numerical solution.
+
+The initial acoustic velocity is taken equal to zero,
+
 \begin{equation}
-v_0(x) = 0.
+v_0(x)=0,
 \end{equation}
 
-\subsection{Simulation Parameters}
-Here are the parameters used in the simulations presented in this section.
-We used the same set of parameters for all the test cases to ensure consistency 
-and comparability of the results.
-\begin{table}[h!]
+corresponding to an initially compressed acoustic pulse released inside the
+tube.
+
+Figure~\ref{fig:initial_condition} illustrates the initial pressure
+distribution used throughout the validation tests.
+
+%-------------------------------------------------
+% INSERT FIGURE HERE
+%
+% Initial pressure profile
+%
+%-------------------------------------------------
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Simulation parameters}
+
+All validation experiments presented in this section are performed using the
+same numerical and physical parameters. Keeping these parameters fixed allows
+the influence of the mesh refinement and the temporal discretization to be
+studied independently.
+
+The values employed throughout the simulations are summarized in
+Table~\ref{tab:validation_parameters}.
+
+\begin{table}[htbp]
 \centering
-\begin{tabular}{c cccccc}
-\hline
-Parameters & $\alpha$ & $\beta$ & $S^\ast$ & c & $Z^\ast_T$ & CLF \\
-\hline
-Values & 0.1 & 0.2 & 1 & 1 & 1.0 & 0.05 \\
-\hline
+\begin{tabular}{cccccccccccc}
+\toprule
+Parameter
+&
+$\alpha$
+&
+$\beta$
+&
+$S^\ast$
+&
+$c$
+&
+$Z_T^\ast$
+&
+$\epsilon$
+&
+$\kappa$
+&
+$f_r$
+&
+$Q_r$
+&
+$\zeta$
+&
+CFL
+\\
+\midrule
+Value (case Euler)
+&
+0.1
+&
+0.2
+&
+1
+&
+1
+&
+1
+&
+-1
+&
+0.71
+&
+170
+&
+125
+&
+0.4
+&
+0.05
+\\
+\midrule
+Value (case RK2)
+&
+0.1
+&
+0.2
+&
+$\cdot$
+&
+1
+&
+$\cdot$
+&
+-1
+&
+0.71
+&
+170
+&
+125
+&
+0.4
+&
+0.2
+\\
+\bottomrule
 \end{tabular}
-\caption{Simulation parameters used in the DG P1 solver.}
-\label{tab:sim_parameters}
+\caption{Physical and numerical parameters used during the validation tests.}
+\label{tab:validation_parameters}
 \end{table}
 
-These parameters define the physical properties of the wave propagation and take into
-account certain aspects of the geometry of the instrument. 
-\subsection{Case $S(x)=const$}
-\subsubsection{Analytical vs numerical solution}
+Throughout this chapter, the time step is determined from the CFL condition
+introduced in Chapter~\ref{chap:numerical_resolution}. Consequently, refining
+the spatial mesh automatically decreases the temporal discretization error,
+allowing the global convergence properties of the numerical method to be
+evaluated.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Comparison with the analytical solution}
+
+The first validation consists in comparing the numerical solution obtained with
+the DG solver against the analytical solution of the one-dimensional wave
+equation.
+
+Figure~\ref{fig:validation_uniform} presents the pressure field obtained using
+both the Forward Euler and the second-order Runge--Kutta time integration
+schemes.
+
+\begin{figure}[htbp]
+\centering
+
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]
+{../../experiments/convergence/results/euler/dg_solution_const_N800_method_euler.png}
+\caption{Forward Euler.}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]
+{../../experiments/convergence/results/rk2/dg_solution_const_N800_method_rk2.png}
+\caption{Second-order Runge--Kutta.}
+\end{minipage}
+
+\caption{Comparison between the analytical and numerical solutions for a
+uniform cross-section.}
+\label{fig:validation_uniform}
+
+\end{figure}
+
+Both numerical schemes correctly reproduce the propagation of the acoustic
+pulse. The main differences appear in the numerical diffusion introduced during
+the simulation.
+
+The Forward Euler method exhibits a noticeable smoothing of the wave profile,
+which is characteristic of first-order time integration schemes. In contrast,
+the RK2 solution preserves both the amplitude and the shape of the pressure
+pulse much more accurately. The agreement with the analytical solution is
+almost indistinguishable at the scale of the figure.
+
+These first observations already suggest that the spatial discretization has
+been correctly implemented and that the second-order Runge--Kutta scheme
+significantly improves the overall accuracy of the numerical solution.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Convergence analysis}
+
+Beyond the visual agreement observed in the previous section, a quantitative
+assessment of the numerical accuracy is obtained through a convergence study.
+
+The spatial discretization employed throughout this work is based on a
+Discontinuous Galerkin approximation using piecewise linear basis functions
+(DG P1). Let \(h\) denote the characteristic mesh size and \(\Delta t\) the
+time step. Since the simulations are performed under a CFL condition, both
+quantities satisfy
+
+\begin{equation}
+\Delta t \propto h.
+\label{eq:cfl_validation}
+\end{equation}
+
+The spatial approximation error of a DG method using polynomials of degree
+\(k\) satisfies the classical estimate
+
+\begin{equation}
+\|u-\Pi_hu\|_{L^2}
+\le
+Ch^{k+1},
+\end{equation}
+
+where \(\Pi_hu\) denotes the projection of the exact solution onto the discrete
+approximation space.
+
+Since the present work employs piecewise linear polynomials
+(\(k=1\)), the spatial discretization is expected to satisfy
+
+\begin{equation}
+\boxed{
+\|u-u_h\|_{L^2}
+=
+\mathcal O(h^2).
+}
+\label{eq:space_order}
+\end{equation}
+
+The overall accuracy of the numerical method also depends on the temporal
+integration scheme.
+
+For the Forward Euler discretization, the temporal error is first-order,
+
+\begin{equation}
+\|u-u_{\Delta t}\|
+=
+\mathcal O(\Delta t).
+\end{equation}
+
+Combining the spatial and temporal contributions yields
+
+\begin{equation}
+\|u-u_{h,\Delta t}\|
+=
+\mathcal O(h^2)
++
+\mathcal O(\Delta t).
+\end{equation}
+
+Using Equation~\eqref{eq:cfl_validation}, one finally obtains
+
+\begin{equation}
+\boxed{
+\|u-u_{h,\Delta t}^{Euler}\|_{L^2}
+=
+\mathcal O(h).
+}
+\end{equation}
+
+Consequently, although the DG P1 approximation is intrinsically second-order
+accurate in space, the global convergence order is limited to first order by
+the temporal discretization.
+
+The situation differs for the Runge--Kutta method. Since the midpoint RK2
+scheme is itself second-order accurate,
+
+\begin{equation}
+\|u-u_{\Delta t}\|
+=
+\mathcal O(\Delta t^2),
+\end{equation}
+
+the global error becomes
+
+\begin{equation}
+\|u-u_{h,\Delta t}\|
+=
+\mathcal O(h^2)
++
+\mathcal O(\Delta t^2).
+\end{equation}
+
+Again using the CFL condition leads to
+
+\begin{equation}
+\boxed{
+\|u-u_{h,\Delta t}^{RK2}\|_{L^2}
+=
+\mathcal O(h^2),
+}
+\end{equation}
+
+meaning that the second-order Runge--Kutta scheme fully preserves the accuracy
+of the DG P1 spatial discretization.
+
+The theoretical convergence rates are verified experimentally by computing the
+relative \(L^2\)-error between the numerical and analytical solutions for a
+sequence of increasingly refined meshes.
+
+Figure~\ref{fig:validation_convergence} presents the resulting convergence
+curves for both temporal integration schemes.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.70\linewidth]
+{../../experiments/convergence/results_exact/convergence_exact_euler_rk2.png}
+\caption{Experimental convergence rates for the Forward Euler and RK2 time
+integration schemes.}
+\label{fig:validation_convergence}
+\end{figure}
+
+The numerical results are in excellent agreement with the theoretical analysis.
+The Forward Euler scheme exhibits the expected first-order convergence, whereas
+the RK2 discretization achieves the second-order convergence predicted by the
+DG approximation.
+
+This experiment constitutes an important validation of the numerical solver.
+Indeed, recovering the theoretical convergence orders simultaneously confirms
+the correctness of the DG spatial discretization, the implementation of the
+numerical fluxes and the time integration algorithms developed in the previous
+chapter.
+
+The acoustic solver can therefore be considered numerically validated for the
+simplified configuration in which an analytical reference solution is
+available.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Validation of the complete coupled solver}
+
+The previous section validated the acoustic solver by comparing the numerical
+solution with an analytical reference solution. This first benchmark confirmed
+the correctness of the Discontinuous Galerkin discretization, the Runge--Kutta
+time integration and the implementation of the radiation boundary condition.
+
+The only component that has not yet been validated is the nonlinear reed
+boundary condition. Once the reed dynamics are coupled with the acoustic
+equations, the governing system becomes nonlinear and no closed-form analytical
+solution is available.
+
+To assess the accuracy of the complete forward solver, the numerical solution
+is therefore compared with OpenWind, an open-source software dedicated to the
+simulation of wind instruments. OpenWind implements the same physical model and
+is widely used as a reference solver in computational musical acoustics. The
+objective of this section is to verify that the proposed DG solver converges
+towards the same physical solution as OpenWind for realistic instrument
+configurations.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Numerical configuration}
+
+The comparison is performed using identical physical parameters, identical
+instrument geometries and identical excitation conditions in both numerical
+solvers.
+
+Two representative geometries are considered throughout this study are still:
+
+\begin{itemize}
+
+\item a cylindrical tube with constant cross-sectional area,
+
+\item an exponentially expanding tube.
+
+\end{itemize}
+
+For each simulation, the reed parameters, the radiation coefficients and the
+tube geometry remain unchanged. Consequently, any discrepancy between the two
+solutions originates exclusively from the numerical approximation.
+
+The quantities of interest are the acoustic pressure measured at the bell of
+the instrument together with the reed displacement. These two variables
+describe both the acoustic propagation inside the resonator and the mechanical
+response of the reed.
+
+The simulation parameters are summarized as follows :
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{ccccccccc}
+\toprule
+Parameter
+&
+$\alpha$
+&
+$\beta$
+&
+$c$
+&
+$Z_T^\ast$
+&
+$T_{max}$
+&
+CFL
+&
+$N_x$
+&
+$N_{snapshot}$
+\\
+\midrule
+Value
+&
+29476.61
+&
+0.6646516378651401
+&
+343.987773071615
+&
+1
+&
+0.2
+&
+0.2
+&
+800
+&
+1000
+\\
+\bottomrule
+\end{tabular}
+\caption{Physical and numerical parameters used during the full validation tests.}
+\label{tab:full_validation_parameters}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Time-domain comparison}
+
+The pressure measured at the bell and the reed displacement obtained with the
+DG solver are compared with the corresponding OpenWind solutions in
+Figures~\ref{fig:pressure_reed_oscillations_rk2_const} and
+\ref{fig:pressure_reed_oscillations_rk2_exp}.
 
 \begin{figure}[htbp]
     \centering
+
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../../experiments/convergence/results/euler/dg_solution_const_N800_method_euler.png}
-        \caption{(a) Euler}
-    \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../../experiments/convergence/results/rk2/dg_solution_const_N800_method_rk2.png}
-        \caption{(b) RK2}
+        \includegraphics[width=\linewidth]
+        {../../experiments/pressure_at_bell/results/pressure_and_reed_rk2_const.png}
+        \caption{Uniform cross-section.}
+        \label{fig:pressure_reed_oscillations_rk2_const}
     \end{minipage}
-    \caption{Validation of the numerical solution against an analytical solution for a uniform cross-section.}
-    \label{fig:validation_uniform}
-\end{figure}
-\subsubsection{Convergence analysis}
-\begin{figure}[htbp]
-    \centering
+    \hfill
     \begin{minipage}{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../../experiments/convergence/results/euler/dg_convergence_T0.5_euler.png}
-        \caption{(a) $T_{final}=0.5s$}
-    \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../../experiments/convergence/results/euler/dg_convergence_T0.8_euler.png}
-        \caption{(b) $T_{final}=0.8s$}
+        \includegraphics[width=\linewidth]
+        {../../experiments/pressure_at_bell/results/pressure_and_reed_rk2_exp.png}
+        \caption{Exponential cross-section.}
+        \label{fig:pressure_reed_oscillations_rk2_exp}
     \end{minipage}
-    \caption{Convergence analysis for different final times for Euler scheme.}
-    \label{fig:validation_uniform}
+
 \end{figure}
+
+For both geometries, the agreement between the DG solver and OpenWind is
+excellent. The pressure signals exhibit nearly identical amplitudes,
+oscillation periods and phase evolution throughout the simulation.
+
+The transient regime preceding the establishment of the self-sustained
+oscillations is also accurately reproduced. This phase is particularly
+sensitive to the implementation of the nonlinear reed boundary condition and
+therefore constitutes a stringent validation of the coupled solver.
+
+Similarly, the reed displacement predicted by the DG solver follows the
+OpenWind reference almost perfectly. Once the oscillatory regime is reached,
+the two solutions remain nearly indistinguishable over the entire simulation.
+
+These observations indicate that the coupling between the acoustic propagation
+and the reed dynamics has been correctly implemented.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Quantitative comparison}
+
+Beyond the visual agreement observed in the previous figures, the similarity
+between both numerical solutions can be quantified using several error
+indicators.
+
+The pressure signals obtained with the DG solver and OpenWind are first aligned
+using the time shift maximizing their cross-correlation. The relative
+\(L^2\)-error is then computed together with the corresponding correlation
+coefficient.
+
+Table~\ref{tab:comparison_openwind} summarizes these quantities.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Quantity & Case Constant & Case Exponential\\
+\midrule
+Maximum correlation & 1.00 & 1.00\\
+Relative \(L^2\)-error & 1.722e-03 & 1.810e-03\\
+
+\bottomrule
+\end{tabular}
+\caption{Quantitative comparison between the DG solver and OpenWind.}
+\label{tab:comparison_openwind}
+\end{table}
+
+The very high correlation together with the small relative error confirms the
+excellent agreement observed in the time domain. The remaining discrepancy is
+mainly explained by the different numerical discretizations employed by the two
+solvers rather than by differences in the underlying physical model.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Convergence towards the OpenWind solution}
+
+Although no analytical solution is available for the complete coupled problem,
+the convergence of the DG solver can still be assessed by comparing it with the
+OpenWind solution while refining the spatial discretization.
+
+Let \(u\) denote the exact solution of the continuous problem,
+\(u_h^{DG}\) the DG approximation and
+\(u_\eta^{OW}\) the OpenWind solution.
+
+Assuming that both numerical methods are second-order accurate,
+
+\begin{equation}
+\|u_h^{DG}-u\|
+\le
+C_{DG}h^2,
+\end{equation}
+
+and
+
+\begin{equation}
+\|u_\eta^{OW}-u\|
+\le
+C_{OW}\eta^2.
+\end{equation}
+
+Introducing the exact solution and applying the triangle inequality gives
+
+\begin{equation}
+\|u_h^{DG}-u_\eta^{OW}\|
+\le
+C_{DG}h^2
++
+C_{OW}\eta^2.
+\end{equation}
+
+If both discretizations are refined simultaneously such that
+
+\[
+\eta\propto h,
+\]
+
+one obtains
+
+\begin{equation}
+\boxed{
+\|u_h^{DG}-u_\eta^{OW}\|
+=
+\mathcal O(h^2).
+}
+\end{equation}
+
+The convergence curves obtained experimentally are presented in
+Figure~\ref{fig:convergence_compare_shift_rk2}.
 
 \begin{figure}[htbp]
     \centering
-    \begin{minipage}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../../experiments/convergence/results/rk2/dg_convergence_T0.5_rk2.png}
-        \caption{(a) $T_{final}=0.5s$}
-    \end{minipage}\hfill
-    \begin{minipage}{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../../experiments/convergence/results/rk2/dg_convergence_T0.8_rk2.png}
-        \caption{(b) $T_{final}=0.8s$}
-    \end{minipage}
-    \caption{Convergence analysis for different final times for RK2 scheme.}
-    \label{fig:validation_uniform}
+    \includegraphics[width=0.70\linewidth]
+    {../../experiments/convergence/results/convergence_compare_shift_rk2.png}
+    \caption{Relative \(L^2\)-error between the DG solver and OpenWind as a
+    function of the mesh size.}
+    \label{fig:convergence_compare_shift_rk2}
 \end{figure}
-\subsection{Case $S(x)$ variates}
 
+The measured convergence rate is fully consistent with the theoretical
+prediction. For both the cylindrical and the exponential geometries, the
+difference between the two numerical solutions decreases quadratically as the
+mesh is refined.
 
-\section{Reed Oscillations}
+Since the DG implementation and OpenWind rely on independent numerical
+frameworks, this agreement provides strong evidence that both solvers converge
+towards the same continuous solution. Consequently, the proposed DG solver can
+be considered as an accurate implementation of the complete physical model.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.5\textwidth]{../../experiments/pressure_at_bell/results/pressure_and_reed_rk2_const.png}
-    \caption{Pressure at the bell and reed oscillations for a uniform cross-section using RK2 time integration.}
-    \label{fig:pressure_reed_oscillations_rk2}
-\end{figure}
-\subsection{Performances}
+\section{Discussion}
 
-\chapter{Conclusion}
+The validation experiments presented throughout this chapter demonstrate the
+accuracy of the proposed numerical solver at two complementary levels.
 
-\part{Automated Calibration}
+The first benchmark, based on an analytical solution, confirms the correctness
+of the spatial and temporal discretizations. In particular, the expected
+first- and second-order convergence rates are recovered for the Forward Euler
+and Runge--Kutta schemes, respectively. This validates the implementation of
+the Discontinuous Galerkin formulation as well as the treatment of the
+radiation boundary condition.
 
-\chapter{Calibration Strategy}
+The second benchmark addresses the complete reed--resonator system, for which
+no analytical solution exists. The excellent agreement observed with OpenWind,
+both qualitatively and quantitatively, demonstrates that the proposed solver
+accurately reproduces the coupled acoustic and mechanical dynamics of the
+instrument.
+
+Taken together, these results provide strong evidence that the forward solver
+constitutes an accurate numerical approximation of the physical model. This
+validation is an essential prerequisite before considering gradient-based
+inverse problems, where the quality of the identified parameters directly
+depends on the accuracy of the forward simulations.
+
+\section*{Chapter conclusion}
+
+This chapter validated the forward solver developed in the previous chapters
+through a series of complementary numerical experiments.
+
+The comparison with an analytical solution confirmed the theoretical
+convergence properties of the DG discretization on a simplified acoustic
+problem, while the comparison with OpenWind demonstrated the accuracy of the
+complete coupled reed--resonator model.
+
+Having established the reliability of the forward solver, the remainder of this
+manuscript focuses on its use within a differentiable inverse calibration
+framework. The following chapter introduces the formulation of the inverse
+problem together with the automatic differentiation tools required for the
+identification of unknown model parameters and functions.
+
+\chapter{Differentiable Inverse Calibration}
+\label{chap:inverse}
+
 \minitoc
 
-\chapter{Spectral Losses}
-\minitoc
-\section{STFT}
-\section{Spectrograms}
-\subsection{}
+The previous chapters focused on the construction and validation of a
+differentiable forward solver for the simulation of reed wind instruments.
+Once the direct model has been validated, it can be used as the computational
+core of an inverse calibration procedure.
 
-\chapter{Neural Architectures}
+In practical applications, several quantities governing sound production are
+not known with sufficient accuracy. The geometry of the resonator may be
+available, whereas parameters associated with the excitation mechanism remain
+effective quantities that are difficult to measure directly. The available
+information is then an acoustic signal, either generated numerically with
+OpenWind or obtained from experimental recordings supplied by Modartt.
+
+The inverse problem considered in this work consists in recovering the unknown
+quantities that make the simulated pressure signal reproduce the observation as
+closely as possible. Because the acoustic field is nonlinearly coupled with the
+reed dynamics, this problem is nonlinear, non-convex and potentially
+non-identifiable. Different parameter combinations may produce similar acoustic
+responses, while small variations of some parameters may alter the oscillation
+regime or the sounding frequency.
+
+The proposed methodology is not restricted to the estimation of scalar physical
+parameters. It also allows an unknown constitutive law, namely the reed opening
+function \(\ell(y)\), to be represented by a differentiable parametric model and
+learned from acoustic observations. The inverse problem may therefore combine
+signal-dependent physical parameters with a function shared by the complete
+dataset.
+
+This chapter introduces the mathematical formulation of the inverse problem,
+the losses used to compare acoustic signals, the differentiation of the complete
+numerical solver and the gradient-based optimization strategy. The final
+sections describe the representation and regularization of the reed opening law,
+together with the datasets and experimental protocols used in the numerical
+study.
+
+The complete inverse calibration workflow is summarized in
+Figure~\ref{fig:inverse_framework}. The unknown physical parameters and the
+parameters defining the reed opening law are supplied to the differentiable
+forward solver. The simulated pressure is compared with the observation through
+an objective function. Automatic differentiation then propagates the loss
+gradient through the complete simulation, and a gradient-based optimizer updates
+the unknown quantities before the next forward evaluation.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{pipeline_diff_auto.png}
+    \caption{Cyclic workflow of the differentiable inverse calibration framework.
+    The physical parameters and the reed opening law are supplied to the
+    differentiable forward solver. The simulated pressure is compared with the
+    observed pressure through an objective function. Automatic differentiation
+    provides the gradients used by Adam to update the unknown quantities before
+    the next forward simulation.}
+    \label{fig:inverse_framework}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Formulation of the inverse problem}
+\label{sec:inverse_formulation}
+
+\subsection{Parameter identification}
+
+Let
+\begin{equation}
+\boldsymbol{\theta}
+=
+(\theta_1,\ldots,\theta_{N_\theta})
+\end{equation}
+denote the vector collecting the physical parameters treated as unknown.
+Depending on the experiment, this vector may contain a subset of
+\begin{equation}
+\left(
+\gamma,\zeta,\kappa,\omega_r,Q_r
+\right).
+\end{equation}
+
+For a fixed geometry, prescribed initial conditions and a given simulation
+horizon, the numerical solver defines a discrete forward operator
+\begin{equation}
+\mathcal{F}_h:
+\boldsymbol{\theta}
+\longmapsto
+\mathbf{p}_{\mathrm{sim}}
+=
+\left(
+p_{\mathrm{sim}}(L,t_0),\ldots,
+p_{\mathrm{sim}}(L,t_{N-1})
+\right),
+\label{eq:forward_map}
+\end{equation}
+where \(h\) collectively denotes the spatial and temporal discretization
+parameters.
+
+Given an observed pressure signal
+\begin{equation}
+\mathbf{p}_{\mathrm{obs}}
+=
+\left(
+p_{\mathrm{obs}}(t_0),\ldots,
+p_{\mathrm{obs}}(t_{N-1})
+\right),
+\end{equation}
+the parameter-identification problem is
+\begin{equation}
+\boxed{
+\widehat{\boldsymbol{\theta}}
+\in
+\operatorname*{arg\,min}_{\boldsymbol{\theta}\in\Theta}
+\mathcal{L}
+\left(
+\mathcal{F}_h(\boldsymbol{\theta}),
+\mathbf{p}_{\mathrm{obs}}
+\right),
+}
+\label{eq:inverse_problem}
+\end{equation}
+where \(\Theta\) is the admissible parameter set and \(\mathcal{L}\) is a
+discrepancy measure.
+
+Two types of observations are considered:
+\begin{itemize}
+    \item synthetic signals generated with OpenWind, for which the reference
+    parameters are known;
+    \item experimental recordings provided by Modartt, for which the physical
+    parameters must be inferred from measured sound.
+\end{itemize}
+
+Synthetic data make it possible to quantify reconstruction errors and evaluate
+the robustness of the method. Experimental data constitute the final
+application, but also introduce measurement noise, synchronization uncertainty
+and model discrepancy.
+
+\subsection{Identification of the reed law}
+
+The reed-flow condition contains a constitutive function \(\ell(y)\) describing
+the effective reed opening. In the synthetic reference model, this function is
+prescribed by
+\begin{equation}
+\ell_{\mathrm{ref}}(y)
+=
+\max(y,0).
+\label{eq:reference_reed_law}
+\end{equation}
+
+More generally, the law is represented by a differentiable parametric model
+\begin{equation}
+\ell(y)
+=
+\ell_{\boldsymbol{\eta}}(y),
+\end{equation}
+where \(\boldsymbol{\eta}\in\mathbb{R}^{N_\eta}\) denotes its trainable
+parameters. The forward operator then depends on both groups of unknowns:
+\begin{equation}
+\mathcal{F}_h:
+(\boldsymbol{\eta})
+\longmapsto
+\mathbf{p}_{\mathrm{sim}}.
+\end{equation}
+
+The joint inverse problem becomes
+\begin{equation}
+\boxed{
+ \widehat{\boldsymbol{\eta}}
+\in
+\operatorname*{arg\,min}_{\boldsymbol{\eta}\in\mathcal{E}}
+\mathcal{J}
+(\boldsymbol{\eta}),
+}
+\label{eq:joint_inverse_problem}
+\end{equation}
+with
+\begin{equation}
+\mathcal{J}
+=
+\mathcal{L}_{\mathrm{obs}}
++
+\lambda_{\ell}
+\mathcal{R}_{\ell}.
+\label{eq:joint_objective_general}
+\end{equation}
+Here, \(\mathcal{L}_{\mathrm{obs}}\) compares simulated and observed pressures,
+while \(\mathcal{R}_{\ell}\) introduces prior information on the shape of the
+reed law.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Objective functions}
+\label{sec:objective_functions}
+
+The objective function determines which discrepancies are emphasized during
+calibration and directly shapes the optimization landscape. No single distance
+is optimal for every experiment. This work therefore considers time-domain,
+spectral and hybrid objectives.
+
+\subsection{Time-domain discrepancy}
+
+The most direct comparison is the mean squared error
+\begin{equation}
+\mathcal{L}_{\mathrm{MSE}}
+=
+\frac{1}{N}
+\sum_{n=0}^{N-1}
+\left(
+p_{\mathrm{sim}}[n]
+-
+p_{\mathrm{obs}}[n]
+\right)^2.
+\label{eq:mse_loss}
+\end{equation}
+
+The MSE is inexpensive and preserves phase information. It is useful when the
+signals are accurately synchronized and when the waveform itself is the
+quantity of interest. However, a small phase shift or a slight difference in
+oscillation frequency may produce a large pointwise error even when the two
+sounds have similar harmonic structures.
+
+\subsection{Short-Time Fourier Transform}
+
+The Fourier transform provides a global frequency representation but does not
+retain the temporal evolution of the spectrum. Musical sounds are
+non-stationary: the attack, transient regime and established oscillation may
+have different spectral contents.
+
+The Short-Time Fourier Transform (STFT) applies a Fourier transform to
+successive overlapping windows. As presented in \cite{allen1977stft} Given a discrete signal
+\(x=(x_0,\ldots,x_{N-1})\), the STFT is defined by
+\begin{equation}
+X(m,k)
+=
+\sum_{n=0}^{L-1}
+x[n+mH]\,
+w[n]\,
+e^{-2\mathrm{i}\pi kn/L},
+\label{eq:stft}
+\end{equation}
+where \(L\) is the window length, \(H\) is the hop size, \(w\) is the analysis
+window, \(m\) is the frame index and \(k\) is the frequency bin.
+
+For each time frame, the STFT produces a local spectrum. The complete transform
+is a complex-valued matrix
+\begin{equation}
+X\in\mathbb{C}^{M\times K}.
+\end{equation}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    >=Latex,
+    font=\small,
+    box/.style={
+        draw,
+        rounded corners=3pt,
+        thick,
+        minimum width=1.35cm,
+        minimum height=0.7cm,
+        align=center,
+        fill=gray!7
+    },
+    arrow/.style={->, thick}
+]
+
+% --- Main signal ---------------------------------------------------
+\node[anchor=east] at (-0.3,0) {$x[n]$};
+\draw[->, gray!70] (0,-1.15) -- (8.5,-1.15) node[right] {time};
+
+\draw[thick, smooth, samples=250, domain=0:8]
+plot(\x,{0.35*sin(360*\x)+0.18*sin(720*\x+40)+0.10*sin(1080*\x+80)});
+
+\node at (4,1.25) {Original signal};
+
+% --- Window boxes containing signal segments ----------------------
+\foreach \x/\col/\lab in {
+    0.5/blue/$w_1$,
+    2.0/green!55!black/$w_2$,
+    3.5/orange/$w_3$,
+    5.0/red/$w_4$
+}{
+    % transparent window on original signal
+    \draw[draw=\col!70, fill=\col!12, thick, rounded corners=2pt] 
+        (\x,-0.75) rectangle ++(1.9,1.5);
+
+    % extracted window box
+    \draw[draw=\col!70, fill=\col!8, thick, rounded corners=4pt]
+        (\x,-3.80) rectangle ++(1.9,1.5);
+
+    % signal segment inside extracted box
+    \begin{scope}
+        \clip (\x,-3.80) rectangle ++(1.9,1.5);
+        \draw[thick, \col!80!black, smooth, samples=90, domain=\x:\x+1.9]
+        plot(\x,{ -2.7
+            + 0.35*sin(360*\x)
+            + 0.18*sin(720*\x+40)
+            + 0.10*sin(1080*\x+80)
+        });
+    \end{scope}
+
+    \node[\col!70!black] at (\x+0.95,-3.45) {\lab};
+
+    % arrow from original window to extracted segment
+    \draw[arrow, \col!70!black] (\x+0.95,-1.05) -- (\x+0.95,-2.15);
+}
+
+\node[align=center] at (7.7,-2.8) {windowed\\segments};
+
+% --- Window length and hop size -----------------------------------
+% Window length exactly matches first window width: from 0.5 to 2.4
+\draw[decorate, decoration={brace, amplitude=5pt}, thick]
+(0.5,1.00) -- (2.0,1.00)
+node[midway, yshift=0.35cm] {window length $N$};
+
+% Hop size between the start of the first and second windows
+\draw[<->, thick] (0.5,-1.65) -- (2.0,-1.65)
+node[midway, below] {hop $H$};
+
+% --- FFT blocks ----------------------------------------------------
+\foreach \x/\col/\id in {
+    1.45/blue/1,
+    2.95/green!55!black/2,
+    4.45/orange/3,
+    5.95/red/4
+}{
+    \draw[arrow] (\x,-3.75) -- (\x,-4.75);
+    \node[box] (fft\id) at (\x,-5.20) {FFT};
+}
+
+% --- Local spectra -------------------------------------------------
+\foreach \x/\col/\id in {
+    1.45/blue/1,
+    2.95/green!55!black/2,
+    4.45/orange/3,
+    5.95/red/4
+}{
+    \draw[arrow] (fft\id.south) -- (\x,-6.05);
+
+    \begin{scope}[shift={(\x-0.55,-6.95)}]
+        \draw[gray!60, ->] (0,0) -- (1.1,0);
+        \draw[gray!60, ->] (0,0) -- (0,0.8);
+
+        \foreach \xx/\hh in {0.15/0.28,0.32/0.55,0.48/0.35,0.66/0.72,0.84/0.42,1.00/0.20}{
+            \draw[very thick, \col!80!black] (\xx,0) -- (\xx,\hh);
+        }
+    \end{scope}
+}
+
+\node[align=center] at (7.7,-6.55) {local\\spectra};
+
+% --- Spectrogram ---------------------------------------------------
+\draw[arrow] (3.7,-7.55) -- (3.7,-8.15);
+
+\node[align=center] at (-1.5,-9.65) {stacking\\over time};
+\draw[arrow] (-0.75,-9.65) -- (0.15,-9.65);
+
+\begin{scope}[shift={(0.8,-11.85)}]
+
+    % 14 colonnes × 9 lignes
+    \foreach \i in {0,...,12}{
+        \foreach \j in {0,...,8}{
+            \pgfmathsetmacro{\val}{min(100,20+4*\i+5*\j)}
+            \fill[blue!\val!black!35]
+                (\i*0.45,\j*0.38)
+                rectangle ++(0.42,0.35);
+        }
+    }
+
+    % contour
+    \draw[thick] (0,0) rectangle (5.85,3.39);
+
+    % axes
+    \node[below] at (2.92,-0.25) {time frames $m$};
+    \node[rotate=90] at (-0.45,1.70) {frequency bins $k$};
+
+\end{scope}
+
+\node[box, minimum width=2.7cm, minimum height=0.85cm] at (8.7,-9.70)
+{Spectrogram\\$|X(m,k)|$};
+
+\draw[arrow] (7.35,-9.70) -- (6.95,-9.70);
+
+\end{tikzpicture}
+
+\caption{Principle of the Short-Time Fourier Transform. The signal is divided into overlapping windows of length $N$ separated by a hop size $H$. A Fourier transform is computed on each window, and the resulting local spectra are stacked over time to form the spectrogram.}
+\label{fig:stft_principle}
+\end{figure}
+
+
+The STFT converts a one-dimensional waveform into a two-dimensional
+time--frequency representation. It therefore makes it possible to compare the
+evolution of the harmonic content rather than only the pointwise waveform.
+
+The quality of this representation depends strongly on the selected window.
+Short windows provide accurate temporal localization but poor frequency
+resolution. Conversely, long windows distinguish nearby frequencies more
+accurately but blur rapid temporal variations.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+    >=Latex,
+    font=\small,
+    box/.style={
+        draw,
+        rounded corners=4pt,
+        thick,
+        align=center,
+        minimum height=1.1cm,
+        fill=gray!7
+    },
+    arrow/.style={->, thick}
+]
+
+% ------------------------------------------------------------
+% Titles
+% ------------------------------------------------------------
+\node[align=center, font=\bfseries] at (1.8,1.2) {Short window};
+\node[align=center, font=\bfseries] at (7.0,1.2) {Long window};
+
+% ------------------------------------------------------------
+% Short window signal
+% ------------------------------------------------------------
+\draw[->, gray!70] (0,0) -- (3.6,0) node[right] {time};
+
+\draw[thick, smooth, samples=200, domain=0:3.3]
+plot(\x,{0.35*sin(480*\x)+0.12*sin(960*\x)});
+
+\draw[blue!70, thick, fill=blue!12, rounded corners=2pt]
+(1.45,-0.65) rectangle (2.15,0.65);
+
+\node[below] at (1.8,-0.9) {small $N$};
+
+% ------------------------------------------------------------
+% Long window signal
+% ------------------------------------------------------------
+\draw[->, gray!70] (5.2,0) -- (8.8,0) node[right] {time};
+
+\draw[thick, smooth, samples=200, domain=5.2:8.5]
+plot(\x,{0.35*sin(480*\x)+0.12*sin(960*\x)});
+
+\draw[red!70, thick, fill=red!12, rounded corners=2pt]
+(5.75,-0.65) rectangle (8.05,0.65);
+
+\node[below] at (6.9,-0.9) {large $N$};
+
+% ------------------------------------------------------------
+% Resolution blocks
+% ------------------------------------------------------------
+\node[box, minimum width=3.4cm] at (1.8,-2.25)
+{good temporal\\resolution};
+
+\node[box, minimum width=3.4cm] at (1.8,-3.75)
+{poor frequency\\resolution};
+
+\node[box, minimum width=3.4cm] at (7.0,-2.25)
+{poor temporal\\resolution};
+
+\node[box, minimum width=3.4cm] at (7.0,-3.75)
+{good frequency\\resolution};
+
+% ------------------------------------------------------------
+% Frequency illustrations
+% ------------------------------------------------------------
+\node[align=center] at (1.8,-5.05) {broad spectral peaks};
+\begin{scope}[shift={(0.55,-6.0)}]
+    \draw[->, gray!70] (0,0) -- (2.5,0) node[right] {frequency};
+    \draw[thick, blue!80!black, smooth]
+        plot coordinates {(0.1,0.05) (0.45,0.30) (0.8,0.65) (1.15,0.30) (1.5,0.08)};
+    \draw[thick, blue!80!black, smooth]
+        plot coordinates {(1.0,0.04) (1.35,0.20) (1.7,0.45) (2.05,0.20) (2.4,0.06)};
+\end{scope}
+
+\node[align=center] at (7.0,-5.05) {sharp spectral peaks};
+\begin{scope}[shift={(5.75,-6.0)}]
+    \draw[->, gray!70] (0,0) -- (2.5,0) node[right] {frequency};
+
+    \draw[very thick, red!80!black] (0.75,0) -- (0.75,0.75);
+    \draw[very thick, red!80!black] (1.55,0) -- (1.55,0.55);
+    \draw[very thick, red!80!black] (2.05,0) -- (2.05,0.35);
+\end{scope}
+
+\end{tikzpicture}
+    \caption{Influence of the analysis window on the time--frequency
+    resolution of the Short-Time Fourier Transform.}
+    \label{fig:stft_tradeoff}
+\end{figure}
+
+% Keep here your existing TikZ figure with label fig:stft_tradeoff.
+
+Since musical signals contain both transients and sustained harmonic
+components, several window lengths may be required to describe all relevant
+features.
+
+\subsection{Spectrogram representation}
+
+The STFT coefficients contain both magnitude and phase information. In the
+spectral objective considered in this work, only the magnitude is retained.
+For a signal \(x\), its magnitude spectrogram is defined by
+
+\begin{equation}
+S_x(m,k)
+=
+\left|
+\operatorname{STFT}(x)(m,k)
+\right|.
+\label{eq:spectrogram}
+\end{equation}
+
+Each column of \(S_x\) describes the frequency content of one temporal frame,
+whereas each row represents the temporal evolution of a given frequency bin.
+The STFT is computed using a Hann analysis window, with a prescribed window
+length and hop size.
+
+For visualization, the magnitude spectrogram is first normalized by its maximum
+value,
+
+\begin{equation}
+\widetilde{S}_x(m,k)
+=
+\frac{
+S_x(m,k)
+}{
+\displaystyle \max_{m,k} S_x(m,k) + \varepsilon_{\mathrm{norm}}
+},
+\label{eq:normalized_spectrogram}
+\end{equation}
+
+where \(\varepsilon_{\mathrm{norm}}>0\) prevents division by zero. It is then
+expressed in decibels as
+
+\begin{equation}
+S_{x,\mathrm{dB}}(m,k)
+=
+20\log_{10}
+\left(
+\widetilde{S}_x(m,k)
++
+\varepsilon_{\mathrm{dB}}
+\right).
+\label{eq:log_spectrogram}
+\end{equation}
+
+The value of \(\varepsilon_{\mathrm{dB}}\) is determined from a prescribed
+dynamic range \(D\), expressed in decibels:
+
+\begin{equation}
+\varepsilon_{\mathrm{dB}}
+=
+10^{-D/20}.
+\label{eq:dynamic_range_epsilon}
+\end{equation}
+
+In the experiments, \(D=60\,\mathrm{dB}\) unless stated otherwise. This lower
+bound prevents the logarithm from becoming singular and limits the influence
+of spectral components whose amplitudes lie far below the dominant components.
+
+The spectrogram highlights the fundamental frequency, the harmonic structure,
+transient phenomena and resonance patterns. Since phase is discarded, this
+representation is less sensitive than a pointwise time-domain discrepancy to
+small temporal or phase shifts. Nevertheless, its optimization properties
+remain strongly dependent on the analysis window, the time--frequency
+resolution, the magnitude compression and the distance used to compare the
+spectrograms.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Single-resolution spectral discrepancy}
+
+For the \(i\)-th STFT configuration, characterized by the window length \(L_i\)
+and hop size \(H_i\), define
+
+\begin{equation}
+S_i^{\mathrm{obs}}
+=
+\left|
+\operatorname{STFT}_i
+\left(
+\mathbf{p}_{\mathrm{obs}}
+\right)
+\right|,
+\qquad
+S_i^{\mathrm{sim}}
+=
+\left|
+\operatorname{STFT}_i
+\left(
+\mathbf{p}_{\mathrm{sim}}
+\right)
+\right|.
+\label{eq:target_predicted_spectrograms}
+\end{equation}
+
+Both spectrograms are normalized using a common scale computed exclusively from
+the observed signal:
+
+\begin{equation}
+a_i
+=
+\max_{m,k}
+S_i^{\mathrm{obs}}(m,k)
++
+\varepsilon_{\mathrm{norm}},
+\label{eq:spectral_normalization_scale}
+\end{equation}
+
+and
+
+\begin{equation}
+\widetilde{S}_i^{\mathrm{obs}}
+=
+\frac{S_i^{\mathrm{obs}}}{a_i},
+\qquad
+\widetilde{S}_i^{\mathrm{sim}}
+=
+\frac{S_i^{\mathrm{sim}}}{a_i}.
+\label{eq:normalized_target_predicted_spectrograms}
+\end{equation}
+
+Using a normalization scale that depends only on the target preserves the
+relative amplitude difference between the simulated and observed signals. It
+also prevents the simulated signal from independently rescaling its own
+spectrogram during optimization.
+
+The first component of the objective compares the normalized magnitudes in a
+linear scale:
+
+\begin{equation}
+\mathcal{L}_{\mathrm{lin}}^{(i)}
+=
+\frac{1}{N_i}
+\sum_{m,k}
+\left|
+\widetilde{S}_i^{\mathrm{sim}}(m,k)
+-
+\widetilde{S}_i^{\mathrm{obs}}(m,k)
+\right|,
+\label{eq:magnitude_loss}
+\end{equation}
+
+where \(N_i\) denotes the total number of time--frequency coefficients at the
+\(i\)-th resolution.
+
+The second component compares the normalized magnitudes in decibels. Define
+
+\begin{align}
+D_i^{\mathrm{sim}}(m,k)
+&=
+20\log_{10}
+\left(
+\widetilde{S}_i^{\mathrm{sim}}(m,k)
++
+\varepsilon_{\mathrm{dB}}
+\right),
+\\
+D_i^{\mathrm{obs}}(m,k)
+&=
+20\log_{10}
+\left(
+\widetilde{S}_i^{\mathrm{obs}}(m,k)
++
+\varepsilon_{\mathrm{dB}}
+\right).
+\end{align}
+
+The corresponding discrepancy is
+
+\begin{equation}
+\mathcal{L}_{\mathrm{dB}}^{(i)}
+=
+\frac{1}{N_i}
+\sum_{m,k}
+\left|
+D_i^{\mathrm{sim}}(m,k)
+-
+D_i^{\mathrm{obs}}(m,k)
+\right|.
+\label{eq:db_magnitude_loss}
+\end{equation}
+
+The linear-magnitude term mainly emphasizes dominant spectral components,
+whereas the decibel term increases the relative contribution of weaker
+harmonics and low-energy structures. The spectral discrepancy associated with
+one resolution is therefore
+
+\begin{equation}
+\boxed{
+\mathcal{L}_{\mathrm{spec}}^{(i)}
+=
+\mathcal{L}_{\mathrm{lin}}^{(i)}
++
+\mathcal{L}_{\mathrm{dB}}^{(i)}.
+}
+\label{eq:single_resolution_spectral_loss}
+\end{equation}
+
+Both terms are mean absolute discrepancies. Consequently, the contribution of a
+resolution does not increase simply because its spectrogram contains a larger
+number of coefficients.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Multi-resolution spectral loss}
+
+A single STFT configuration cannot simultaneously provide accurate temporal
+localization and fine frequency discrimination. The multi-resolution spectral
+loss therefore combines several STFT representations \cite{schwaer2023multi}:
+
+\begin{equation}
+\boxed{
+\mathcal{L}_{\mathrm{MR}}
+=
+\frac{1}{M}
+\sum_{i=1}^{M}
+\mathcal{L}_{\mathrm{spec}}^{(i)},
+}
+\label{eq:mrstft_loss}
+\end{equation}
+
+where \(M\) denotes the number of retained STFT resolutions.
+
+The generic set of configurations implemented in the loss is
+
+\begin{equation}
+(L_i,H_i)
+\in
+\left\{
+(64,32),
+(128,64),
+(256,128)
+\right\}.
+\label{eq:default_stft_configurations}
+\end{equation}
+
+Only configurations satisfying \(L_i\leq N\), where \(N\) is the signal length,
+are retained when zero-padding is disabled. Alternatively, shorter signals may
+be zero-padded to allow the use of larger analysis windows.
+
+Depending on the experiment, a different subset of resolutions may be supplied
+to the loss. In particular, the calibration experiments may use larger windows,
+such as
+
+\begin{equation}
+(L_i,H_i)
+\in
+\left\{
+(64,16),
+(128,32),
+(256,64),
+(512,128)
+\right\},
+\label{eq:experimental_stft_configurations}
+\end{equation}
+
+when the signal duration is sufficient.
+
+The shortest windows provide better temporal localization and are therefore
+more sensitive to rapid variations and attack transients. Conversely, the
+longest windows offer a finer frequency resolution and better distinguish nearby
+harmonic components. Averaging the loss over several resolutions forces the
+simulated signal to reproduce the observation at multiple time--frequency
+scales simultaneously.
+
+A spectral objective is not necessarily easier to optimize than a time-domain
+objective. Parameters that directly or indirectly control the sounding
+frequency may generate irregular and highly non-convex spectral-loss
+landscapes. The STFT resolutions, the Hann window, the dynamic range and the
+relative weighting of the linear and decibel terms must therefore be regarded
+as integral components of the optimization method rather than as purely
+signal-processing choices.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Differentiable forward model}
+\label{sec:differentiable_forward_model}
+
+The calibration procedure repeatedly evaluates the direct solver and computes
+the derivative of the loss with respect to the unknown quantities. The numerical
+model must therefore be differentiable as a complete algorithm.
+
+\subsection{Discrete forward operator}
+
+Let \(\mathbf{U}^n\) denote the complete discrete state at time \(t^n\). It
+contains the DG degrees of freedom for pressure and acoustic volume velocity,
+the radiation variable, and the variables describing the reed motion.
+
+One time step may be written abstractly as
+\begin{equation}
+\mathbf{U}^{n+1}
+=
+\Phi_{\Delta t}
+\left(
+\mathbf{U}^n;
+\boldsymbol{\theta},
+\boldsymbol{\eta}
+\right),
+\label{eq:time_step_operator}
+\end{equation}
+where \(\Phi_{\Delta t}\) includes the evaluation of the DG residual, the
+boundary states and the time-integration formulas.
+
+The complete computation is the composition
+\begin{equation}
+(\boldsymbol{\theta},\boldsymbol{\eta})
+\longrightarrow
+\mathbf{U}^0
+\longrightarrow
+\mathbf{U}^1
+\longrightarrow
+\cdots
+\longrightarrow
+\mathbf{U}^{N_t}
+\longrightarrow
+\mathbf{p}_{\mathrm{sim}}
+\longrightarrow
+\mathcal{J}.
+\label{eq:computational_graph}
+\end{equation}
+
+\subsection{Differentiability of the numerical components}
+
+The DG spatial discretization, numerical fluxes and Runge--Kutta updates are
+compositions of elementary algebraic operations. They are differentiable with
+respect to both the discrete state and the physical parameters wherever the
+underlying constitutive relations are differentiable.
+
+For one residual evaluation
+\begin{equation}
+\mathbf{K}^n
+=
+\mathcal{R}
+\left(
+\mathbf{U}^n;
+\boldsymbol{\theta},
+\boldsymbol{\eta}
+\right),
+\end{equation}
+the sensitivity to a parameter \(\theta_j\) formally satisfies
+\begin{equation}
+\frac{\partial \mathbf{K}^n}{\partial\theta_j}
+=
+\frac{\partial\mathcal{R}}{\partial\mathbf{U}}
+\frac{\partial\mathbf{U}^n}{\partial\theta_j}
++
+\frac{\partial\mathcal{R}}{\partial\theta_j}.
+\label{eq:stage_sensitivity}
+\end{equation}
+
+In the implementation, these relations are not assembled by hand. JAX records
+the elementary operations defining the solver and automatically applies the
+chain rule through the complete computational graph.
+
+\subsection{Nonlinear reed boundary condition}
+
+The main difficulty is the nonlinear boundary relation at the reed. At each
+time step, the boundary state must satisfy an algebraic equation involving the
+incoming characteristic variable, the reed displacement, the pressure
+difference and the nonlinear flow function
+\begin{equation}
+F(\Delta p)
+=
+\operatorname{sign}(\Delta p)
+\sqrt{|\Delta p|}.
+\end{equation}
+
+The reed displacement is updated through the time discretization of the reed
+oscillator equation. Separately, the nonlinear algebraic boundary relation is
+solved with a damped Newton method. If \(z\) denotes the nonlinear boundary
+unknown, one iteration reads
+\begin{equation}
+z^{(q+1)}
+=
+z^{(q)}
+-
+\lambda_q
+\frac{
+G(z^{(q)};\boldsymbol{\theta},\boldsymbol{\eta})
+}{
+\partial_z G(z^{(q)};\boldsymbol{\theta},\boldsymbol{\eta})
+},
+\label{eq:newton_iteration_diff}
+\end{equation}
+where \(\lambda_q\in(0,1]\) is a damping factor.
+
+Because the Newton iterations are implemented with JAX-compatible operations,
+the differentiated algorithm propagates derivatives through the finite sequence
+of iterations.
+
+Near \(\Delta p=0\), the derivative of the square-root law is singular. The
+numerical implementation therefore uses a regularized evaluation, for example
+\begin{equation}
+F_{\varepsilon_F}(\Delta p)
+=
+\operatorname{sign}(\Delta p)
+\sqrt{|\Delta p|+\varepsilon_F},
+\label{eq:regularized_flow_function}
+\end{equation}
+with a small \(\varepsilon_F>0\).
+
+
+\subsection{Implicit differentiation of the boundary state}
+
+The nonlinear boundary condition defines the boundary state implicitly as the
+solution of a nonlinear equation
+
+\[
+w^\star = G(w^\star,\theta).
+\]
+
+Rather than differentiating through every Newton iteration, the derivatives of
+the converged solution can be obtained by differentiating the fixed-point
+equation itself.
+
+Differentiating with respect to a parameter $\theta$ gives
+
+...
+
+which leads to
+
+\[
+\boxed{
+\frac{\partial w^\star}{\partial\theta}
+=
+\left(
+I-
+\frac{\partial G}{\partial w}
+\right)^{-1}
+\frac{\partial G}{\partial\theta}.
+}
+\]
+
+This expression provides the sensitivity of the converged boundary state with
+respect to the physical parameters and constitutes the basis of implicit
+differentiation.
+
+
+\subsection{Automatic differentiation}
+
+Automatic differentiation computes derivatives of the implemented numerical
+algorithm by repeated application of the chain rule. It differs both from
+symbolic differentiation and from finite differences.
+
+The scalar objective is
+\begin{equation}
+\mathcal{J}
+(\boldsymbol{\theta},\boldsymbol{\eta})
+=
+\mathcal{L}
+\left(
+\mathcal{F}_h
+(\boldsymbol{\theta},\boldsymbol{\eta}),
+\mathbf{p}_{\mathrm{obs}}
+\right).
+\end{equation}
+
+The required gradients are
+\begin{equation}
+\nabla_{\boldsymbol{\theta}}\mathcal{J},
+\qquad
+\nabla_{\boldsymbol{\eta}}\mathcal{J}.
+\end{equation}
+
+By the chain rule,
+\begin{equation}
+\nabla_{\boldsymbol{\theta}}\mathcal{J}
+=
+\left(
+\frac{\partial\mathcal{F}_h}
+     {\partial\boldsymbol{\theta}}
+\right)^{\!\top}
+\nabla_{\mathbf{p}_{\mathrm{sim}}}
+\mathcal{L},
+\label{eq:chain_rule_parameters}
+\end{equation}
+and similarly
+\begin{equation}
+\nabla_{\boldsymbol{\eta}}\mathcal{J}
+=
+\left(
+\frac{\partial\mathcal{F}_h}
+     {\partial\boldsymbol{\eta}}
+\right)^{\!\top}
+\nabla_{\mathbf{p}_{\mathrm{sim}}}
+\mathcal{L}.
+\label{eq:chain_rule_law}
+\end{equation}
+
+The Jacobians of the full solver are not constructed explicitly.
+Reverse-mode automatic differentiation directly evaluates the required
+vector--Jacobian products.
+
+\subsection{Reverse mode and computational cost}
+
+Reverse mode is well suited to this problem because the output objective is
+scalar, while the number of optimized quantities may be large when the reed law
+is represented by a neural network.
+
+The forward pass evaluates
+\begin{equation}
+(\boldsymbol{\theta},\boldsymbol{\eta})
+\longmapsto
+\mathbf{p}_{\mathrm{sim}}
+\longmapsto
+\mathcal{J},
+\end{equation}
+and the reverse pass propagates the adjoint information backward through all
+time steps.
+
+The main limitation is memory: intermediate states required by the reverse pass
+must be retained or recomputed. Long simulation windows and fine temporal
+discretizations are therefore expensive both in computation time and memory.
+
+The gradients obtained here are derivatives of the discretized objective. The
+algorithm first discretizes the PDE--ODE system and then differentiates the
+resulting numerical program. This discretize-then-optimize viewpoint makes the
+validation of the forward solver essential.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Gradient-based optimization}
+\label{sec:gradient_optimization}
+
+\subsection{Optimization variables}
+
+The framework distinguishes:
+\begin{itemize}
+    \item local physical parameters, which may vary from one signal to another;
+    \item global parameters \(\boldsymbol{\eta}\) defining the shared reed law.
+\end{itemize}
+
+For a dataset of \(N_s\) signals, the local variables are
+\begin{equation}
+\boldsymbol{\theta}^{(s)},
+\qquad
+s=1,\ldots,N_s,
+\end{equation}
+whereas a single vector \(\boldsymbol{\eta}\) is shared by all signals.
+
+The dataset objective is
+\begin{equation}
+\mathcal{J}_{\mathrm{data}}
+=
+\frac{1}{N_s}
+\sum_{s=1}^{N_s}
+\mathcal{L}_p
+\left(
+\mathcal{F}_h
+(\boldsymbol{\theta}^{(s)},\boldsymbol{\eta}),
+\mathbf{p}_{\mathrm{obs}}^{(s)}
+\right)
++
+\lambda_\ell
+\mathcal{R}_\ell(\boldsymbol{\eta}).
+\label{eq:dataset_objective}
+\end{equation}
+
+\subsection{Initialization, multi-start strategy and parameter admissibility}
+
+The multi-D optimization problem is non-convex, and its solution may depend strongly on
+the initial parameter vector. To reduce this sensitivity, an initial multi-start
+procedure is optionally performed before the main optimization stage.
+
+Let
+\[
+\left\{
+\boldsymbol{\theta}_{0}^{(r)}
+\right\}_{r=1}^{N_{\mathrm{start}}}
+\]
+denote a collection of physically admissible initial guesses. For each starting
+point, a short Adam optimization is performed on the long observation window.
+The resulting candidates are then evaluated independently for every signal.
+
+For signal \(s\), the selected initialization is
+
+\begin{equation}
+\boldsymbol{\theta}_{\mathrm{MS}}^{(s)}
+=
+\boldsymbol{\theta}_{r_s}^{(s)},
+\qquad
+r_s
+=
+\operatorname*{arg\,min}_{r}
+\mathcal{L}^{(s)}
+\left(
+\boldsymbol{\theta}_{r}^{(s)}
+\right).
+\label{eq:multistart_selection}
+\end{equation}
+
+Consequently, different signals may select different starting points. The main
+Adam stage is initialized with the signal-dependent parameters obtained from
+this selection.
+
+After the first optimization stage, signals whose individual loss remains above
+a prescribed threshold are treated separately. For each difficult signal, a
+second collection of starting points is generated around its current estimate,
+
+\begin{equation}
+\boldsymbol{\theta}_{0,r}^{(s)}
+=
+\operatorname{clip}
+\left(
+\boldsymbol{\theta}_{\mathrm{current}}^{(s)}
++
+\boldsymbol{\delta}_{r},
+\boldsymbol{\theta}_{\min},
+\boldsymbol{\theta}_{\max}
+\right),
+\label{eq:relative_multistart}
+\end{equation}
+
+where \(\boldsymbol{\delta}_{r}\) denotes a relative perturbation. A second
+short optimization is then performed and the best candidate is retained only if
+it improves the previous loss.
+
+The physical parameters are normalized using fixed characteristic scales before
+optimization. The initial multi-start values are required to be positive, and
+the relative multi-start initializations are clipped to prescribed admissible
+ranges. However, the standard Adam stages do not enforce positivity throughout
+the complete optimization trajectory. Positivity is explicitly guaranteed only
+during the Gauss--Newton refinement, through a lower projection, and during the
+L-BFGS refinement, through the logarithmic parameterization
+
+\begin{equation}
+\theta_j
+=
+\exp(\eta_j).
+\end{equation}
+
+
+\subsection{Initialization and local minima}
+
+The objective is non-convex and may contain several attraction basins.
+Initialization therefore has a major influence on the recovered parameters.
+
+For low-dimensional calibration, a multi-start strategy consists in:
+\begin{enumerate}
+    \item generating several admissible initial parameter vectors;
+    \item performing a short optimization from each vector;
+    \item ranking the candidates according to their final loss;
+    \item continuing the optimization from the best candidates.
+\end{enumerate}
+
+For poorly calibrated signals, additional initializations can be generated
+relative to the best current estimate rather than repeating the same global
+grid. This concentrates the computational effort on difficult cases.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Learning the reed opening law}
+\label{sec:learning_reed_law}
+
+\subsection{Neural representation}
+
+The function \(\ell(y)\) is represented by a small multilayer perceptron
+\begin{equation}
+\ell_{\boldsymbol{\eta}}:
+\mathbb{R}
+\longrightarrow
+\mathbb{R}.
+\end{equation}
+
+The architecture used in the experiments contains one scalar input, two hidden
+layers and one scalar output:
+\begin{equation}
+1
+\longrightarrow
+8
+\longrightarrow
+8
+\longrightarrow
+1.
+\label{eq:lfunc_architecture}
+\end{equation}
+Hyperbolic tangent activation functions are used in the hidden layers.
+
+\subsection{Anchoring and scale ambiguity}
+
+The product
+\begin{equation}
+\zeta\,\ell(y)
+\end{equation}
+appears in the reed-flow boundary condition. Simultaneous optimization of
+\(\zeta\) and \(\ell\) therefore introduces an approximate scale ambiguity.
+
+To reduce this ambiguity, the law is anchored at a reference displacement:
+\begin{equation}
+\ell(1)=1.
+\label{eq:lfunc_anchor}
+\end{equation}
+
+The associated penalty is
+\begin{equation}
+\mathcal{R}_{\mathrm{anchor}}
+=
+\left(
+\ell_{\boldsymbol{\eta}}(1)-1
+\right)^2.
+\label{eq:anchor_regularization}
+\end{equation}
+
+\subsection{Positivity and shape regularization}
+
+The reed opening should remain non-negative in the physically relevant regime.
+A positivity penalty is introduced:
+\begin{equation}
+\mathcal{R}_{\mathrm{pos}}
+=
+\frac{1}{N_y}
+\sum_{j=1}^{N_y}
+\left[
+\max
+\left(
+-\ell_{\boldsymbol{\eta}}(y_j),0
+\right)
+\right]^2.
+\label{eq:positivity_regularization}
+\end{equation}
+
+A monotonicity prior may additionally be imposed:
+\begin{equation}
+\mathcal{R}_{\mathrm{mono}}
+=
+\frac{1}{N_y}
+\sum_{j=1}^{N_y}
+\left[
+\max
+\left(
+-\frac{\mathrm{d}}{\mathrm{d}y}
+\ell_{\boldsymbol{\eta}}(y_j),0
+\right)
+\right]^2.
+\label{eq:monotonicity_regularization}
+\end{equation}
+
+The complete regularization is
+\begin{equation}
+\mathcal{R}_\ell
+=
+\lambda_{\mathrm{anchor}}
+\mathcal{R}_{\mathrm{anchor}}
++
+\lambda_{\mathrm{pos}}
+\mathcal{R}_{\mathrm{pos}}
++
+\lambda_{\mathrm{mono}}
+\mathcal{R}_{\mathrm{mono}}.
+\label{eq:lfunc_regularization}
+\end{equation}
+
+\subsection{Identifiability from acoustic observations}
+
+The reed displacement is not observed in the experimental setting. The
+available data consist only of pressure recordings. Learning \(\ell(y)\) is
+therefore indirect: the law is inferred through its influence on reed flow,
+acoustic propagation and pressure at the bell.
+
+A single signal explores only a limited range of reed displacements and cannot
+identify the complete law over a broad interval. Multiple signals with
+different excitation parameters are therefore required.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Data and experimental protocols}
+\label{sec:data_protocols}
+
+\subsection{Synthetic OpenWind dataset}
+
+The first evaluation stage uses signals generated with OpenWind. This provides
+an independent numerical reference and gives access to the exact values of the
+sampled parameters.
+
+The synthetic dataset contains \(300\) signals. For each observation, the
+geometry and reed parameters are sampled from prescribed admissible ranges. The
+pressure at the bell is stored together with the reference parameters.
+
+The reference reed law is
+\begin{equation}
+\ell_{\mathrm{ref}}(y)
+=
+\max(y,0).
+\end{equation}
+
+The dataset is used to evaluate parameter reconstruction, sensitivity to
+initialization, parameter coupling and recovery of the common reed law.
+
+\subsection{Parameter-calibration experiments}
+
+The first experiments calibrate one parameter while all remaining quantities
+are fixed. They verify the consistency of the gradients and characterize the
+local optimization behavior.
+
+More difficult experiments calibrate several parameters simultaneously. The
+main parameters of interest are
+\begin{equation}
+\gamma,\qquad
+\zeta,\qquad
+\kappa,
+\end{equation}
+with additional tests involving \(\omega_r\) or \(Q_r\).
+
+For each calibrated parameter \(\theta\), the relative error is
+\begin{equation}
+e_{\mathrm{rel}}(\theta)
+=
+\frac{
+|\widehat{\theta}-\theta_{\mathrm{ref}}|
+}{
+|\theta_{\mathrm{ref}}|+\varepsilon_\theta
+}.
+\label{eq:relative_parameter_error}
+\end{equation}
+
+\subsection{Experimental Modartt recordings}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Evaluation criteria}
+\label{sec:evaluation_criteria}
+
+The final loss alone is insufficient to assess calibration quality. A low signal
+discrepancy does not necessarily imply correct parameter identification.
+
+For synthetic data, the main criteria are:
+\begin{itemize}
+    \item relative errors of the calibrated physical parameters;
+    \item relative and maximum errors of the learned reed law;
+    \item final observation loss;
+    \item frequency of failed or divergent optimizations;
+    \item computational time.
+\end{itemize}
+
+For experimental data, 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Conclusion}
+
+This chapter formulated the calibration of reed-instrument models as a
+differentiable inverse problem. The unknown quantities may consist of scalar
+physical parameters, a constitutive reed-opening law, or both.
+
+Time-domain and multi-resolution spectral losses were introduced to compare
+simulated and observed acoustic signals. The complete DG--ODE solver was then
+interpreted as a discrete computational graph and differentiated with
+reverse-mode automatic differentiation in JAX.
+
+The optimization framework distinguishes local parameters associated with each
+signal from a global reed law shared across the dataset. Physical constraints
+are enforced through differentiable transformations, while anchoring,
+positivity and monotonicity regularizations reduce the ambiguity of the learned
+function.
+
+Finally, the methodology was organized in two stages. Synthetic OpenWind data
+provide controlled tests with known parameters and a known reed law. The
+resulting strategy is then transferred to experimental recordings supplied by
+Modartt, initially through calibration of the mouth-pressure parameter
+\(\gamma\).
+
+The next chapter presents the numerical calibration results and analyses the
+accuracy, robustness and limitations of the proposed approach.
+
+
+\chapter{Numerical Results}
+
+\label{chap:results}
+
 \minitoc
+
+This chapter presents the numerical validation of the proposed calibration
+framework.
+
+The experiments are organized according to increasing levels of realism.
+First, the method is evaluated on synthetic signals generated with
+OpenWind, where the exact physical parameters are known. This controlled
+setting allows the convergence properties of the optimization procedure to
+be analyzed quantitatively.
+
+The same methodology is then applied to synthetic signals corrupted by
+additive noise in order to assess its robustness under degraded
+measurement conditions.
+
+Finally, the calibration framework is evaluated on experimental recordings
+provided by Modartt. Unlike the synthetic experiments, these data do not
+provide access to the true physical parameters, making the assessment rely
+on the quality of the reconstructed acoustic signals and on the physical
+consistency of the estimated parameters.
+
+\section{Sensitivity analysis}
+
+Before evaluating the complete calibration procedure, it is useful to study
+the behavior of the objective function with respect to variations of the
+physical parameters.
+
+The purpose of this preliminary analysis is twofold.
+
+First, it provides insight into the local geometry of the optimization
+landscape. Parameters associated with sharp minima are expected to be more
+easily identifiable than parameters producing flatter loss profiles.
+
+Second, it allows the influence of each physical parameter on the acoustic
+response to be analyzed independently before considering the complete
+inverse problem involving several unknowns simultaneously.
+
+For each parameter, the reference OpenWind signal is generated using the
+nominal physical configuration described in Chapter~3. One parameter is
+then varied while all the others are kept fixed, and the multi-resolution
+spectral loss introduced in Chapter~5 is evaluated with respect to the
+reference signal.
+
+\subsection{One-dimensional Scans}
+
+The resulting one-dimensional loss scans are presented in
+Figure~\ref{fig:parameter_scans}.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{../../experiments/gradient/results/scans/scan_1D_MSTS_4params_openwind.png}
+    \caption{One-dimensional scans of the multi-resolution spectral loss with respect to variations of the physical parameters. 
+    Each curve corresponds to a single parameter, while all other parameters are kept fixed.}
+    \label{fig:parameter_scans}
+\end{figure}
+
+The loss associated with the parameter $\kappa$ exhibits a sharp and well
+localized minimum around the reference value. Small deviations from the optimum
+produce a rapid increase of the objective function, indicating that this
+parameter has a strong influence on the generated acoustic signal. Such a
+landscape is favorable for gradient-based optimization since the gradients
+remain informative over a large neighborhood of the solution.
+
+The mouth pressure parameter $\gamma$ also produces a well-defined minimum.
+However, the loss increases much more rapidly for values larger than the
+reference pressure than for smaller values. A noticeable discontinuity appears
+around $\gamma \approx 0.6$, suggesting the existence of a transition between
+two oscillation regimes of the reed model. This behavior reflects the
+nonlinear nature of the excitation mechanism.
+
+A similar behavior is observed for the parameter $\zeta$. Around the optimum,
+the objective function presents a narrow valley that should facilitate the
+identification process. For larger values of $\zeta$, the loss exhibits a
+sudden increase before continuing its progression. This phenomenon is likely
+associated with a qualitative modification of the reed dynamics rather than a
+simple linear variation of the acoustic response.
+
+The behavior of the quality factor $Q_r$ is markedly different. Although a
+minimum is clearly visible near the reference value, the objective function
+remains relatively flat over a broad interval. Consequently, large variations
+of $Q_r$ only induce limited modifications of the acoustic signal, making this
+parameter intrinsically more difficult to identify from pressure measurements
+alone.
+
+This observation is consistent with the statistical calibration experiments
+presented later in this chapter, where $Q_r$ systematically exhibits larger
+estimation errors than the other physical parameters.
+
+Overall, the one-dimensional scans indicate that the proposed objective
+function possesses well-defined minima for the four investigated parameters.
+However, the curvature of the objective strongly depends on the considered
+parameter. While $\gamma$, $\kappa$ and $\zeta$ generate steep optimization
+landscapes, the loss is significantly flatter with respect to $Q_r$, suggesting
+a lower sensitivity of the radiated pressure to this parameter.
+
+These observations provide a first explanation of the different levels of
+identifiability observed in the calibration experiments.
+
+\subsection{Two-dimensional Scans}
+
+The previous one-dimensional scans investigate the sensitivity of the
+objective function with respect to each parameter independently.
+
+However, the calibration problem involves several unknowns simultaneously.
+Consequently, it is also important to study the joint behavior of the loss
+function with respect to pairs of parameters.
+
+To this end, two-dimensional scans are performed by varying two parameters
+while keeping all the remaining quantities fixed.
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{../../experiments/gradient/results/scans/scan_2D_gamma_zeta_kappa_Qr_MSTS_openwind_T0p050.png}
+    \caption{Two-dimensional scans of the multi-resolution spectral loss with respect to variations of the physical parameters. 
+    Each surface corresponds to a pair of parameters of Qr and one of the other parameters, while all other parameters are kept fixed.}
+    \label{fig:parameter_scans_2D}
+\end{figure}
+
+Figure~\ref{fig:parameter_scans_2D} reveals that the objective function exhibits a
+well-defined minimum in all three parameter planes.
+
+Interestingly, the valleys remain almost perfectly aligned with the
+\(Q_r\)-axis. This indicates that the loss is much more sensitive to
+variations of \(\gamma\), \(\kappa\) and \(\zeta\) than to variations of
+\(Q_r\).
+
+The minimum of the scanned objective function does not exactly coincide with 
+the nominal parameter values because of numerical discretization, finite time 
+integration, and the approximation introduced by the discrete loss evaluation. 
+The displacement nevertheless remains small for the well-identified parameters.
+
+No pronounced diagonal valley is observed, suggesting that the considered
+parameter pairs are only weakly correlated. Consequently, the difficulty
+encountered when estimating \(Q_r\) does not originate from a strong coupling
+with the other reed parameters, but rather from the intrinsically low
+sensitivity of the radiated pressure with respect to the quality factor.
+
+These observations motivated the subsequent calibration strategy adopted in
+this work.
+
+Since the objective function exhibits only limited sensitivity with respect
+to \(Q_r\), the statistical experiments presented in the remainder of this
+chapter focus on the estimation of
+
+\[
+(\gamma,\kappa,\zeta),
+\]
+
+while the quality factor is assumed to be known.
+
+\section{Calibration on synthetic OpenWind signals}
+
+\subsection{Experimental Protocol}
+Using a dataset of 300 synthetic OpenWind signals, the calibration procedure is 
+evaluated on a controlled setting where the true physical parameters are known. 
+The signals are generated by varying the parameters \(\gamma\), \(\kappa\), and \(\zeta\)
+within a prescribed range, while keeping the quality factor \(Q_r\) and the other 
+parameters fixed.
+All the simulations are initialized with the same reference reed law $l(y)=max(y,0)$ and 
+the same set of trainable parameters $(\gamma_0,\kappa_0,\zeta_0)$.
+
+\subsection{Optimization strategy}
+
+The calibration problem considered in this work is nonlinear and non-convex.
+Consequently, the optimization process may converge towards different local
+minima depending on the initial parameter values. Although the sensitivity
+analysis presented in the previous section revealed well-defined minima for the
+considered parameters, gradient-based methods remain sensitive to their
+initialization, particularly when several parameters are estimated
+simultaneously.
+
+To improve the robustness of the optimization, a preliminary multi-start stage
+is performed before the main calibration procedure. A set of physically
+plausible initial parameter vectors is defined from prior knowledge of the
+instrument. Starting from each initialization, a short Adam optimization is
+performed on the long observation window in order to move the parameters toward
+a nearby local minimum.
+
+Rather than selecting a single initialization for the whole dataset, the
+selection is carried out independently for every signal. For each candidate,
+the objective function is evaluated individually, and each signal retains the
+parameter vector producing the lowest loss. Consequently, the subsequent
+optimization does not start from a common initialization but from the
+best-performing candidate associated with each individual signal. This strategy
+reduces the probability of converging toward poor local minima while preserving
+the statistical independence of the calibration problems.
+
+As illustrated in Figure~\ref{fig:calibration_pipeline}, once this initialization 
+phase has been completed, the optimization is performed through two successive stages. 
+The first stage uses the complete observation window in order to recover the global 
+characteristics of the acoustic signal. Signals whose reconstruction error remains 
+above a prescribed threshold are then considered separately. For these difficult 
+cases, a second localized multi-start is performed around the current estimate, 
+followed by a short Adam refinement. 
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=\textwidth]{pipeline_calibration.png}
+    \caption{Schematic representation of the calibration pipeline.}
+    \label{fig:calibration_pipeline}
+\end{figure}
+\newpage 
+During the Adam optimization, a three Short-Time Fourier Transform resolutions are 
+simultaneously considered. Each STFT is computed using a Hann analysis window with the 
+corresponding window length and hop size. The objective function is the average of the 
+associated multi-resolution spectral losses.
+
+\subsection{Statistical analysis of parameter recovery}
+\label{subsec:openwind_parameter_results}
+
+The calibration procedure is evaluated on the 300 synthetic OpenWind signals
+introduced previously. Since the reference values are known for every signal,
+the estimation accuracy can be measured using the individual relative error
+
+\begin{equation}
+e_{\theta}^{(i)}
+=
+\frac{
+\left|
+\widehat{\theta}^{(i)}
+-
+\theta_{\mathrm{ref}}^{(i)}
+\right|
+}{
+\left|
+\theta_{\mathrm{ref}}^{(i)}
+\right|
+},
+\qquad
+\theta \in \{\gamma,\kappa,\zeta\},
+\label{eq:individual_relative_error}
+\end{equation}
+
+where $\theta_{\mathrm{ref}}^{(i)}$ and
+$\widehat{\theta}^{(i)}$ respectively denote the reference and estimated
+values for signal $i$.
+
+The three calibrated quantities are dimensionless parameters of the scaled reed
+model. In particular, $\gamma$ represents the normalized mouth pressure,
+$\zeta$ characterizes the reed opening and flow contribution, and $\kappa$
+accounts for the flow induced by the reed motion. This parameterization reduces
+the number of effective coefficients required to describe the reed dynamics and
+provides quantities of comparable orders of magnitude. :contentReference[oaicite:0]{index=0}
+
+Figure~\ref{fig:openwind_error_histograms} presents the distributions of the
+relative errors obtained for the three parameters over the complete dataset.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_Qr_fixed_pressure_only/error_histograms.png}
+    \caption{
+    Distributions of the individual relative estimation errors obtained for
+    $\gamma$, $\kappa$ and $\zeta$ over 300 synthetic OpenWind signals.
+    The dashed and dotted vertical lines respectively indicate the mean and
+    median errors. The $95$th percentile is also reported for each parameter.
+    }
+    \label{fig:openwind_error_histograms}
+\end{figure}
+
+The results demonstrate that the proposed calibration method accurately
+recovers the three physical parameters for a large majority of the signals.
+The distributions are strongly concentrated near zero, although they exhibit
+right-skewed tails associated with a limited number of more difficult
+calibration cases.
+
+The mouth-pressure parameter $\gamma$ is recovered with the highest overall
+accuracy. Its mean relative error is
+
+\[
+\overline{e}_{\gamma}=1.10\%,
+\]
+
+while its median error is only $0.22\%$. Moreover, $95\%$ of the calibrations
+produce an error below $4.86\%$. The large difference between the mean and
+median shows that most values of $\gamma$ are estimated very precisely, while
+the average is increased by a relatively small number of less accurate
+calibrations.
+
+The parameter $\kappa$ presents a mean relative error of
+
+\[
+\overline{e}_{\kappa}=1.80\%
+\]
+
+and a median error of $1.14\%$. Its $95$th percentile reaches $6.04\%$.
+Although the distribution remains concentrated at low error values, it is
+slightly more dispersed than that obtained for $\gamma$. This indicates that
+the acoustic response contains sufficient information to identify $\kappa$,
+but that its estimation is somewhat more sensitive to the particular
+configuration of the signal.
+
+The parameter $\zeta$ is associated with the largest mean error,
+
+\[
+\overline{e}_{\zeta}=2.11\%,
+\]
+
+despite a low median value of $0.49\%$. This apparently contrasting result is
+explained by the longer right tail of its distribution. While a majority of
+the signals lead to very accurate estimates, a limited number of calibrations
+produce substantially larger errors. Accordingly, the $95$th percentile
+reaches $9.39\%$, which is higher than for both $\gamma$ and $\kappa$.
+
+The standard deviations confirm this increasing dispersion:
+
+\begin{equation}
+\sigma_{\gamma}=1.64\%,
+\qquad
+\sigma_{\kappa}=2.11\%,
+\qquad
+\sigma_{\zeta}=3.16\%.
+\label{eq:openwind_error_std}
+\end{equation}
+
+These values suggest the following hierarchy in terms of robustness of the
+estimation:
+
+\[
+\gamma
+\quad \text{is the most accurately recovered, followed by} \quad
+\kappa,
+\quad \text{then} \quad
+\zeta.
+\]
+
+A complementary representation of the same results is provided in
+Figure~\ref{fig:openwind_error_boxplots}.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.82\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_Qr_fixed_pressure_only/error_boxplots.png}
+    \caption{
+    Boxplots of the individual relative errors obtained for the three
+    calibrated parameters over 300 synthetic OpenWind signals. The horizontal
+    line inside each box indicates the median, the green triangle represents
+    the mean, and the circles denote outliers according to the standard
+    interquartile-range criterion.
+    }
+    \label{fig:openwind_error_boxplots}
+\end{figure}
+
+The boxplots emphasize the strong asymmetry of the error distributions. For
+all three parameters, the median lies below the mean, confirming that most
+calibrations achieve small errors and that the average is influenced by a
+limited number of outliers. This effect is particularly pronounced for
+$\gamma$ and $\zeta$.
+
+For $\gamma$, the central part of the distribution remains close to zero, and
+the largest errors remain below approximately $7\%$. The distribution of
+$\kappa$ is broader, with isolated errors reaching approximately $10\%$.
+Finally, $\zeta$ exhibits the widest dispersion and the most pronounced
+outliers, including one calibration with an error close to $17\%$.
+
+These isolated errors do not contradict the overall accuracy of the method.
+Rather, they indicate that the optimization occasionally converges to
+parameter combinations that provide a satisfactory acoustic reconstruction
+without reproducing all three reference parameters with the same precision.
+Such cases may arise from local non-convexity, parameter compensation, or
+changes in the oscillation regime of the coupled reed--resonator system.
+
+The aggregated numerical results are summarized in
+Table~\ref{tab:openwind_parameter_results}.
+
+\begin{table}[ht]
+\centering
+\caption{
+Statistical relative errors obtained over the 300 synthetic OpenWind
+calibrations.
+}
+\label{tab:openwind_parameter_results}
+\begin{tabular}{lccc}
+\toprule
+Parameter
+& Mean error
+& Standard deviation
+& Median error \\
+\midrule
+$\gamma$ & $1.10\%$ & $1.64\%$ & $0.22\%$ \\
+$\kappa$ & $1.80\%$ & $2.11\%$ & $1.14\%$ \\
+$\zeta$  & $2.11\%$ & $3.16\%$ & $0.49\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The final mean multi-scale spectral loss over the complete dataset is
+
+\[
+\mathcal{L}_{\mathrm{final}}
+=
+1.64\times 10^{-1}.
+\]
+
+Overall, these results validate the ability of the differentiable calibration
+framework to recover the reed parameters from the radiated pressure signal
+alone under controlled, noise-free conditions. The low median errors show that
+the method reaches highly accurate estimates for most signals. Nevertheless,
+the asymmetric distributions and the presence of a few outliers also indicate
+that the inverse problem remains locally difficult for some parameter
+configurations, thereby motivating the multi-start and targeted-refinement
+strategies introduced in the previous subsection.
+
+
+\section{Calibration from noisy OpenWind signals}
+\label{sec:noisy_openwind_results}
+
+The previous section evaluated the calibration procedure under idealized
+conditions, using noise-free pressure signals generated with OpenWind. Although
+this setting makes it possible to assess the intrinsic accuracy of the inverse
+method, measured acoustic signals are inevitably affected by perturbations.
+These may originate from the recording system, the surrounding environment or
+unmodelled physical phenomena.
+
+The second numerical experiment therefore investigates the robustness of the
+calibration procedure when the observations are contaminated by additive
+noise. The objective is to determine whether the physical parameters remain
+identifiable when the target pressure signal no longer corresponds exactly to
+the output of the reference model.
+
+\subsection{Noise model and experimental protocol}
+
+The noisy experiments are constructed from the same collection of
+\(300\) OpenWind signals as in the noise-free study. Consequently, the exact
+values of the physical parameters
+
+\begin{equation}
+\boldsymbol{\theta}^{(s)}
+=
+\left(
+\gamma^{(s)},
+\kappa^{(s)},
+\zeta^{(s)}
+\right),
+\qquad
+s=1,\ldots,300,
+\end{equation}
+
+remain known for every signal.
+
+Using the same signals in both experiments makes it possible to isolate the
+effect of the observation noise. In particular, differences in calibration
+accuracy cannot be attributed to different parameter realizations or different
+oscillation regimes.
+
+For each clean pressure signal
+\(\mathbf{p}_{\mathrm{clean}}^{(s)}\), a noisy observation is generated as
+
+\begin{equation}
+\mathbf{p}_{\mathrm{noisy}}^{(s)}
+=
+\mathbf{p}_{\mathrm{clean}}^{(s)}
++
+\boldsymbol{\varepsilon}^{(s)},
+\label{eq:noisy_observation}
+\end{equation}
+
+where \(\boldsymbol{\varepsilon}^{(s)}\) is an additive white-noise realization.
+Its amplitude is adjusted to obtain a prescribed signal-to-noise ratio (SNR).
+
+The SNR, expressed in decibels, is defined by
+
+\begin{equation}
+\operatorname{SNR}_{\mathrm{dB}}
+=
+10\log_{10}
+\left(
+\frac{
+\left\|
+\mathbf{p}_{\mathrm{clean}}
+\right\|_2^2
+}{
+\left\|
+\boldsymbol{\varepsilon}
+\right\|_2^2
+}
+\right).
+\label{eq:snr_definition}
+\end{equation}
+
+Four noise levels are considered:
+
+\begin{equation}
+\operatorname{SNR}_{\mathrm{dB}}
+\in
+\left\{
+10,\,
+20,\,
+30,\,
+40
+\right\}.
+\label{eq:considered_snr}
+\end{equation}
+
+A low SNR corresponds to a strongly contaminated observation, whereas a high
+SNR corresponds to a signal closer to the noise-free reference. Thus, the
+\(10\,\mathrm{dB}\) case represents the most difficult configuration and the
+\(40\,\mathrm{dB}\) case the least noisy one.
+
+For each SNR value, the same calibration strategy as in the noise-free
+experiment is applied. The same multi-start initialization, Adam optimization,
+long observation window and targeted refinement procedure are retained. The
+quality of the reconstruction is therefore evaluated under identical numerical
+conditions.
+
+The optimization objective remains the multi-resolution spectral loss. At each
+STFT resolution, the normalized linear-magnitude discrepancy and the decibel
+discrepancy are combined. Since the spectral representation distributes the
+comparison over time and frequency, it is expected to be less sensitive than a
+pointwise waveform loss to local high-frequency perturbations. Nevertheless,
+the logarithmic component may increase the relative contribution of weak
+spectral components, including those introduced by noise.
+
+For each calibrated parameter
+\(\theta\in\{\gamma,\kappa,\zeta\}\), the relative estimation error is computed
+as
+
+\begin{equation}
+e_{\theta}^{(s)}
+=
+\frac{
+\left|
+\widehat{\theta}^{(s)}
+-
+\theta_{\mathrm{ref}}^{(s)}
+\right|
+}{
+\left|
+\theta_{\mathrm{ref}}^{(s)}
+\right|
+}.
+\label{eq:noisy_relative_error}
+\end{equation}
+
+The distributions of these errors are then compared across the four SNR levels
+and with the results obtained from the clean signals.
+
+\subsection{Parameter-recovery results}
+
+Figures~\ref{fig:noisy_errors_10db}--\ref{fig:noisy_errors_40db}
+present the distributions of the relative errors obtained for
+\(\gamma\), \(\kappa\) and \(\zeta\) at the four considered signal-to-noise
+ratios.
+
+For each noise level, the histograms describe the complete distribution over the
+\(300\) calibrated signals. The mean and median provide complementary
+information. The median characterizes the typical calibration accuracy, whereas
+the mean is more sensitive to isolated difficult cases and unsuccessful
+convergences. The \(95\)th percentile is additionally reported to quantify the
+upper tail of the distribution.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_noise_10dB/error_histograms.png}
+    \caption{
+    Relative parameter-error distributions obtained from the
+    \(300\) OpenWind signals contaminated with additive white noise at
+    \(\operatorname{SNR}=10\,\mathrm{dB}\).
+    }
+    \label{fig:noisy_errors_10db}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_noise_20dB/error_histograms.png}
+    \caption{
+    Relative parameter-error distributions obtained from the
+    \(300\) OpenWind signals contaminated with additive white noise at
+    \(\operatorname{SNR}=20\,\mathrm{dB}\).
+    }
+    \label{fig:noisy_errors_20db}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_noise_30dB/error_histograms.png}
+    \caption{
+    Relative parameter-error distributions obtained from the
+    \(300\) OpenWind signals contaminated with additive white noise at
+    \(\operatorname{SNR}=30\,\mathrm{dB}\).
+    }
+    \label{fig:noisy_errors_30db}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_noise_40dB/error_histograms.png}
+    \caption{
+    Relative parameter-error distributions obtained from the
+    \(300\) OpenWind signals contaminated with additive white noise at
+    \(\operatorname{SNR}=40\,\mathrm{dB}\).
+    }
+    \label{fig:noisy_errors_40db}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{
+Mean relative parameter errors obtained for the noise-free and noisy
+OpenWind signals.
+}
+\label{tab:noisy_parameter_errors}
+
+\begin{tabular}{lccc}
+\toprule
+Observation condition
+& \(\gamma\)
+& \(\kappa\)
+& \(\zeta\) \\
+\midrule
+Noise-free
+& \(1.10\%\)
+& \(1.80\%\)
+& \(2.11\%\) \\
+\(40\,\mathrm{dB}\)
+& \(1.71\%\)
+& \(2.61\%\)
+& \(4.81\%\) \\
+\(30\,\mathrm{dB}\)
+& \(3.67\%\)
+& \(4.79\%\)
+& \(8.38\%\) \\
+\(20\,\mathrm{dB}\)
+& \(17.77\%\)
+& \(13.85\%\)
+& \(26.23\%\) \\
+\(10\,\mathrm{dB}\)
+& \(25.78\%\)
+& \(19.91\%\)
+& \(29.07\%\) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In order to improbe the robustness of the calibration procedure, an another set of Hann analysis windows with different lengths and hop sizes is used to compute the STFTs :
+
+\begin{equation}
+(L_i,H_i)
+\in
+\left\{
+(64,16),
+(128,32),
+(256,64),
+(512,128)
+\right\},
+\label{eq:experimental_stft_configurations_finer}
+\end{equation}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{../../experiments/gradient/results/gamma_kappa_zeta_noise_10dB_fine/error_histograms.png}
+    \caption{
+    Relative parameter-error distributions obtained from the
+    \(300\) OpenWind signals contaminated with additive white noise at
+    \(\operatorname{SNR}=10\,\mathrm{dB}\) with finer STFT configurations.
+    }
+    \label{fig:noisy_errors_10db_fine}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\caption{
+Mean relative parameter errors obtained for noisy
+OpenWind signals at 10 dB with finer STFT configurations.
+}
+\label{tab:noisy_parameter_errors_10db_fine}
+\begin{tabular}{lccc}
+\toprule
+Observation condition
+& \(\gamma\)
+& \(\kappa\)
+& \(\zeta\) \\
+\midrule
+\(10\,\mathrm{dB}\)
+& \(25.78\%\)
+& \(19.91\%\)
+& \(29.07\%\) \\
+\(10\,\mathrm{dB}\) fine
+& \(13.81\%\)
+& \(13.72\%\)
+& \(17.73\%\) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+As shown in Table~\ref{tab:noisy_parameter_errors_10db_fine}, the use of finer STFT configurations significantly improves the estimation accuracy for all three parameters, particularly for \(\gamma\) and \(\zeta\). 
+This suggests that the choice of STFT parameters can have a substantial impact on the robustness of the calibration procedure in noisy conditions.
+
+
+
 
 \chapter{Perspectives}
 \minitoc

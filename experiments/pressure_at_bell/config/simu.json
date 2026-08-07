@@ -1,6 +1,6 @@
 {
     "solver_params": {        
-        "T_max":0.5,
+        "T_max":0.2,
         "cfl":0.2,
         "Nx": 800,
         "N_snapshot": 10000

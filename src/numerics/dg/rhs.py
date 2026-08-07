@@ -14,46 +14,55 @@ def local_volume_system(u_cell, S_q, h, S_star, c):
     w = w.at[0].set(h / (2 * (nq - 1)))
     w = w.at[-1].set(h / (2 * (nq - 1)))
 
-    # base
-    x_ref = jnp.linspace(0.0, 1.0, nq)
-    phi_q = jnp.stack([1 - x_ref, x_ref], axis=1)
+    p_phys = (c * S_star / S_q) * u_cell[0]
+    v_phys = (c * S_q / S_star) * u_cell[1]
 
-    p_q = phi_q @ u_cell[0]
-    v_q = phi_q @ u_cell[1]
+    flux_sum = 0.5 * jnp.array([
+        v_phys[0] + v_phys[1],
+        p_phys[0] + p_phys[1],
+    ])
 
-    # conversion
-    p_q_phys = (c * S_star / S_q) * p_q
-    v_q_phys = (c * S_q / S_star) * v_q
-
-    Fq = jnp.stack([v_q_phys, p_q_phys], axis=1)
-
-    dphi0 = -1.0 / h
-    dphi1 =  1.0 / h
-
-    V0 = jnp.sum(w[:, None] * Fq * dphi0, axis=0)
-    V1 = jnp.sum(w[:, None] * Fq * dphi1, axis=0)
-
-    return jnp.stack([V0, V1], axis=1)
+    return jnp.stack([-flux_sum, flux_sum], axis=1)
 
 
-def surface_term_system(u_ext, S_ext, j, c, S_star):
-    jp = j + 1
+def surface_terms_system(u_ext, S_ext, c, S_star):
+    """
+    Calcule les flux des N+1 interfaces une seule fois.
 
-    S_left  = 0.5 * (S_ext[jp - 1] + S_ext[jp])
-    S_right = 0.5 * (S_ext[jp]     + S_ext[jp + 1])
+    u_ext : (N+2, 2, 2)
+    S_ext : (N+1,) sections aux interfaces, ou ancien format (N+2,)
+    retourne S_all : (N, 2, 2)
+    """
 
-    UL_left  = u_ext[jp - 1, :, 1]
-    UR_left  = u_ext[jp,     :, 0]
-    UL_right = u_ext[jp,     :, 1]
-    UR_right = u_ext[jp + 1, :, 0]
+    # États situés de part et d'autre des N+1 interfaces
+    U_left = u_ext[:-1, :, 1]   # (N+1, 2)
+    U_right = u_ext[1:, :, 0]   # (N+1, 2)
 
-    f_left  = rusanov_flux(UL_left,  UR_left,  S_left,  c, S_star)
-    f_right = rusanov_flux(UL_right, UR_right, S_right, c, S_star)
+    if S_ext.shape[0] == U_left.shape[0]:
+        S_interfaces = S_ext
+    else:
+        # Ancien format: sections par cellule et cellules fantomes.
+        S_interfaces = 0.5 * (S_ext[:-1] + S_ext[1:])
 
-    S_term = jnp.zeros((2, 2))
-    S_term = S_term.at[:, 0].set(-f_left)
-    S_term = S_term.at[:, 1].set( f_right)
-    return S_term
+    # Chaque flux d'interface est calculé exactement une fois
+    fluxes = jax.vmap(
+        rusanov_flux,
+        in_axes=(0, 0, 0, None, None),
+    )(
+        U_left,
+        U_right,
+        S_interfaces,
+        c,
+        S_star,
+    )  # (N+1, 2)
+
+    # Pour la cellule j :
+    #   colonne 0 = -flux à l'interface gauche
+    #   colonne 1 = +flux à l'interface droite
+    return jnp.stack(
+        [-fluxes[:-1], fluxes[1:]],
+        axis=-1,
+    )  # (N, 2, 2)
 
 
 def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
@@ -78,9 +87,12 @@ def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
 
 
     # Terme de surface
-    S_all = jax.vmap(
-        lambda j: surface_term_system(u_ext, S_ext, j, c, S_star)
-    )(jnp.arange(N))
+    S_all = surface_terms_system(
+        u_ext,
+        S_ext,
+        c,
+        S_star,
+    )
 
     # Terme volume — section évaluée exactement ✓
     V_all = jax.vmap(
@@ -95,5 +107,4 @@ def dg_rhs_system(u_tilde_cells, x_nodes, c, Mp_inv, Mv_inv,
         return jnp.stack([rhs_p, rhs_v], axis=0)
 
     return jax.vmap(element_rhs)(jnp.arange(N))
-
 

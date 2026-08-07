@@ -1,11 +1,11 @@
 {
     "physics":{
-        "c": 1.0,
+        "c": 343.987773071615,
         "phi0": 0.0
     },
     "instrument_geometry": {
         "tube" :{
-            "L_tube": 0.9,
+            "L_tube": 0.4,
             "R_tube": 0.007
         },
         "bell": {
@@ -15,21 +15,21 @@
     },
     "left_bc_params": {
         "mouth_pressure_params": {
-        "gamma_final": 0.0,
+        "gamma_final": 0.422,
         "t_attack": 0.02,
         "sharpness": 0.01,
         "t_delay": 0.5
         },
-        "epsilon": 0.0,
-        "kappa": 0.0,
+        "epsilon": -1.0,
+        "kappa": 0.71,
         "fr": 170.0,
         "Qr": 125.0,
-        "zeta": 0.0
+        "zeta": 0.4
     },
     "right_bc_params": {
-        "beta": 30.0,
+        "beta": 0.6646516378651401,
         "Zt": 1.0,
-        "alpha": 0.0333
+        "alpha": 29476.61
     },
     "init_cond_reed": {
         "y0": 1.0,
@@ -42,8 +42,8 @@
         "fr": false,
         "Qr": false,
         "zeta": false,
-        "beta": false,
-        "Zt": false,
+        "beta": true,
+        "Zt": true,
         "alpha": true,
         "L_tube": false,
         "R_tube": false,

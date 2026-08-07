@@ -4,6 +4,7 @@ from jax import lax
 
 from src.numerics.dg.rhs import dg_rhs_system
 from src.utils.util_func import phi_rhs, reed_rhs, compute_v_bc_left
+from src.physics.mouth_pressure import pressure_at_mouth_alexis
 
 from jax import checkpoint
 
@@ -51,7 +52,7 @@ def rk2_step_system(
     Mp_inv, Mv_inv, bc,
     phi, beta, Z, alpha,
     y, z, 
-    gamma, 
+    gamma_n, gamma_mid,
     eps, kappa, Q_r, omega_r, zeta, opening,
     S_cells, S_star,S_ext,
     S_quad
@@ -63,64 +64,100 @@ def rk2_step_system(
     pR  = (c * S_star / S_R)  * u_tilde_cells[-1, 0, 1]
 
     # -------------------
-    # stage 1 — tout au temps n
+    # stage 1 — temps n
     # -------------------
     k1_phi = phi_rhs(pR, alpha, Z)
-    
-    v_bc1= compute_v_bc_left(y,z, pL,zeta,gamma,eps,kappa,omega_r, opening)
+
+    dy1, dz1 = reed_rhs(
+        y,
+        z,
+        pL,
+        eps,
+        gamma_n,
+        omega_r,
+        Q_r,
+    )
+
+    v_bc1 = compute_v_bc_left(
+        y,
+        z,
+        pL,
+        zeta,
+        gamma_n,
+        eps,
+        kappa,
+        omega_r,
+        opening,
+    )
+
     v_bc1_tilde = (S_star / (c * S_cells[0])) * v_bc1
-    
+
     k1_u = dg_rhs_system(
         u_tilde_cells, x_nodes, c,
         Mp_inv, Mv_inv, bc,
         phi, beta, Z, alpha,
-        v_bc1_tilde, S_cells, S_star,S_ext,
-        zeta, gamma, eps, kappa, omega_r, y, z, opening,
-        S_quad
+        v_bc1_tilde, S_cells, S_star, S_ext,
+        zeta, gamma_n, eps, kappa, omega_r, y, z, opening,
+        S_quad,
     )
 
     # -------------------
-    # midpoint — temps n + dt/2
+    # midpoint
     # -------------------
-    u_tilde_mid   = u_tilde_cells + 0.5 * dt * k1_u
-    phi_mid = phi     + 0.5 * dt * k1_phi
+    u_tilde_mid = u_tilde_cells + 0.5 * dt * k1_u
+    phi_mid = phi + 0.5 * dt * k1_phi
 
-    # variable physique au midpoint pour les BC
-    pL_mid = (c * S_star / S_cells[0])  * u_tilde_mid[0, 0, 1]
+    y_mid = y + 0.5 * dt * dy1
+    z_mid = z + 0.5 * dt * dz1
+
+    pL_mid = (c * S_star / S_cells[0]) * u_tilde_mid[0, 0, 0]
     pR_mid = (c * S_star / S_cells[-1]) * u_tilde_mid[-1, 0, 1]
 
     # -------------------
-    # anche — CN sur dt complet, indépendant du midpoint PDE
-    # -------------------
-
-    y_new, z_new = reed_step_crank_nicolson(
-        y, z, pL_mid, eps, gamma, omega_r, Q_r, dt
-    )
-
-    # -------------------
-    # stage 2 — y^{n+1} avec pL_mid
+    # stage 2 — midpoint
     # -------------------
     k2_phi = phi_rhs(pR_mid, alpha, Z)
-    v_bc2 = compute_v_bc_left(y_new,z_new, pL_mid,zeta,gamma,eps,kappa,omega_r, opening)
+
+    dy2, dz2 = reed_rhs(
+        y_mid,
+        z_mid,
+        pL_mid,
+        eps,
+        gamma_mid,
+        omega_r,
+        Q_r,
+    )
+
+    v_bc2 = compute_v_bc_left(
+        y_mid,
+        z_mid,
+        pL_mid,
+        zeta,
+        gamma_mid,
+        eps,
+        kappa,
+        omega_r,
+        opening,
+    )
+
     v_bc2_tilde = (S_star / (c * S_cells[0])) * v_bc2
+
     k2_u = dg_rhs_system(
         u_tilde_mid, x_nodes, c,
         Mp_inv, Mv_inv, bc,
         phi_mid, beta, Z, alpha,
-        v_bc2_tilde, S_cells, S_star,S_ext,
-        zeta, gamma, eps, kappa, omega_r, y_new, z_new, opening, S_quad
+        v_bc2_tilde, S_cells, S_star, S_ext,
+        zeta, gamma_mid, eps, kappa, omega_r, y_mid, z_mid, opening,
+        S_quad,
     )
 
-    # -----
-    # --------------
+    # -------------------
     # update final
     # -------------------
-    u_tilde_new   = u_tilde_cells + dt * k2_u
-    phi_new = phi     + dt * k2_phi
-
-    #matrice de passage pour récupérer les variables tilde
-    P = jnp.array([[S_cells[0]/(c*S_star), 0.0],
-                   [0.0, S_star / (c*S_cells[0])]])
+    u_tilde_new = u_tilde_cells + dt * k2_u
+    phi_new = phi + dt * k2_phi
+    y_new = y + dt * dy2
+    z_new = z + dt * dz2
 
     return u_tilde_new, phi_new, y_new, z_new
 
@@ -204,21 +241,29 @@ def rk2_step_system(
 
 
 def time_integrate_rk2(
-    u0, x_nodes, c, dt, nsteps,
-    Mp_inv, Mv_inv, bc,
-    phi0, y0, z0,
-    data,
-    S_cells, S_star, S_quad,
-    snapshot_steps,
-    gamma_target
-):
+        u0, x_nodes, c, dt, nsteps,
+        Mp_inv, Mv_inv, bc,
+        phi0, y0, z0,
+        data,
+        S_cells, S_star, S_quad, S_ext,
+        snapshot_steps,
+        gamma_target,
+        gamma_mid_target=None,
+    ):
     beta, Z, alpha = data.beta, data.Zt, data.alpha
     eps, kappa = data.eps, data.kappa
     omega_r = 2 * jnp.pi * data.fr
     Q_r = data.Qr
     zeta = data.zeta
     opening = data.l
-    S_ext = jnp.concatenate([S_cells[:1], S_cells, S_cells[-1:]])
+
+    if gamma_mid_target is None:
+        t_mid = (jnp.arange(nsteps) + 0.5) * dt
+        gamma_mid_target = pressure_at_mouth_alexis(
+            gamma_final=data.gamma_final,
+            t_attack=data.t_attack,
+            t=t_mid,
+        )
 
     nsnaps = snapshot_steps.shape[0]
 
@@ -229,14 +274,14 @@ def time_integrate_rk2(
 
     def step(carry, inputs):
         u, phi, y, z, snap_idx, u_snaps, phi_snaps, y_snaps, z_snaps = carry
-        n, gamma_n = inputs
+        n, gamma_n, gamma_mid = inputs
 
         u_next, phi_next, y_next, z_next = rk2_step_system(
             u, x_nodes, c, dt,
             Mp_inv, Mv_inv, bc,
             phi, beta, Z, alpha,
             y, z,
-            gamma_n,
+            gamma_n, gamma_mid,
             eps, kappa, Q_r, omega_r,
             zeta, opening,
             S_cells, S_star, S_ext,
@@ -275,7 +320,7 @@ def time_integrate_rk2(
     final, _ = lax.scan(
         step,
         init,
-        (jnp.arange(nsteps), gamma_target)
+        (jnp.arange(nsteps), gamma_target, gamma_mid_target)
     )
 
     u_final, phi_final, y_final, z_final, _, u_snaps, phi_snaps, y_snaps, z_snaps = final
@@ -286,13 +331,16 @@ def time_integrate_rk2(
     )
 
 
-def time_integrate_rk2_bell(u0, x_nodes, c, dt, nsteps,
-    Mp_inv, Mv_inv, bc,
-    phi0, y0, z0,
-    data,
-    S_cells, S_star, S_quad,
-    snapshot_steps,
-    gamma_target):
+def time_integrate_rk2_bell(
+        u0, x_nodes, c, dt, nsteps,
+        Mp_inv, Mv_inv, bc,
+        phi0, y0, z0,
+        data,
+        S_cells, S_star, S_quad, S_ext,
+        snapshot_steps,
+        gamma_target,
+        gamma_mid_target=None,
+    ):
 
     beta, Z, alpha = data.beta, data.Zt, data.alpha
     eps, kappa = data.eps, data.kappa
@@ -301,20 +349,27 @@ def time_integrate_rk2_bell(u0, x_nodes, c, dt, nsteps,
     zeta = data.zeta
     opening = data.l
 
+    if gamma_mid_target is None:
+        t_mid = (jnp.arange(nsteps) + 0.5) * dt
+        gamma_mid_target = pressure_at_mouth_alexis(
+            gamma_final=data.gamma_final,
+            t_attack=data.t_attack,
+            t=t_mid,
+        )
+
     nsnaps = snapshot_steps.shape[0]
 
-    S_ext = jnp.concatenate([S_cells[:1], S_cells, S_cells[-1:]])
     p_bell_snaps = jnp.zeros((nsnaps,))
 
     def step(carry, inputs):
         u, phi, y, z, snap_idx, p_bell_snaps = carry
-        n, gamma_n = inputs
+        n, gamma_n, gamma_mid = inputs
 
         u_next, phi_next, y_next, z_next = rk2_step_system(u, x_nodes, c, dt,
             Mp_inv, Mv_inv, bc,
             phi, beta, Z, alpha,
             y, z,
-            gamma_n,
+            gamma_n, gamma_mid,
             eps, kappa, Q_r, omega_r,
             zeta, opening,
             S_cells, S_star, S_ext,
@@ -340,7 +395,7 @@ def time_integrate_rk2_bell(u0, x_nodes, c, dt, nsteps,
         p_bell_snaps
     )
 
-    final, _ = lax.scan(step, init, (jnp.arange(nsteps), gamma_target))
+    final, _ = lax.scan(step, init, (jnp.arange(nsteps), gamma_target, gamma_mid_target))
 
     u_final, phi_final, y_final, z_final, _, p_bell_snaps = final
 

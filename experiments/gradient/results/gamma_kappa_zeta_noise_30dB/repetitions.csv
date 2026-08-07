@@ -1,0 +1,2 @@
+repeat_idx,seed,n_signals,mean_relerr_gamma,std_relerr_gamma,mean_relerr_kappa,std_relerr_kappa,mean_relerr_zeta,std_relerr_zeta,global_relerr,final_loss,elapsed_seconds
+0,0,300,0.03672285868350988,0.047497160215212116,0.04788246572245204,0.07172429629613161,0.08384225267592435,0.09915085960354837,2.8932025547029236,10.29023573599361,18898.72129392624

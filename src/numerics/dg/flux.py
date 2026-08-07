@@ -36,8 +36,14 @@ def rusanov_flux(U_tilde_L, U_tilde_R, S_interface, c, S_star):
 
     # d_t(u_tilde)+d_x(A u_tilde) = 0
 
-    A = jnp.array([[0.0, c * S_interface / S_star],
-                   [c * S_star / S_interface, 0.0]])
-    
-    smax = c  # vitesse maximale du système
-    return 0.5 * (A @ U_tilde_L + A @ U_tilde_R) - 0.5 * smax * (U_tilde_R - U_tilde_L)
+    a = c * S_interface / S_star
+    b = c * S_star / S_interface
+
+    flux_linear = jnp.array([
+        a * (U_tilde_L[1] + U_tilde_R[1]),
+        b * (U_tilde_L[0] + U_tilde_R[0]),
+    ])
+
+    return 0.5 * flux_linear - 0.5 * c * (
+        U_tilde_R - U_tilde_L
+    )

@@ -134,7 +134,7 @@ def apply_bc_left_dynamic_infinite_pipe(u_cells, S_cells, c, S_star,v_bc_tilde,
                            zeta, gamma, eps, kappa, omega_r,y, dt_y):
     
     S_L = S_cells[0]
-    f = S_L / S_star
+    f = S_star / S_L
 
     p_tilde_L = u_cells[0, 0, 0]
     v_tilde_L = u_cells[0, 1, 0]

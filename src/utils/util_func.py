@@ -83,7 +83,7 @@ def reed_rhs(y, z, p_in, eps, gamma, omega_r, Q_r):
     return dy, dz
 
 def pressure_func(delta_p, eps=1e-8):
-    return jnp.sqrt(jnp.abs(delta_p) + eps) * jnp.sign(delta_p)
+    return delta_p / (delta_p**2 + eps**2) ** 0.25
 
 
 def compute_v_bc_left(y, y_t, p_in, zeta, gamma, eps, kappa, omega_r,l):

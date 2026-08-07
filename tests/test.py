@@ -34,7 +34,7 @@ def test_convergence_rate(method, slope_min, slope_max):
     #------------------------------------------------------------------------------
     # Read simulation parameters from json file
     #------------------------------------------------------------------------------
-    with open("../experiments/convergence/config/simu.json", "r") as f:
+    with open("../tests/config/simu.json", "r") as f:
         params = json.load(f)
 
         solver_params = params["solver_params"]
@@ -47,7 +47,7 @@ def test_convergence_rate(method, slope_min, slope_max):
     #------------------------------------------------------------------------------
     # Read physical parameters from json file
     #------------------------------------------------------------------------------
-    with open("../experiments/convergence/config/param.json", "r") as f:
+    with open("../tests/config/param.json", "r") as f:
         params = json.load(f)
         physical_params = params["physics"]
         initial_conditions_reed = params["init_cond_reed"]
@@ -105,6 +105,12 @@ def test_convergence_rate(method, slope_min, slope_max):
         S_nodes = data.section(x_nodes)
         S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
 
+        S_ext = jnp.concatenate([
+            S_cells[:1],
+            S_cells,
+            S_cells[-1:],
+        ])
+
         S_quad = precompute_S_quad(data.section, xLs, xRs, nq=2)  # (N, nq) sections pré-calculées pour quadrature
 
 
@@ -157,16 +163,18 @@ def test_convergence_rate(method, slope_min, slope_max):
             
 
             
-            u, _, _, _,_,_,_,_= time_integrate_euler(
+            u, _, _, _, _, _, _, _ = time_integrate_euler(
                 u0, x_nodes, c,
                 dt, nsteps, Mp_inv, Mv_inv,
                 bc, phi0,
                 y0, z0,
                 data,
-                S_cells=S_cells, S_star=S_star,S_quad=S_quad,
+                S_cells=S_cells,
+                S_star=S_star,
+                S_quad=S_quad,
+                S_ext=S_ext,
                 snapshot_steps=n_snaps,
-                gamma_target=gamma_t
-
+                gamma_target=gamma_t,
             )
 
             print(f"u nan: {jnp.any(jnp.isnan(u))}")
@@ -197,7 +205,7 @@ def test_convergence_rate(method, slope_min, slope_max):
                 bc, phi0,
                 y0, z0,
                 data,
-                S_cells=S_cells, S_star=S_star,S_quad=S_quad,
+                S_cells=S_cells, S_star=S_star,S_quad=S_quad,S_ext=S_ext,
                 snapshot_steps=n_snaps,
                 gamma_target=gamma_t
             )

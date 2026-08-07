@@ -59,23 +59,39 @@ def best_time_shift(x, y, dt):
 
     return int(lag_index), float(shift_time), float(corr_max)
 
-def compare_dg_openwind_geometry(data, output_dir, type_S):
-    from utils.util_func import make_openwind_radius_profile
-
+def compare_dg_openwind_geometry(data, output_dir, type_S, params):
     L = float(data.L_tube + data.L_bell)
 
     # Géométrie DG échantillonnée finement
     x_dg = jnp.linspace(0.0, L, 2000)
     R_dg = jnp.sqrt(data.section(x_dg) / jnp.pi)
 
-    # Géométrie réellement donnée à OpenWind
-    x_ow_raw, R_ow_raw = make_openwind_radius_profile(data)
+    # Géométrie native réellement donnée à OpenWind.
+    geom = params["instrument_geometry"]
+    L_tube = float(geom["tube"]["L_tube"])
+    R_tube = float(geom["tube"]["R_tube"])
+    L_bell = float(geom["bell"]["L_bell"])
+    k_bell = float(geom["bell"]["k_bell"])
 
-    x_ow_raw = jnp.asarray(x_ow_raw)
-    R_ow_raw = jnp.asarray(R_ow_raw)
-
-    # Interpolation de la géométrie OpenWind sur la grille DG
-    R_ow = jnp.interp(x_dg, x_ow_raw, R_ow_raw)
+    if type_S == "const":
+        x_ow_raw = jnp.array([0.0, L])
+        R_ow_raw = jnp.array([R_tube, R_tube])
+        R_ow = jnp.ones_like(x_dg) * R_tube
+    elif type_S == "exp":
+        R_end = R_tube * jnp.exp(0.5 * k_bell * L_bell)
+        x_ow_raw = jnp.array([0.0, L_tube, L])
+        R_ow_raw = jnp.array([R_tube, R_tube, R_end])
+        R_ow = jnp.where(
+            x_dg < L_tube,
+            R_tube,
+            R_tube * jnp.exp(0.5 * k_bell * (x_dg - L_tube)),
+        )
+    else:
+        from utils.util_func import make_openwind_radius_profile
+        x_ow_raw, R_ow_raw = make_openwind_radius_profile(data)
+        x_ow_raw = jnp.asarray(x_ow_raw)
+        R_ow_raw = jnp.asarray(R_ow_raw)
+        R_ow = jnp.interp(x_dg, x_ow_raw, R_ow_raw)
 
     diff_R = R_dg - R_ow
 
@@ -153,6 +169,31 @@ def compare_dg_openwind_geometry(data, output_dir, type_S):
     print("Figure différence sauvegardée :", diff_path)
 
 
+def local_time_shift(x, y, t, window_time=0.08, hop_time=0.02):
+    dt = float(t[1] - t[0])
+    window_size = int(window_time / dt)
+    hop_size = int(hop_time / dt)
+
+    centers = []
+    shifts = []
+    corrs = []
+
+    for start in range(0, len(t) - window_size, hop_size):
+        end = start + window_size
+
+        xw = x[start:end]
+        yw = y[start:end]
+        tw = t[start:end]
+
+        lag, shift, corr = best_time_shift(xw, yw, dt)
+
+        centers.append(float(0.5 * (tw[0] + tw[-1])))
+        shifts.append(float(shift))
+        corrs.append(float(corr))
+
+    return jnp.array(centers), jnp.array(shifts), jnp.array(corrs)
+
+
 def main():
 
     # --------------------------------------------------------------------------
@@ -199,7 +240,7 @@ def main():
     data = build_physical_data(params, type_S)
     L = data.L_tube + data.L_bell
 
-    compare_dg_openwind_geometry(data, output_dir, type_S)
+    compare_dg_openwind_geometry(data, output_dir, type_S, params)
     
     S_star = data.section(0.0)
     Zt = S_star / data.section(L)
@@ -225,6 +266,7 @@ def main():
         param_json=params,
         T_max=T_max,
         type_S=type_S,
+        l_ele = 5e-4
     )
 
     print("\n=== Paramètres radiation OpenWind ===")
@@ -282,6 +324,8 @@ def main():
     S_cells = 0.5 * (S_nodes[:-1] + S_nodes[1:])
     S_quad = precompute_S_quad(data.section, xLs, xRs, nq=2)
 
+    S_ext = S_nodes
+    S_bc = S_cells.at[0].set(S_nodes[0]).at[-1].set(S_nodes[-1])
     Mp_inv, Mv_inv = jax.vmap(local_mass_inv_system, in_axes=0)(hs)
 
     u0 = project_L2(
@@ -302,14 +346,14 @@ def main():
                 [
                     jnp.array(
                         [
-                            S_cells[i] / (c * S_star) * p0(xLs[i]),
-                            S_cells[i] / (c * S_star) * p0(xRs[i]),
+                            S_nodes[i] / (c * S_star) * p0(xLs[i]),
+                            S_nodes[i + 1] / (c * S_star) * p0(xRs[i]),
                         ]
                     ),
                     jnp.array(
                         [
-                            S_star / (c * S_cells[i]) * v0(xLs[i]),
-                            S_star / (c * S_cells[i]) * v0(xRs[i]),
+                            S_star / (c * S_nodes[i]) * v0(xLs[i]),
+                            S_star / (c * S_nodes[i + 1]) * v0(xRs[i]),
                         ]
                     ),
                 ]
@@ -373,9 +417,10 @@ def main():
             y0,
             z0,
             data,
-            S_cells=S_cells,
+            S_cells=S_bc,
             S_star=S_star,
             S_quad=S_quad,
+            S_ext=S_ext,
             snapshot_steps=n_snaps,
             gamma_target=gamma_t,
         )
@@ -402,9 +447,10 @@ def main():
             y0,
             z0,
             data,
-            S_cells=S_cells,
+            S_cells=S_bc,
             S_star=S_star,
             S_quad=S_quad,
+            S_ext=S_ext,              # ajout
             snapshot_steps=n_snaps,
             gamma_target=gamma_t,
         )
@@ -872,6 +918,43 @@ def main():
             f"{float(freqs_masked[i]):8.2f} Hz"
             f"   diff = {float(diff_masked[i]):.4e}"
         )
+
+
+    def dominant_frequency(signal, dt, t, t_min=0.15):
+        mask = t >= t_min
+        s = signal[mask] - jnp.mean(signal[mask])
+
+        freqs = jnp.fft.rfftfreq(len(s), d=dt)
+        spec = jnp.abs(jnp.fft.rfft(s))
+
+        idx = jnp.argmax(spec[1:]) + 1
+        return float(freqs[idx])
+
+    f_dg = dominant_frequency(p_dg_scaled, dt_snap, t_dg)
+    f_ow = dominant_frequency(p_ow_right_interp, dt_snap, t_dg)
+
+    print("f_DG =", f_dg)
+    print("f_OW =", f_ow)
+    print("delta f =", f_dg - f_ow)
+
+
+    centers, shifts, corrs = local_time_shift(
+    p_dg_scaled,
+    p_ow_right_interp,
+    t_dg,
+    window_time=0.08,
+    hop_time=0.02,
+    )
+
+    plt.figure(figsize=(10, 4))
+    plt.plot(centers, shifts, "o-")
+    plt.xlabel("Time")
+    plt.ylabel("Shift local optimal (s)")
+    plt.title("Décalage temporel local DG vs OpenWind")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig("../experiments/pressure_at_bell/results/local_time_shift.png", dpi=150)
+    plt.close()
 
 if __name__ == "__main__":
     main()

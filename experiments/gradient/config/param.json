@@ -1,6 +1,6 @@
 {
     "physics":{
-        "c": 343.0,
+        "c": 343.987773071615,
         "phi0": 0.0
     },
     "instrument_geometry": {
@@ -34,12 +34,12 @@
         "y_dot0": 0.0
     },
     "trainable": {
-        "gamma_final": false,
+        "gamma_final": true,
         "epsilon":     false,
-        "kappa":       false,
+        "kappa":       true,
         "fr":          false,
-        "Qr":          true,
-        "zeta":        false,
+        "Qr":          false,
+        "zeta":        true,
         "beta":        false,
         "Zt":          false,
         "alpha":       false,

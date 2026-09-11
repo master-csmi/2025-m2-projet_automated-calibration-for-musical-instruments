@@ -38,7 +38,7 @@
         "epsilon":     false,
         "kappa":       true,
         "fr":          false,
-        "Qr":          false,
+        "Qr":          true,
         "zeta":        true,
         "beta":        false,
         "Zt":          false,

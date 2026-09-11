@@ -3,6 +3,8 @@ import copy
 import csv
 import json
 import time
+import sys
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -146,6 +148,96 @@ def set_nested(mapping, path, value):
     for key in path[:-1]:
         current = current[key]
     current[path[-1]] = float(value)
+
+
+def parse_noise_args():
+    """Ajoute les options de bruit sans modifier utils.parse_args."""
+
+    parser = argparse.ArgumentParser(add_help=False)
+
+    parser.add_argument(
+        "--noise_snr_db",
+        type=float,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--noise_seed",
+        type=int,
+        default=1234,
+    )
+
+    parser.add_argument(
+        "--noise_save_signals",
+        action="store_true",
+    )
+
+    noise_args, remaining = parser.parse_known_args()
+
+    original_argv = sys.argv
+
+    try:
+        sys.argv = [original_argv[0], *remaining]
+
+        # IMPORTANT : ici parse_args(), pas parse_noise_args()
+        args = parse_args()
+
+    finally:
+        sys.argv = original_argv
+
+    args.noise_snr_db = noise_args.noise_snr_db
+    args.noise_seed = noise_args.noise_seed
+    args.noise_save_signals = noise_args.noise_save_signals
+
+    return args
+
+
+def add_gaussian_noise_snr_batch(signals, snr_db, seed, eps=1e-12):
+    """Ajoute un bruit blanc gaussien avec un SNR imposé signal par signal."""
+    signals = np.asarray(signals, dtype=np.float64)
+    if signals.ndim != 2:
+        raise ValueError(
+            f"signals doit être de forme (n_signals, n_times), reçu {signals.shape}."
+        )
+
+    signal_rms = np.sqrt(np.mean(signals**2, axis=1) + eps)
+
+    if snr_db is None:
+        noise = np.zeros_like(signals)
+        return (
+            signals.copy(),
+            noise,
+            signal_rms,
+            np.zeros(signals.shape[0]),
+            np.full(signals.shape[0], np.inf),
+        )
+
+    if not np.isfinite(snr_db):
+        raise ValueError("--noise_snr_db doit être fini ou absent.")
+
+    rng = np.random.default_rng(seed)
+    target_noise_rms = signal_rms * 10.0 ** (-float(snr_db) / 20.0)
+
+    noise = rng.normal(size=signals.shape)
+    raw_rms = np.sqrt(np.mean(noise**2, axis=1) + eps)
+    noise = noise / raw_rms[:, None] * target_noise_rms[:, None]
+
+    noisy = signals + noise
+    noise_rms = np.sqrt(np.mean(noise**2, axis=1) + eps)
+    measured_snr = 20.0 * np.log10(
+        signal_rms / np.maximum(noise_rms, eps)
+    )
+    return noisy, noise, signal_rms, noise_rms, measured_snr
+
+
+def noise_result_directory(base_dir, snr_db):
+    base_dir = Path(base_dir)
+    if snr_db is None:
+        suffix = "clean"
+    else:
+        value = f"{float(snr_db):g}".replace(".", "p").replace("-", "m")
+        suffix = f"snr_{value}dB"
+    return str(base_dir / suffix)
 
 
 def params_with_openwind_radiation(base_params, ow_params, type_S):
@@ -753,10 +845,11 @@ def main():
     y0 = params["init_cond_reed"]["y0"]
     z0 = params["init_cond_reed"]["y_dot0"]
 
-    args = parse_args()
+    args = parse_noise_args()
     type_S = args.type_S
 
-    result_dir = "../experiments/gradient/results/train_l_only_msts_openwind_matched"
+    base_result_dir = "../experiments/gradient/results/train_l_only_msts_openwind_matched"
+    result_dir = noise_result_directory(base_result_dir, args.noise_snr_db)
     os.makedirs(result_dir, exist_ok=True)
 
     data_ref = build_physical_data(params, type_S)
@@ -819,6 +912,66 @@ def main():
             f"train_ly en attend {N_SIGNALS}."
         )
 
+    pressure_targets_clean = np.asarray(pressure_targets, dtype=np.float64).copy()
+    (
+        pressure_targets,
+        pressure_noise,
+        clean_signal_rms,
+        noise_rms,
+        measured_snr_db,
+    ) = add_gaussian_noise_snr_batch(
+        pressure_targets_clean,
+        args.noise_snr_db,
+        args.noise_seed,
+    )
+
+    if args.noise_snr_db is None:
+        print("\nBruit OpenWind : aucun")
+    else:
+        print(
+            "\nBruit OpenWind : blanc gaussien | "
+            f"SNR demandé={args.noise_snr_db:.1f} dB | "
+            f"SNR mesuré moyen={np.mean(measured_snr_db):.3f} dB"
+        )
+
+    noise_info_path = os.path.join(result_dir, "noise_information.csv")
+    with open(noise_info_path, "w", newline="") as f:
+        fieldnames = [
+            "signal_idx",
+            "requested_snr_db",
+            "measured_snr_db",
+            "clean_rms",
+            "noise_rms",
+            "noisy_rms",
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for i in range(N_SIGNALS):
+            writer.writerow({
+                "signal_idx": i,
+                "requested_snr_db": (
+                    np.inf if args.noise_snr_db is None
+                    else float(args.noise_snr_db)
+                ),
+                "measured_snr_db": float(measured_snr_db[i]),
+                "clean_rms": float(clean_signal_rms[i]),
+                "noise_rms": float(noise_rms[i]),
+                "noisy_rms": float(np.sqrt(np.mean(pressure_targets[i] ** 2))),
+            })
+
+    if args.noise_save_signals:
+        np.savez_compressed(
+            os.path.join(result_dir, "openwind_pressure_noise_dataset.npz"),
+            pressure_clean=pressure_targets_clean,
+            noise=pressure_noise,
+            pressure_noisy=pressure_targets,
+            requested_snr_db=np.asarray(
+                np.inf if args.noise_snr_db is None else args.noise_snr_db
+            ),
+            measured_snr_db=measured_snr_db,
+            noise_seed=np.asarray(args.noise_seed),
+        )
+
     key = jax.random.PRNGKey(0)
     target_dataset = []
     dataset_rows = []
@@ -858,6 +1011,13 @@ def main():
             "target_max_abs_pressure": float(
                 jnp.max(jnp.abs(target))
             ),
+            "requested_snr_db": (
+                np.inf if args.noise_snr_db is None
+                else float(args.noise_snr_db)
+            ),
+            "measured_snr_db": float(measured_snr_db[i]),
+            "clean_rms_pressure": float(clean_signal_rms[i]),
+            "noise_rms_pressure": float(noise_rms[i]),
         })
 
         print(
@@ -865,7 +1025,7 @@ def main():
             f"gamma={gamma:.4f} | fr={fr:.2f} Hz | "
             f"zeta={zeta:.4f} | kappa={kappa_value:.4f} | "
             f"Qr={Qr:.2f} | "
-            f"max|p_OW|={float(jnp.max(jnp.abs(target))):.4e}"
+            f"max|p_target|={float(jnp.max(jnp.abs(target))):.4e}"
         )
 
     print(f"Dataset OpenWind : {dataset_path}")
@@ -1073,6 +1233,8 @@ def main():
     print(f"Modèle final sauvegardé dans {result_dir}/ell_nn_random_dataset.eqx")
     print(f"Paramètres OpenWind sauvegardés dans {dataset_csv_path}")
     print(f"Historique par époque sauvegardé dans {epoch_history_path}")
+    print(f"Informations bruit sauvegardées dans {noise_info_path}")
+    print(f"Dossier de résultats : {result_dir}")
 
 
 if __name__ == "__main__":

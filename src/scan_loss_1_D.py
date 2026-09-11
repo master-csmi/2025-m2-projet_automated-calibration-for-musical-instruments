@@ -58,6 +58,14 @@ SCAN_RANGES = {
 }
 
 
+# Spectrogrammes diagnostiques pour interpreter les ruptures des scans 1D.
+# Ils sont generes automatiquement uniquement pour les parametres ci-dessous.
+SPECTROGRAM_SCAN_PARAMS = ("gamma_final", "zeta")
+SPECTROGRAM_DYNAMIC_DB = 60.0
+SPECTROGRAM_MAX_FREQ_HZ = 2000.0
+
+
+
 def get_nested(mapping, path):
     value = mapping
     for key in path:
@@ -226,6 +234,203 @@ def envelope_rms_loss(pred, target, win=256, hop=64):
     return jnp.mean((env_pred - env_target) ** 2) / (
         jnp.mean(env_target**2) + 1e-12
     )
+
+
+def stft_mag_numpy(signal, n_fft, hop_length):
+    """STFT magnitude used only for diagnostic figures."""
+    signal = np.asarray(signal, dtype=float)
+    if signal.ndim != 1:
+        signal = signal.reshape(-1)
+
+    if signal.size < n_fft:
+        signal = np.pad(signal, (0, n_fft - signal.size))
+
+    window = np.hanning(n_fft)
+    n_frames = 1 + (signal.size - n_fft) // hop_length
+    frames = np.stack(
+        [
+            signal[i * hop_length : i * hop_length + n_fft] * window
+            for i in range(n_frames)
+        ],
+        axis=0,
+    )
+    return np.abs(np.fft.rfft(frames, axis=-1))
+
+
+def choose_visual_stft_resolution(signal_length, stft_resolutions):
+    """Choose the largest configured STFT window that fits without padding."""
+    valid = [(int(n_fft), int(hop)) for n_fft, hop in stft_resolutions if n_fft <= signal_length]
+    if valid:
+        return max(valid, key=lambda item: item[0])
+
+    # Fallback for very short signals.
+    n_fft = max(8, int(signal_length))
+    hop = max(1, n_fft // 4)
+    return n_fft, hop
+
+
+def select_spectrogram_scan_indices(values, losses_stft, true_value):
+    """Select representative scan points around the reference and the strongest loss jump.
+
+    The goal is diagnostic: show a low-value case, the reference neighbourhood,
+    both sides of the strongest adjacent STFT-loss variation, and a high-value case.
+    """
+    values = np.asarray(values, dtype=float)
+    losses_stft = np.asarray(losses_stft, dtype=float)
+    n = values.size
+    if n == 0:
+        return []
+
+    idx_true = int(np.argmin(np.abs(values - true_value)))
+    idx_low = int(round(0.20 * (n - 1)))
+    idx_high = int(round(0.80 * (n - 1)))
+
+    if n >= 2:
+        # Normalize by the scan increment so this remains meaningful for non-unit ranges.
+        dx = np.diff(values)
+        dloss = np.diff(losses_stft)
+        slope = np.abs(dloss / np.maximum(np.abs(dx), 1e-15))
+        idx_jump_left = int(np.argmax(slope))
+        idx_jump_right = idx_jump_left + 1
+    else:
+        idx_jump_left = idx_jump_right = 0
+
+    selected = [idx_low, idx_true, idx_jump_left, idx_jump_right, idx_high]
+    # Remove duplicates while keeping the scan order in the final figure.
+    return sorted(set(max(0, min(n - 1, idx)) for idx in selected))
+
+
+def plot_scan_spectrogram_diagnostics(
+    *,
+    output_dir,
+    source,
+    param_name,
+    T_max,
+    values,
+    losses_stft,
+    true_value,
+    target,
+    data_base,
+    geometry,
+    c,
+    solve_kwargs,
+    snapshot_times,
+    stft_resolutions,
+):
+    """Generate a target + representative DG spectrogram comparison for a 1D scan."""
+    selected_indices = select_spectrogram_scan_indices(values, losses_stft, true_value)
+    if not selected_indices:
+        return None
+
+    selected_values = [float(values[idx]) for idx in selected_indices]
+    predictions = []
+    for value in selected_values:
+        data = set_param(data_base, param_name, value, GEO_KEYS)
+        pred = forward_snapshots(data, geometry, c, **solve_kwargs)
+        predictions.append(np.asarray(pred, dtype=float))
+
+    target_np = np.asarray(target, dtype=float)
+    times = np.asarray(snapshot_times, dtype=float)
+    if times.size >= 2:
+        dt_snap = float(np.median(np.diff(times)))
+    else:
+        dt_snap = 1.0
+
+    n_fft, hop = choose_visual_stft_resolution(target_np.size, stft_resolutions)
+    target_mag = stft_mag_numpy(target_np, n_fft, hop)
+    pred_mags = [stft_mag_numpy(pred, n_fft, hop) for pred in predictions]
+
+    # Common normalization based on the target: amplitude differences remain visible.
+    scale = float(np.max(target_mag)) + 1e-12
+    eps = 10.0 ** (-SPECTROGRAM_DYNAMIC_DB / 20.0)
+
+    def to_db(mag):
+        return 20.0 * np.log10(mag / scale + eps)
+
+    specs_db = [to_db(target_mag)] + [to_db(mag) for mag in pred_mags]
+    vmax = max(0.0, max(float(np.nanmax(spec)) for spec in specs_db))
+    vmin = -SPECTROGRAM_DYNAMIC_DB
+
+    freqs = np.fft.rfftfreq(n_fft, d=dt_snap)
+    n_frames = target_mag.shape[0]
+    frame_times = times[0] + np.arange(n_frames) * hop * dt_snap
+    t_start = float(frame_times[0]) if frame_times.size else 0.0
+    t_end = float(frame_times[-1] + n_fft * dt_snap) if frame_times.size else float(T_max)
+    f_max = min(float(freqs[-1]), SPECTROGRAM_MAX_FREQ_HZ)
+
+    n_panels = len(specs_db)
+    ncols = 3
+    nrows = int(np.ceil(n_panels / ncols))
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=(4.3 * ncols, 3.4 * nrows),
+        squeeze=False,
+        sharex=True,
+        sharey=True,
+    )
+    axes_flat = axes.ravel()
+
+    titles = ["OpenWind target" if source == "openwind" else "DG target"]
+    titles += [f"{param_name} = {value:.4g}" for value in selected_values]
+
+    im = None
+    for ax, spec_db, title in zip(axes_flat, specs_db, titles):
+        im = ax.imshow(
+            spec_db.T,
+            origin="lower",
+            aspect="auto",
+            extent=[t_start, t_end, 0.0, float(freqs[-1])],
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.set_ylim(0.0, f_max)
+        ax.set_title(title)
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("frequency [Hz]")
+
+    for ax in axes_flat[n_panels:]:
+        ax.axis("off")
+
+    if im is not None:
+        cbar = fig.colorbar(im, ax=axes_flat[:n_panels].tolist(), shrink=0.92, pad=0.02)
+        cbar.set_label("magnitude [dB, target-referenced]")
+
+    fig.suptitle(
+        f"Spectrograms along 1D scan: {source}/DG, {param_name}, T={T_max:.3f}s\n"
+        f"STFT: n_fft={n_fft}, hop={hop}; dashed-scan reference={true_value:.4g}",
+        y=0.995,
+    )
+    fig.subplots_adjust(top=0.88, wspace=0.22, hspace=0.30, right=0.92)
+
+    safe_t = f"{T_max:.4f}".replace(".", "p")
+    fig_path = os.path.join(
+        output_dir,
+        f"spectrogram_scan_{source}_{param_name}_T{safe_t}.png",
+    )
+    fig.savefig(fig_path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+    npz_path = os.path.join(
+        output_dir,
+        f"spectrogram_scan_{source}_{param_name}_T{safe_t}.npz",
+    )
+    np.savez(
+        npz_path,
+        selected_indices=np.asarray(selected_indices, dtype=int),
+        selected_values=np.asarray(selected_values, dtype=float),
+        true_value=float(true_value),
+        target=target_np,
+        predictions=np.asarray(predictions, dtype=float),
+        snapshot_times=times,
+        n_fft=int(n_fft),
+        hop=int(hop),
+        dynamic_db=float(SPECTROGRAM_DYNAMIC_DB),
+    )
+
+    print(f"  spectrogrammes diagnostiques: {fig_path}")
+    print(f"  signaux diagnostiques       : {npz_path}")
+    return fig_path
 
 
 def make_scan_losses(
@@ -444,6 +649,7 @@ def main():
                     "solve_kwargs": solve_kwargs,
                     "target": target,
                     "params_dg": params_dg,
+                    "snapshot_times": snapshot_times,
                 }
             )
 
@@ -587,6 +793,27 @@ def main():
                         "env_hop": scan_env_hop,
                     }
                 )
+
+                # Diagnostic acoustique demande dans le rapport : comparer les
+                # spectrogrammes de la cible et de plusieurs points representatifs
+                # du scan, notamment de part et d'autre de la rupture la plus forte.
+                if param_name in SPECTROGRAM_SCAN_PARAMS:
+                    plot_scan_spectrogram_diagnostics(
+                        output_dir=output_dir,
+                        source=source,
+                        param_name=param_name,
+                        T_max=T_max,
+                        values=values_np,
+                        losses_stft=losses_stft,
+                        true_value=true_value,
+                        target=case["target"],
+                        data_base=data_base,
+                        geometry=geometry,
+                        c=c,
+                        solve_kwargs=case["solve_kwargs"],
+                        snapshot_times=case["snapshot_times"],
+                        stft_resolutions=stft_resolutions,
+                    )
 
             losses_time_all = np.asarray(losses_time_all, dtype=float)
             losses_stft_all = np.asarray(losses_stft_all, dtype=float)

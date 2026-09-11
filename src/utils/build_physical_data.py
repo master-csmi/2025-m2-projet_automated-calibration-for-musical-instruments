@@ -10,6 +10,11 @@ def build_physical_data(params, type_S):
     right = params["right_bc_params"]
     train = params["trainable"]
     instrument = params["instrument_geometry"]
+    observation = params.get("observation_params", {})
+
+    a = observation.get("a", 1.0)
+    bool_a = train.get("a", False)
+    
 
     
 
@@ -28,6 +33,8 @@ def build_physical_data(params, type_S):
         L_bell_data = (instrument["bell"]["L_bell"], train["L_bell"]),
         k_bell_data = (instrument["bell"]["k_bell"], train["k_bell"]),
         Qr_data    = (left["Qr"], train["Qr"]),
+        # Gain de la chaîne d'acquisition
+        a_data=(a, bool_a),
 
         l = ReedOpening(),
         section=SProfile(type_S=type_S, L_tube=instrument["tube"]["L_tube"], 

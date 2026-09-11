@@ -83,5 +83,37 @@ class SProfile(eqx.Module):
             S_bell = S0_tube + self.k_bell * (x - self.L_tube)
             return jnp.where(x < self.L_tube, S_tube, S_bell) # tube with constant cross-sectional area and bell with linearly increasing cross-sectional area
 
+        elif self.type_S == "double_cone":
+
+            x0 = 0.0
+            x1 = self.L_tube
+            x2 = self.L_tube + self.L_bell
+
+            R0 = self.R_tube
+            R1 = 0.00272751
+            R2 = self.k_bell
+
+            R_left = (
+                R0
+                + (R1 - R0)
+                * (x - x0)
+                / (x1 - x0)
+            )
+
+            R_right = (
+                R1
+                + (R2 - R1)
+                * (x - x1)
+                / (x2 - x1)
+            )
+
+            R = jnp.where(
+                x <= x1,
+                R_left,
+                R_right,
+            )
+
+            return jnp.pi * R**2
+
         else:
             raise ValueError(f"Unknown type '{self.type_S}' for S(x)")

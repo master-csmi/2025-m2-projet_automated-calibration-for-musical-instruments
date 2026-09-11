@@ -30,7 +30,7 @@ from physics.bc import BC
 from physics.init_func import init_func_const
 from physics.mouth_pressure import pressure_at_mouth_alexis
 
-from inverse.spectral_loss import spectrogram_db
+from inverse.spectral_loss import spectrogram_db, stft_mag
 
 
 jax.config.update("jax_enable_x64", True)
@@ -620,7 +620,60 @@ def main():
         hop_length=64,
     )
 
+    M_dg = stft_mag(p_dg_scaled, 512, 64)
+    M_ow = stft_mag(p_ow_right_interp, 512, 64)
+
+    spec_scale = jnp.max(M_ow) + 1e-12
+    M_dg_norm = M_dg / spec_scale
+    M_ow_norm = M_ow / spec_scale
+
+    eps_spec = 10.0 ** (-80.0 / 20.0)
+    spectral_convergence = jnp.linalg.norm(M_dg_norm - M_ow_norm) / (
+        jnp.linalg.norm(M_ow_norm) + 1e-12
+    )
+    log_spectral_distance = jnp.sqrt(
+        jnp.mean(
+            (
+                20.0 * jnp.log10(M_dg_norm + eps_spec)
+                - 20.0 * jnp.log10(M_ow_norm + eps_spec)
+            )
+            ** 2
+        )
+    )
+
     S_diff = S_dg - S_ow
+    mean_abs_spect_error = jnp.mean(jnp.abs(S_diff))
+    rmse_spect_error = jnp.sqrt(jnp.mean(S_diff**2))
+    max_abs_spect_error = jnp.max(jnp.abs(S_diff))
+
+    spect_error_path = os.path.join(
+        output_dir,
+        f"spectrogram_error_{method}_{type_S}.txt",
+    )
+    with open(spect_error_path, "w") as f:
+        f.write(
+            f"spectral_convergence={float(spectral_convergence):.12e}\n"
+            f"log_spectral_distance_db={float(log_spectral_distance):.12e}\n"
+            f"mean_absolute_error_db={float(mean_abs_spect_error):.12e}\n"
+            f"rmse_db={float(rmse_spect_error):.12e}\n"
+            f"max_absolute_error_db={float(max_abs_spect_error):.12e}\n"
+        )
+
+    print("Convergence spectrale           =", float(spectral_convergence))
+    print("Distance spectrale log (dB)     =", float(log_spectral_distance))
+    print(
+        "Erreur spectrogrammes (moyenne absolue, dB) =",
+        float(mean_abs_spect_error),
+    )
+    print(
+        "Erreur spectrogrammes (RMSE, dB)            =",
+        float(rmse_spect_error),
+    )
+    print(
+        "Erreur spectrogrammes (max absolu, dB)      =",
+        float(max_abs_spect_error),
+    )
+    print("Métriques spectrogrammes sauvegardées dans :", spect_error_path)
 
     # --------------------------------------------------------------------------
     # Figures
@@ -685,7 +738,11 @@ def main():
     ax5.set_ylim(0, 3000)
     ax5.set_xlabel("Time")
     ax5.set_ylabel("Frequency (Hz)")
-    ax5.set_title("Spectrogram difference: DG - OpenWind (dB)")
+    ax5.set_title(
+        "Spectrogram difference: DG - OpenWind (dB)"
+        f"\nSC={float(spectral_convergence):.3e}, "
+        f"LSD={float(log_spectral_distance):.3e} dB"
+    )
     fig.colorbar(im, ax=ax5, label="Difference (dB)")
 
     p_final, v_final = reconstruct_system(
@@ -875,6 +932,7 @@ def main():
     Yn = Y / (jnp.max(Y) + 1e-12)
 
     diff_fft = jnp.abs(Xn - Yn)
+    print("mean error spectral", jnp.mean(diff_fft))
 
     plt.figure(figsize=(10, 4))
     plt.semilogy(freqs, Xn + 1e-12, label="DG")

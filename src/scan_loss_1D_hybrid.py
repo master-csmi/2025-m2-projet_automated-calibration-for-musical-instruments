@@ -67,6 +67,12 @@ SCAN_RANGES = {
     "Qr": (20.0, 500.0),
 }
 
+# Spectrogram diagnostics along selected 1D scans.
+SPECTROGRAM_SCAN_PARAMS = ("gamma_final", "zeta")
+SPECTROGRAM_DYNAMIC_DB = 60.0
+SPECTROGRAM_MAX_FREQ_HZ = 2000.0
+N_SPECTROGRAM_SCAN_POINTS = 5
+
 
 def get_nested(mapping, path):
     value = mapping
@@ -390,6 +396,452 @@ def make_scan_loss(
 
     return jax.jit(loss)
 
+
+
+def compute_spectrogram_db(signal, snapshot_times, n_fft, hop,
+                           dynamic_db=SPECTROGRAM_DYNAMIC_DB,
+                           reference_max=None):
+    signal = np.asarray(signal, dtype=float).reshape(-1)
+    times = np.asarray(snapshot_times, dtype=float).reshape(-1)
+
+    dt_snap = float(np.median(np.diff(times)))
+    fs = 1.0 / dt_snap
+    n_fft = min(int(n_fft), len(signal))
+    hop = max(1, min(int(hop), n_fft))
+    window = np.hanning(n_fft)
+
+    starts = np.arange(0, max(len(signal) - n_fft + 1, 1), hop)
+    frames, frame_times = [], []
+    for start in starts:
+        frame = signal[start:start + n_fft]
+        if len(frame) < n_fft:
+            frame = np.pad(frame, (0, n_fft - len(frame)))
+        frames.append(np.abs(np.fft.rfft(frame * window, n=n_fft)))
+        center = min(start + n_fft // 2, len(times) - 1)
+        frame_times.append(times[center])
+
+    magnitude = np.asarray(frames, dtype=float).T
+    frequencies = np.fft.rfftfreq(n_fft, d=1.0 / fs)
+
+    if reference_max is None:
+        reference_max = float(np.max(magnitude))
+    reference_max = max(float(reference_max), 1e-30)
+
+    eps_db = 10.0 ** (-float(dynamic_db) / 20.0)
+    spec_db = 20.0 * np.log10(
+        np.maximum(magnitude / reference_max, eps_db)
+    )
+    spec_db = np.maximum(spec_db, -float(dynamic_db))
+
+    return np.asarray(frame_times), frequencies, spec_db, reference_max
+
+
+def select_spectrogram_indices(values, losses, true_value, n_points=5):
+    values = np.asarray(values, dtype=float)
+    losses = np.asarray(losses, dtype=float)
+
+    idx_true = int(np.argmin(np.abs(values - true_value)))
+    log_losses = np.log10(np.maximum(losses, 1e-30))
+
+    if len(values) > 1:
+        idx_jump = int(np.argmax(np.abs(np.diff(log_losses))))
+        candidates = [0, idx_true, idx_jump, idx_jump + 1, len(values) - 1]
+    else:
+        candidates = [0]
+
+    selected = []
+    for idx in candidates:
+        idx = int(np.clip(idx, 0, len(values) - 1))
+        if idx not in selected:
+            selected.append(idx)
+
+    for idx in np.linspace(0, len(values) - 1, n_points).round().astype(int):
+        if int(idx) not in selected:
+            selected.append(int(idx))
+        if len(selected) >= n_points:
+            break
+
+    return sorted(selected[:n_points])
+
+
+def plot_scan_spectrogram_diagnostics(
+    output_dir,
+    source,
+    param_name,
+    T_max,
+    values,
+    losses,
+    true_value,
+    target_p,
+    data_base,
+    geometry,
+    c,
+    solve_kwargs,
+    snapshot_times,
+    stft_resolutions,
+):
+    """
+    Trace les spectrogrammes de la cible OpenWind et de plusieurs
+    points représentatifs du scan 1D.
+
+    Tous les spectrogrammes utilisent :
+      - la même référence d'amplitude (maximum de la cible),
+      - la même échelle en dB,
+      - les mêmes limites fréquentielles,
+      - une colorbar commune placée à droite de la figure.
+    """
+
+    # ------------------------------------------------------------------
+    # 1. Sélection des points représentatifs du scan
+    # ------------------------------------------------------------------
+    selected_indices = select_spectrogram_indices(
+        values,
+        losses,
+        true_value,
+        N_SPECTROGRAM_SCAN_POINTS,
+    )
+
+    selected_values = [
+        float(values[i])
+        for i in selected_indices
+    ]
+
+    # ------------------------------------------------------------------
+    # 2. Choix de la résolution STFT
+    # ------------------------------------------------------------------
+    valid = [
+        (int(n), int(h))
+        for n, h in stft_resolutions
+        if int(n) <= len(target_p)
+    ]
+
+    if valid:
+        n_fft, hop = max(
+            valid,
+            key=lambda pair: pair[0],
+        )
+    else:
+        n_fft = min(
+            256,
+            len(target_p),
+        )
+        hop = max(
+            1,
+            n_fft // 4,
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Calcul des prédictions DG
+    # ------------------------------------------------------------------
+    predictions = []
+
+    for value in selected_values:
+
+        data = set_param(
+            data_base,
+            param_name,
+            value,
+            GEO_KEYS,
+        )
+
+        pred = forward_snapshots(
+            data,
+            geometry,
+            c,
+            **solve_kwargs,
+        )
+
+        predictions.append(
+            np.asarray(
+                jax.device_get(pred),
+                dtype=float,
+            )
+        )
+
+    target_np = np.asarray(
+        jax.device_get(target_p),
+        dtype=float,
+    )
+
+    times_np = np.asarray(
+        jax.device_get(snapshot_times),
+        dtype=float,
+    )
+
+    # ------------------------------------------------------------------
+    # 4. Spectrogramme de la cible
+    # ------------------------------------------------------------------
+    (
+        t_spec,
+        freqs,
+        target_db,
+        target_max,
+    ) = compute_spectrogram_db(
+        target_np,
+        times_np,
+        n_fft,
+        hop,
+    )
+
+    # ------------------------------------------------------------------
+    # 5. Spectrogrammes DG
+    #
+    # IMPORTANT :
+    # tous sont normalisés par le maximum de la cible OpenWind.
+    # ------------------------------------------------------------------
+    pred_specs = []
+
+    for pred in predictions:
+
+        (
+            _,
+            _,
+            spec_db,
+            _,
+        ) = compute_spectrogram_db(
+            pred,
+            times_np,
+            n_fft,
+            hop,
+            reference_max=target_max,
+        )
+
+        pred_specs.append(
+            spec_db
+        )
+
+    # ------------------------------------------------------------------
+    # 6. Création de la figure
+    # ------------------------------------------------------------------
+    n_panels = 1 + len(pred_specs)
+
+    fig, axes = plt.subplots(
+        1,
+        n_panels,
+        figsize=(
+            3.2 * n_panels + 1.0,
+            3.8,
+        ),
+        sharex=True,
+        sharey=True,
+    )
+
+    axes = np.atleast_1d(axes)
+
+    # ------------------------------------------------------------------
+    # Réserver explicitement une marge à droite pour la colorbar.
+    #
+    # C'est cette ligne qui empêche la colorbar de recouvrir le
+    # dernier spectrogramme.
+    # ------------------------------------------------------------------
+    fig.subplots_adjust(
+        left=0.055,
+        right=0.90,
+        bottom=0.17,
+        top=0.80,
+        wspace=0.10,
+    )
+
+    # ------------------------------------------------------------------
+    # 7. Titres
+    # ------------------------------------------------------------------
+    true_idx = int(
+        np.argmin(
+            np.abs(
+                np.asarray(values)
+                - true_value
+            )
+        )
+    )
+
+    titles = [
+        "OpenWind target"
+    ]
+
+    for idx, value in zip(
+        selected_indices,
+        selected_values,
+    ):
+
+        suffix = (
+            " (true)"
+            if idx == true_idx
+            else ""
+        )
+
+        titles.append(
+            rf"{PARAM_LABELS[param_name]}"
+            rf"={value:.4g}"
+            + suffix
+        )
+
+    # ------------------------------------------------------------------
+    # 8. Affichage des spectrogrammes
+    # ------------------------------------------------------------------
+    image = None
+
+    all_specs = [
+        target_db
+    ] + pred_specs
+
+    for ax, spec, title in zip(
+        axes,
+        all_specs,
+        titles,
+    ):
+
+        image = ax.pcolormesh(
+            t_spec,
+            freqs,
+            spec,
+            shading="auto",
+            vmin=-SPECTROGRAM_DYNAMIC_DB,
+            vmax=0.0,
+        )
+
+        ax.set_title(
+            title,
+            fontsize=9,
+        )
+
+        ax.set_xlabel(
+            "Time (s)"
+        )
+
+        ax.set_ylim(
+            0.0,
+            min(
+                SPECTROGRAM_MAX_FREQ_HZ,
+                float(freqs[-1]),
+            ),
+        )
+
+    axes[0].set_ylabel(
+        "Frequency (Hz)"
+    )
+
+    # ------------------------------------------------------------------
+    # 9. Colorbar
+    #
+    # On crée son axe manuellement.
+    # Elle ne dépend donc plus du positionnement automatique de
+    # Matplotlib.
+    # ------------------------------------------------------------------
+    cbar_ax = fig.add_axes(
+        [
+            0.915,   # position horizontale
+            0.17,    # position verticale
+            0.012,   # largeur
+            0.63,    # hauteur
+        ]
+    )
+
+    cbar = fig.colorbar(
+        image,
+        cax=cbar_ax,
+    )
+
+    cbar.set_label(
+        "Magnitude (dB, normalized by target maximum)",
+        rotation=90,
+        labelpad=12,
+    )
+
+    cbar.set_ticks(
+        np.arange(
+            -SPECTROGRAM_DYNAMIC_DB,
+            1,
+            10,
+        )
+    )
+
+    # ------------------------------------------------------------------
+    # 10. Titre global
+    # ------------------------------------------------------------------
+    fig.suptitle(
+        (
+            f"Spectrograms along the "
+            f"{PARAM_LABELS[param_name]} scan "
+            f"— {source.upper()}, "
+            f"T={T_max:.3f} s"
+        ),
+        fontsize=12,
+        y=0.95,
+    )
+
+    # ------------------------------------------------------------------
+    # 11. Sauvegarde PNG
+    # ------------------------------------------------------------------
+    safe_t = (
+        f"{T_max:.4f}"
+        .replace(".", "p")
+    )
+
+    fig_path = os.path.join(
+        output_dir,
+        (
+            f"spectrogram_scan_"
+            f"{source}_"
+            f"{param_name}_"
+            f"T{safe_t}.png"
+        ),
+    )
+
+    # IMPORTANT :
+    # pas de bbox_inches="tight" ici.
+    # La position de la colorbar est déjà explicitement contrôlée.
+    fig.savefig(
+        fig_path,
+        dpi=240,
+    )
+
+    plt.close(fig)
+
+    # ------------------------------------------------------------------
+    # 12. Sauvegarde des données
+    # ------------------------------------------------------------------
+    npz_path = os.path.join(
+        output_dir,
+        (
+            f"spectrogram_scan_"
+            f"{source}_"
+            f"{param_name}_"
+            f"T{safe_t}.npz"
+        ),
+    )
+
+    np.savez(
+        npz_path,
+        snapshot_times=times_np,
+        target=target_np,
+        selected_indices=np.asarray(
+            selected_indices
+        ),
+        selected_values=np.asarray(
+            selected_values
+        ),
+        selected_losses=np.asarray(
+            losses
+        )[selected_indices],
+        true_value=true_value,
+        predictions=np.asarray(
+            predictions
+        ),
+        frequencies=freqs,
+        spectrogram_times=t_spec,
+        target_spectrogram_db=target_db,
+        prediction_spectrograms_db=np.asarray(
+            pred_specs
+        ),
+        n_fft=n_fft,
+        hop=hop,
+    )
+
+    return (
+        fig_path,
+        npz_path,
+        selected_values,
+    )
 
 def write_summary_csv(
     summary,
@@ -735,6 +1187,7 @@ def main():
                 {
                     "T_max": T_max,
                     "solve_kwargs": solve_kwargs,
+                    "snapshot_times": snapshot_times,
                     "target_p": target_p,
                     "params_dg": params_dg,
                 }
@@ -912,6 +1365,32 @@ def main():
                     f"erreur relative="
                     f"{100.0 * rel_error_min:.3f}%"
                 )
+
+                if param_name in SPECTROGRAM_SCAN_PARAMS:
+                    spec_path, spec_npz, selected_values = (
+                        plot_scan_spectrogram_diagnostics(
+                            output_dir=output_dir,
+                            source=source,
+                            param_name=param_name,
+                            T_max=T_max,
+                            values=values_np,
+                            losses=losses,
+                            true_value=true_value,
+                            target_p=case["target_p"],
+                            data_base=data_base,
+                            geometry=geometry,
+                            c=c,
+                            solve_kwargs=case["solve_kwargs"],
+                            snapshot_times=case["snapshot_times"],
+                            stft_resolutions=stft_resolutions,
+                        )
+                    )
+                    print(f"Spectrogrammes : {spec_path}")
+                    print(
+                        "Valeurs représentées : "
+                        + ", ".join(f"{v:.6g}" for v in selected_values)
+                    )
+                    print(f"Données spectrogrammes : {spec_npz}")
 
             scan_results[param_name] = {
                 "values": values_np,

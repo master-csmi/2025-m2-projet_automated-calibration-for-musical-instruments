@@ -25,3 +25,6 @@ openwind
 
 #optax
 optax>=0.1.0
+
+#soundifle
+soundfile

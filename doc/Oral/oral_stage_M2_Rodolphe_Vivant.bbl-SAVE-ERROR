@@ -1,0 +1,346 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global}
+    \entry{allen1977stft}{article}{}
+      \name{author}{2}{}{%
+        {{hash=64c01a1c05978db2fe2db40b2c4526be}{%
+           family={Allen},
+           familyi={A\bibinitperiod},
+           given={J.\bibnamedelimi B.},
+           giveni={J\bibinitperiod\bibinitdelim B\bibinitperiod}}}%
+        {{hash=e8d997fb2a06a1d60cbe4a4376c323a2}{%
+           family={Rabiner},
+           familyi={R\bibinitperiod},
+           given={L.\bibnamedelimi R.},
+           giveni={L\bibinitperiod\bibinitdelim R\bibinitperiod}}}%
+      }
+      \strng{namehash}{554b5b012608d80bee4daae737388c3b}
+      \strng{fullhash}{554b5b012608d80bee4daae737388c3b}
+      \strng{bibnamehash}{554b5b012608d80bee4daae737388c3b}
+      \strng{authorbibnamehash}{554b5b012608d80bee4daae737388c3b}
+      \strng{authornamehash}{554b5b012608d80bee4daae737388c3b}
+      \strng{authorfullhash}{554b5b012608d80bee4daae737388c3b}
+      \field{sortinit}{A}
+      \field{sortinithash}{2f401846e2029bad6b3ecc16d50031e2}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings of the IEEE}
+      \field{title}{A Unified Approach to Short-Time Fourier Analysis and Synthesis}
+      \field{year}{1977}
+      \verb{doi}
+      \verb 10.1109/PROC.1977.10770
+      \endverb
+    \endentry
+    \entry{chabassier:hal-03794382}{inproceedings}{}
+      \name{author}{2}{}{%
+        {{hash=00fca1ed63e8149374457382e0dc2a99}{%
+           family={Chabassier},
+           familyi={C\bibinitperiod},
+           given={Juliette},
+           giveni={J\bibinitperiod}}}%
+        {{hash=ea37f0fa39e7317c20ebd779fca0be86}{%
+           family={Auvray},
+           familyi={A\bibinitperiod},
+           given={Roman},
+           giveni={R\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Vienna, Austria}%
+      }
+      \strng{namehash}{c5b1b8cf0a4119a7754cb615e355a693}
+      \strng{fullhash}{c5b1b8cf0a4119a7754cb615e355a693}
+      \strng{bibnamehash}{c5b1b8cf0a4119a7754cb615e355a693}
+      \strng{authorbibnamehash}{c5b1b8cf0a4119a7754cb615e355a693}
+      \strng{authornamehash}{c5b1b8cf0a4119a7754cb615e355a693}
+      \strng{authorfullhash}{c5b1b8cf0a4119a7754cb615e355a693}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{{DAFx 20in22}}
+      \field{month}{9}
+      \field{title}{{CONTROL PARAMETERS FOR REED WIND INSTRUMENTS OR ORGAN PIPES WITH REED INDUCED FLOW}}
+      \field{year}{2022}
+      \verb{file}
+      \verb https://hal.science/hal-03794382v1/file/DAFx20in22_paper_42.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://hal.science/hal-03794382
+      \endverb
+      \verb{url}
+      \verb https://hal.science/hal-03794382
+      \endverb
+    \endentry
+    \entry{chaigne:hal-05370840}{book}{}
+      \name{author}{2}{}{%
+        {{hash=6c83c59a8dcbb55c3462c05169f1096b}{%
+           family={Chaigne},
+           familyi={C\bibinitperiod},
+           given={Antoine},
+           giveni={A\bibinitperiod}}}%
+        {{hash=44f1d2e2e315ad5f24270aa27907354a}{%
+           family={Kergomard},
+           familyi={K\bibinitperiod},
+           given={Jean},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{f9d419ff5cf2de957ddc5505bfe71b01}
+      \strng{fullhash}{f9d419ff5cf2de957ddc5505bfe71b01}
+      \strng{bibnamehash}{f9d419ff5cf2de957ddc5505bfe71b01}
+      \strng{authorbibnamehash}{f9d419ff5cf2de957ddc5505bfe71b01}
+      \strng{authornamehash}{f9d419ff5cf2de957ddc5505bfe71b01}
+      \strng{authorfullhash}{f9d419ff5cf2de957ddc5505bfe71b01}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{{Acoustique des Instruments de Musique}}
+      \field{year}{2013}
+      \verb{file}
+      \verb https://hal.science/hal-05370840v1/file/Acoustique_des_Instruments_de_Musique_Chaigne_Kergomard_2013.pdf
+      \endverb
+      \verb{urlraw}
+      \verb https://hal.science/hal-05370840
+      \endverb
+      \verb{url}
+      \verb https://hal.science/hal-05370840
+      \endverb
+    \endentry
+    \entry{griewank2008evaluating}{book}{}
+      \name{author}{2}{}{%
+        {{hash=9d68c52b6098887b6e6de85daafbb0bb}{%
+           family={Griewank},
+           familyi={G\bibinitperiod},
+           given={Andreas},
+           giveni={A\bibinitperiod}}}%
+        {{hash=68a9142e72a38a6200c3beb53fe90f40}{%
+           family={Walther},
+           familyi={W\bibinitperiod},
+           given={Andrea},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{location}{1}{%
+        {Philadelphia}%
+      }
+      \list{publisher}{1}{%
+        {SIAM}%
+      }
+      \strng{namehash}{77366ceff7089ab546dc44d384ee46ac}
+      \strng{fullhash}{77366ceff7089ab546dc44d384ee46ac}
+      \strng{bibnamehash}{77366ceff7089ab546dc44d384ee46ac}
+      \strng{authorbibnamehash}{77366ceff7089ab546dc44d384ee46ac}
+      \strng{authornamehash}{77366ceff7089ab546dc44d384ee46ac}
+      \strng{authorfullhash}{77366ceff7089ab546dc44d384ee46ac}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{2}
+      \field{title}{Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation}
+      \field{year}{2008}
+      \verb{doi}
+      \verb 10.1137/1.9780898717761
+      \endverb
+    \endentry
+    \entry{HesthavenWarburton2008}{book}{}
+      \name{author}{2}{}{%
+        {{hash=39aad61f5da02ed4a0982d36111bd4dc}{%
+           family={Hesthaven},
+           familyi={H\bibinitperiod},
+           given={Jan\bibnamedelima S.},
+           giveni={J\bibinitperiod\bibinitdelim S\bibinitperiod}}}%
+        {{hash=21cc194d44bff2dc873217ef656ec050}{%
+           family={Warburton},
+           familyi={W\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Springer New York, NY}%
+      }
+      \strng{namehash}{2076bfc50205e085ffe3213f5c3f46c8}
+      \strng{fullhash}{2076bfc50205e085ffe3213f5c3f46c8}
+      \strng{bibnamehash}{2076bfc50205e085ffe3213f5c3f46c8}
+      \strng{authorbibnamehash}{2076bfc50205e085ffe3213f5c3f46c8}
+      \strng{authornamehash}{2076bfc50205e085ffe3213f5c3f46c8}
+      \strng{authorfullhash}{2076bfc50205e085ffe3213f5c3f46c8}
+      \field{sortinit}{H}
+      \field{sortinithash}{23a3aa7c24e56cfa16945d55545109b5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{series}{Texts in Applied Mathematics}
+      \field{subtitle}{Algorithms, Analysis, and Applications}
+      \field{title}{Nodal Discontinuous Galerkin Methods}
+      \field{year}{2008}
+      \verb{doi}
+      \verb 10.1007/978-0-387-72067-8
+      \endverb
+    \endentry
+    \entry{jax_autodiff}{online}{}
+      \name{author}{1}{}{%
+        {{hash=b372694a04c4ca593c1d093f335da681}{%
+           family={{JAX Authors}},
+           familyi={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{b372694a04c4ca593c1d093f335da681}
+      \strng{fullhash}{b372694a04c4ca593c1d093f335da681}
+      \strng{bibnamehash}{b372694a04c4ca593c1d093f335da681}
+      \strng{authorbibnamehash}{b372694a04c4ca593c1d093f335da681}
+      \strng{authornamehash}{b372694a04c4ca593c1d093f335da681}
+      \strng{authorfullhash}{b372694a04c4ca593c1d093f335da681}
+      \field{sortinit}{J}
+      \field{sortinithash}{b2f54a9081ace9966a7cb9413811edb4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{JAX documentation}
+      \field{title}{Forward- and Reverse-Mode Autodiff in JAX}
+      \field{urlday}{15}
+      \field{urlmonth}{8}
+      \field{urlyear}{2026}
+      \field{urldateera}{ce}
+      \verb{urlraw}
+      \verb https://docs.jax.dev/en/latest/jacobian-vector-products.html
+      \endverb
+      \verb{url}
+      \verb https://docs.jax.dev/en/latest/jacobian-vector-products.html
+      \endverb
+    \endentry
+    \entry{Modartt}{misc}{}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labeltitlesource}{title}
+      \field{note}{Accessed: 2026-01-27}
+      \field{title}{MODARTT -- Physical Modelling for Sound Synthesis}
+      \verb{urlraw}
+      \verb https://www.modartt.com/
+      \endverb
+      \verb{url}
+      \verb https://www.modartt.com/
+      \endverb
+    \endentry
+    \entry{OpenwindInria}{misc}{}
+      \field{sortinit}{O}
+      \field{sortinithash}{2cd7140a07aea5341f9e2771efe90aae}
+      \field{labeltitlesource}{title}
+      \field{note}{Accessed: 2026-01-27}
+      \field{title}{OpenWind}
+      \verb{urlraw}
+      \verb http://openwind.inria.fr
+      \endverb
+      \verb{url}
+      \verb http://openwind.inria.fr
+      \endverb
+    \endentry
+    \entry{schwaer2023multi}{article}{}
+      \name{author}{2}{}{%
+        {{hash=3d66b89e7a0fcf04df52be8efc28e418}{%
+           family={Schwär},
+           familyi={S\bibinitperiod},
+           given={Simon},
+           giveni={S\bibinitperiod}}}%
+        {{hash=80b6d841b668c1c8aa2744a675afd39e}{%
+           family={Müller},
+           familyi={M\bibinitperiod},
+           given={Meinard},
+           giveni={M\bibinitperiod}}}%
+      }
+      \strng{namehash}{de3a9fa8f2d105ea38e77c6b9154a454}
+      \strng{fullhash}{de3a9fa8f2d105ea38e77c6b9154a454}
+      \strng{bibnamehash}{de3a9fa8f2d105ea38e77c6b9154a454}
+      \strng{authorbibnamehash}{de3a9fa8f2d105ea38e77c6b9154a454}
+      \strng{authornamehash}{de3a9fa8f2d105ea38e77c6b9154a454}
+      \strng{authorfullhash}{de3a9fa8f2d105ea38e77c6b9154a454}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IEEE Signal Processing Letters}
+      \field{month}{01}
+      \field{title}{Multi-Scale Spectral Loss Revisited}
+      \field{volume}{30}
+      \field{year}{2023}
+      \field{pages}{1712\bibrangedash 1716}
+      \range{pages}{5}
+      \verb{doi}
+      \verb 10.1109/LSP.2023.3333205
+      \endverb
+    \endentry
+    \entry{thibault}{thesis}{}
+      \name{author}{1}{}{%
+        {{hash=a65d525a4143fee15f300748f9af0fb9}{%
+           family={Thibault},
+           familyi={T\bibinitperiod},
+           given={Alexis},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {Université de Pau et des Pays de l'Adour}%
+      }
+      \strng{namehash}{a65d525a4143fee15f300748f9af0fb9}
+      \strng{fullhash}{a65d525a4143fee15f300748f9af0fb9}
+      \strng{bibnamehash}{a65d525a4143fee15f300748f9af0fb9}
+      \strng{authorbibnamehash}{a65d525a4143fee15f300748f9af0fb9}
+      \strng{authornamehash}{a65d525a4143fee15f300748f9af0fb9}
+      \strng{authorfullhash}{a65d525a4143fee15f300748f9af0fb9}
+      \field{sortinit}{T}
+      \field{sortinithash}{9af77f0292593c26bde9a56e688eaee9}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{month}{10}
+      \field{note}{PDF: \url{https://theses.hal.science/tel-04868270v1/file/thesisthibault.pdf}}
+      \field{number}{2023PAUU3051}
+      \field{title}{{Modélisation, analyse et simulation de l'acoustique dissipative dans les tubes poreux ou rugueux : application aux instruments à vent}}
+      \field{type}{phdthesis}
+      \field{year}{2023}
+      \verb{urlraw}
+      \verb https://theses.hal.science/tel-04868270
+      \endverb
+      \verb{url}
+      \verb https://theses.hal.science/tel-04868270
+      \endverb
+      \keyw{Energy-preserving numerical methods ; Porosity ; Roughness ; Implicit-explicit schemes ; Viscothermal acoustics ; Numerical analysis ; Analyse numérique ; Acoustique viscothermique ; Méthodes numériques préservant ; Porosité ; Rugosité ; Schémas implicites-explicites}
+    \endentry
+    \entry{vergez2010analyse}{article}{}
+      \name{author}{1}{}{%
+        {{hash=af3f29606e795344044f33cdef61d91c}{%
+           family={Vergez},
+           familyi={V\bibinitperiod},
+           given={Christophe},
+           giveni={C\bibinitperiod}}}%
+      }
+      \strng{namehash}{af3f29606e795344044f33cdef61d91c}
+      \strng{fullhash}{af3f29606e795344044f33cdef61d91c}
+      \strng{bibnamehash}{af3f29606e795344044f33cdef61d91c}
+      \strng{authorbibnamehash}{af3f29606e795344044f33cdef61d91c}
+      \strng{authornamehash}{af3f29606e795344044f33cdef61d91c}
+      \strng{authorfullhash}{af3f29606e795344044f33cdef61d91c}
+      \field{sortinit}{V}
+      \field{sortinithash}{afb52128e5b4dc4b843768c0113d673b}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{month}{01}
+      \field{title}{Analyse du fonctionnement des instruments de musique à vent}
+      \field{year}{2010}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

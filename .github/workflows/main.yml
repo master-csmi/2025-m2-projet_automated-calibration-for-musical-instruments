@@ -21,24 +21,26 @@ jobs:
                 python3 -m venv myenv
                 source myenv/bin/activate
                 pip install -r requirements.txt
+                pip install -e .
 
             - name: Discontinuous Galerkin tests
               run: |
                 source myenv/bin/activate
+                cd tests/
                 pytest test.py -v
 
             - name: Generate Report pdf
               run: |
-                cd Report_and_Presentation
-                pdflatex CSMI-M2-2025-auto-calibration-instrument.tex
-                biber CSMI-M2-2025-auto-calibration-instrument
-                pdflatex CSMI-M2-2025-auto-calibration-instrument.tex
-                pdflatex CSMI-M2-2025-auto-calibration-instrument.tex
+                cd doc/Rapport
+                pdflatex rapport_stage.tex
+                biber rapport_stage
+                pdflatex rapport_stage.tex
+                pdflatex rapport_stage.tex
 
             - name: Generate Presentation pdf
               run: |
-                cd Report_and_Presentation
-                pdflatex CSMI-M2-2025-auto-calibration-instrument-slides.tex
-                biber CSMI-M2-2025-auto-calibration-instrument-slides
-                pdflatex CSMI-M2-2025-auto-calibration-instrument-slides.tex
-                pdflatex CSMI-M2-2025-auto-calibration-instrument-slides.tex
+                cd doc/Oral
+                pdflatex oral_stage_M2_Rodolphe_Vivant.tex
+                biber oral_stage_M2_Rodolphe_Vivant
+                pdflatex oral_stage_M2_Rodolphe_Vivant.tex
+                pdflatex oral_stage_M2_Rodolphe_Vivant.tex

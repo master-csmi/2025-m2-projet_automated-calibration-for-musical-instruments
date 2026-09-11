@@ -1,0 +1,18 @@
+{
+    "solver_params": {
+        "train": {
+            "T_max": 0.1,
+            "T_long": 0.05,
+            "cfl": 0.2,
+            "Nx": 100,
+            "N_snapshot": 100
+        },
+        "valid": {        
+            "T_max":0.2,
+            "cfl":0.2,
+            "Nx": 200,
+            "N_snapshot": 500
+        }
+    }
+}
+

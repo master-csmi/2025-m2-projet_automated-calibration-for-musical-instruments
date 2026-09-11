@@ -19,3 +19,12 @@ pandas>=2.0.0
 
 # Pytest for testing
 pytest>=7.0.0
+
+#openwind
+openwind
+
+#optax
+optax>=0.1.0
+
+#soundifle
+soundfile

@@ -1,0 +1,2 @@
+global_iteration,stage,iteration,total_loss,observation_loss,shape_regularization,lr_params,lr_lfunc,epoch_seconds,epoch_minutes
+0,long,0,4.792789266461273,4.792789266461273,0.0,0.0004027626311097629,0.0001,2098.917147874832,34.98195246458054

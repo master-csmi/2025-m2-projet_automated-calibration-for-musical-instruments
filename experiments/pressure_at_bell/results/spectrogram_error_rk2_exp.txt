@@ -1,0 +1,5 @@
+spectral_convergence=1.080804087862e-03
+log_spectral_distance_db=7.298932809650e-01
+mean_absolute_error_db=3.593843466371e-01
+rmse_db=7.299143109996e-01
+max_absolute_error_db=8.293545781340e+00

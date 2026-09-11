@@ -1,0 +1,43 @@
+from src.utils.util_func import ReedOpening
+from src.physics.S_profiles import SProfile
+from src.utils.diff import PhysicalData
+import jax.numpy as jnp
+
+def build_physical_data(params, type_S):
+
+    left = params["left_bc_params"]
+    mouth = left["mouth_pressure_params"]
+    right = params["right_bc_params"]
+    train = params["trainable"]
+    instrument = params["instrument_geometry"]
+    observation = params.get("observation_params", {})
+
+    a = observation.get("a", 1.0)
+    bool_a = train.get("a", False)
+    
+
+    
+
+    return PhysicalData(
+        eps_data   = (left["epsilon"], train["epsilon"]),
+        beta_data  = (right["beta"], train["beta"]),
+        alpha_data = (right["alpha"], train["alpha"]),
+        zeta_data   = (left["zeta"], train["zeta"]),
+        kappa_data = (left["kappa"], train["kappa"]),
+        Zt_data    = (right["Zt"], train["Zt"]),
+        fr_data    = (left["fr"], train["fr"]),
+        gamma_data = (mouth["gamma_final"], train["gamma_final"]),
+        t_attack_data = (mouth["t_attack"], train["t_attack"]),
+        L_tube_data = (instrument["tube"]["L_tube"], train["L_tube"]),
+        R_tube_data = (instrument["tube"]["R_tube"], train["R_tube"]),
+        L_bell_data = (instrument["bell"]["L_bell"], train["L_bell"]),
+        k_bell_data = (instrument["bell"]["k_bell"], train["k_bell"]),
+        Qr_data    = (left["Qr"], train["Qr"]),
+        # Gain de la chaîne d'acquisition
+        a_data=(a, bool_a),
+
+        l = ReedOpening(),
+        section=SProfile(type_S=type_S, L_tube=instrument["tube"]["L_tube"], 
+                         R_tube=instrument["tube"]["R_tube"], L_bell=instrument["bell"]["L_bell"], 
+                        k_bell=instrument["bell"]["k_bell"])
+    )

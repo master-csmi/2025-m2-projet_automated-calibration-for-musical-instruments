@@ -1,0 +1,2 @@
+target_source,T_max,true_fr,true_Qr,hybrid_min_fr,hybrid_min_Qr,hybrid_min_loss,pressure_min_fr,pressure_min_Qr,pressure_min_loss,reed_min_fr,reed_min_Qr,reed_min_loss,n_fr,n_Qr,fr_min,fr_max,Qr_min,Qr_max
+openwind,0.01,170.0,125.0,173.84615384615387,20.0,0.08685459847677103,173.84615384615387,20.0,0.17370853508159995,173.84615384615387,43.58974358974359,3.31143896528058e-08,40,40,50.0,260.0,20.0,250.0
